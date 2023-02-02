@@ -1,0 +1,68 @@
+TeaScript Known Issues 
+======================
+
+Beside feature incompleteness there are the following known issues which will be fixed in a later (pre-)release.
+
+1.) [PLATFORM: any]
+    Floating point literals using decimal point and the e for exponent the same time cannot be parsed actually.
+    E.g, this will not work: 123.456e-10 but this will 123.456 and this also 123456e-13
+    
+
+2.) [PLATFORM: any]
+    Floating Point to/as string representation will use always 6 decimal digits. 
+    A to-string conversion followed by a from-string conversion will lose precision after the 5th decimal digit.
+    def a := 123456e-13
+    will be displayed as
+    0.000000
+    but 
+    a * 100000000
+    will be calculated correct to
+    1.23456
+    
+    
+3.) [PLATFORM: any]
+    Actually, there are neither implicit number type conversions nor any cast operators.
+    For convert f64 to i64 you must use the function _f64toi64 (or to_i64).
+    For convert i64 to f64 you can either use to_f64 or simply add 0.0 for f64 promotion.
+    
+    
+4.) [PLATFORM: any]
+    Actually only the last statement/expression inside an expression formed with parantheses will be evaluated!
+    (a := 4, b := 5) // the assignment to a will not be done!
+    This is because actually parenthesis with more than one expression are reserved for build tuples.
+    But tuples are not implemented yet.
+    
+
+5.) [PLATFORM: Windows]
+    Echo'ed input of Unicode might be broken on Windows for the case if the Unicode glyph is 
+    assembled as a surrogate pair in it's UTF-16 representation. This is a bug (or missing feature)
+    inside the WIN32 API. 
+    Echo'ed input is present when
+    - typing commands / code in the interactive shell. (TeaScript Host Application only)
+    - request user input via readline() function.      (TeaScript Library and Host Application)
+    
+    Nevertheless, the read in data is correctly stored in it's UTF-8 representation and can be used without problems,
+    e.g. printing the read data later on the screen will be no problem.
+    
+    Hint: Ensure you are using "Windows Terminal" together with either PowerShell or Command Prompt to experience
+    the best possible Unicode support on Windows.
+
+
+6.) [PLATFORM: any]
+    Parsing and/or Evaluation errors from inside in-string evaluation may show wrong source
+    when pretty print it.
+    For TeaScript Host Application use :debug enabled in interactive shell or --debug when executing script files for get
+    a better pretty print.
+    For TeaScript Library use Engine::SetDebugMode( true )
+
+   
+7.) [PLATFORM: Linux with gcc or clang w. libstdc++]
+    Comparing values where at least one is a floating point and this value is not finite (e.g. NAN or infinity)
+    will throw a teascript::exception::runtime_error. Actually, this exception cannot be caught within the 
+    TeaScript code.
+    On Windows (Visual Studio) and clang w. libc++ a total strong ordering will be performed and the values can be compared.
+
+    
+8.) [PLATFORM: Linux]
+    CoreLibrary function clock_utc() will return UTC time _without_ leap seconds.
+

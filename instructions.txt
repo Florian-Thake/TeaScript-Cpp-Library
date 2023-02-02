@@ -1,0 +1,63 @@
+Instructions for the TeaScript C++ Library (Standard version)
+==============================================================
+
+
+Supported compiler (tested with):
+
+Visual Studio 2022 (17.2 or newer)   --  Visual Studio 2019 also works (starting from 16.11.14)
+g++ 11.3                             --  not sure if g++ 10 or 9 could work as well.
+clang 14 (with libstdc++ or libc++)   --  not sure if clang 13 could work as well.
+
+Newer compilers should work in general.
+All compilers are compiling in C++20 and for x86_64.
+
+
+Dependencies:
+
+None - for fully C++20 supporting compilers / C++ standard libraries.
+
+Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 9.1.0)
+Libfmt can be downloaded here https://fmt.dev/latest/index.html
+You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
+
+For Windows with C++20 it is also recommended to use libfmt for the best possible Unicode support for stdout.
+
+
+For building the demo app:
+
+Windows: Use the provided VS-project or the settings in compile.props. 
+         If you make a new project, you only need to add the teascript_demo.cpp file and 
+         set the include path to <package_root>/include/
+
+Linux:   Use the compile_gcc.sh or compile_clang.sh with prior updated include path to libfmt.
+
+Other:   Try the way described for Linux. Maybe it will work.
+
+You can test the demo app by invoking it via the provided gcd.tea:
+Windows:
+./teascript_demo.exe gcd.tea 18 42
+
+Linux:
+./teascript_demo gcd.tea 18 42
+
+If you see 6 as the result everything is functional.
+
+
+Using the Library / API:
+
+Have a look at the provided teascript_demo.cpp for some example usage of the API.
+For TeaScript in general you can find documentation here:
+
+https://tea-age.solutions/teascript/overview-and-highlights/
+
+https://tea-age.solutions/teascript/teascript-language-documentation/
+
+If you encounter bugs or problems, have feature wishes or any other question you may try to contact:
+
+support |at| tea-age.solutions
+
+
+Florian Thake
+TeaAge Solutions
+https://tea-age.solutions 
+

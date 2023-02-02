@@ -1,0 +1,56 @@
+Except where otherwise noted, all files included are copyrighted by Florian Thake 
+and are licensed under the "TeaScript Library Standard License".
+
+Copyright (c) 2023 Florian Thake, <support |at| tea-age.solutions>. All rights reserved.
+
+TeaScript Library Standard License
+==================================
+
+The usage of this software or any part of it IS PROHIBITED, except if ONE of the following conditions is met:
+
+a) Usage on client-like computers (not on server-like or cloud-farms, etc.) 
+   in schools or universities for educational purposes.
+
+b) Usage on client-like computers or workstations (not on server-like or cloud-farms, etc.) 
+   for evaluation and/or prototyping purposes, if neither the prototyping nor the evaluation is 
+   generating any corporate income.
+
+c) Usage for personal/family purpose in a private and non-commercial way on private used personal or family devices.
+   
+d) Usage as a plugin inside an IDE or source code editor.
+
+e) Usage for creating/developing a derived work/product which meet the conditions listed below.
+
+
+A derived work/product can be published in binary (compiled) or source code form if ALL of the following conditions are met:
+
+1.) The derived work/product must contain this LICENSE.txt as well as the COPYRIGHT.TXT with unchanged content.
+
+2.) This software must be either included as source code and used unmodified or the included compiled form was built 
+    from the unmodified source.
+    Small modifications of the source for extended platform support and/or bug fixes are permitted.
+
+3.) The origin of this software must not be misrepresented; you must not claim that you wrote the original software. 
+    For a derived work/product an acknowledgment in the documentation as well as in the product itself IS required.
+    
+4.) The derived work/product is provided for free and is not allowed to generate any income (included but not limited to:
+    feature unlocking, crypto currency mining/trading, in-product shopping, in-product advertisement) for the authors, 
+    publishers, copyright holders, owners of the derived work/product. In-product donations are permitted if they don't 
+    change any aspect of the derived work/product (except a visual sign that a donation was done/not done).
+    
+5.) The derived work/product must use the same restrictions and conditions as this license.
+
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE 
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR 
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+Florian Thake
+TeaAge Solutions
+https://tea-age.solutions 
+
+Email: support |at| tea-age.solutions
+Alternative: tea.age.solutions |at| email.de
+

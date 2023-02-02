@@ -1,0 +1,20 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake, <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MIT
+ * see included file MIT_LICENSE.txt
+ */
+ 
+// computes the gcd with a loop
+def x1 := if( is_defined arg1 ) { +arg1 } else { 1 }
+def x2 := if( is_defined arg2 ) { +arg2 } else { 1 }
+def gcd := repeat {
+    if( x1 == x2 ) {
+        stop with x1
+    } else if( x1 > x2 ) {
+        x1 := x1 - x2
+    } else /* x2 > x1 */ {
+        x2 := x2 - x1
+    }
+}
+

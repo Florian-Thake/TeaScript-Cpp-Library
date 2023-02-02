@@ -1,0 +1,8 @@
+x64/
+x86/
+.vs/
+*.vcxproj.filters
+*.vcxproj.user
+*.bak
+*.aps
+includes.props
