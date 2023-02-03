@@ -85,7 +85,7 @@ The last example shows how to use a C++ callback function from the script
 
 // this is our simple callback function which we will call from TeaScript code.
 // The callback function signature is always ValueObject (*)( Context & )
-// We want to compute the squre of the passed parameter.
+// We want to compute the square of the passed parameter.
 teascript::ValueObject calc_square( teascript::Context &rContext )
 {
     if( rContext.CurrentParamCount() != 1 ) { // this check could be relaxed also...
@@ -142,3 +142,40 @@ You only need to set the include path in your project(s) / for compilation. Dete
 
 HINT: For Windows with C++20 it is also recommended to use libfmt for the best possible Unicode support for print to stdout.
 
+# API stability
+
+TeaScript is pre-mature and many things will probably change in some new (pre-)release.<br>
+Howerver, the public methods of the `teascript::Engine` class as well as the public getters of the `teascript::ValueObject` class are considered semi-stable (if not otherwise documented in the code).<br> 
+This means that I will try to ensure backward compatibility if possible or provide a smooth transition - except if major issues are detected or at very rare circumstances.<br>
+This also counts for the headers version.h / Util.hpp / Exception.hpp.<br>
+All other classes / structures / types (including all its methods and members), and free functions are consideres unstable and may change often or might be even removed entirely.
+
+Methods / Functions marked with 
+- **DEPRECATED**: Try to migrate to the new available way as soon as possible. This method might be removed in the next (pre-)release.
+- **INTERNAL**: Don't use this methods. They are reserved for internal usage and may render your program unstable / unusable.
+- **EXPERIMENTAL**: These is a new functionality / technique which needs some feedback from practical usage and might be chaged slightly before it become stable (or it might be removed, if some issuse raised up.)
+
+## Can TeaScript be used for production already?
+
+Yes, it can for certain and specific scenarios. I explain why and which:
+
+First, although the 1.0 release is not done yet, every release has 3 levels of quality assurance:
+
+- UnitTests – on C++ as well as on TeaScript level (TeaScript files testing TeaScript features).
+- Functional tests with scripts.
+- Manual testing.
+
+This ensures a high level of quality already.
+
+Second, use the high-level C++ API only (e.g. via class teascript::Engine ). This API will stay backward compatible already or a soft migration will be provided – except if major issues are detected or at very rare circumstances.
+
+# Disclaimer
+This software is provided “as-is” without any express or implied warranty. In no event shall the author be held liable for any damages arising from the use of this software.
+
+See also the included LICENSE.TXT for usage conditions and permissions.
+
+This software is a pre-release.
+The behavior, API/ABI, command line arguments, contents of the package, usage conditions + permissions and any other aspects of the software and the package may change in a non backwards compatible or a non upgradeable way without prior notice with any new (pre-)release.
+
+# Copyright
+Copyright (C) 2023 Florian Thake <support |at| tea-age.solutions>. All rights reserved.
