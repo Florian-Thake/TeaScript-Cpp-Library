@@ -129,8 +129,10 @@ g++ 11.3
 clang 14 (with libstdc++ or libc++)
 - untested if clang 13 could work as well.
 
-Newer compilers should work in general.
-All compilers are compiling in **C++20** and for **x86_64**.
+Newer compilers should work in general.<br>
+All compilers are compiling in **C++20** and for **x86_64**.<br>
+<br>
+**Warning free** on Viusal Studio for Level 4 and gcc/clang for -Wall
 
 # Dependencies
 
@@ -170,9 +172,9 @@ This also counts for the headers version.h / Util.hpp / Exception.hpp.<br>
 All other classes / structures / types (including all its methods and members), and free functions are considered unstable and may change often or might be even removed entirely.
 
 Methods / Functions marked with 
-- **DEPRECATED**: Try to migrate to the new available way as soon as possible. This method might be removed in the next (pre-)release.
-- **INTERNAL**: Don't use this methods. They are reserved for internal usage and may render your program unstable / unusable.
-- **EXPERIMENTAL**: This is a new functionality / technique which needs some feedback from practical usage and might be chaged slightly before it become stable (or it might be removed, if some issuse raised up.)
+- **DEPRECATED**: Try to migrate to the new available way as soon as possible. This method will be removed within some next (pre-)release.
+- **INTERNAL**: Don't use these methods. They are reserved for internal usage and may render your program unstable / unusable. You cannot rely on the functionaity / behavior / existence.
+- **EXPERIMENTAL**: This is a new functionality / technique and mighht be changed/modified after some feedback from practical usage before it becomes stable (or it might be removed/created in a new way from scratch, if some issuse raised up.)
 
 ## Can TeaScript be used for production already?
 
