@@ -166,7 +166,7 @@ If you see **6** as the result everything is functional.
 # API stability
 
 TeaScript is pre-mature and many things will probably change in some new (pre-)release.<br>
-Howerver, the public methods of the `teascript::Engine` class as well as the public getters of the `teascript::ValueObject` class are considered semi-stable (if not otherwise documented in the code).<br> 
+However, the public methods of the `teascript::Engine` class as well as the public getters of the `teascript::ValueObject` class are considered semi-stable (if not otherwise documented in the code).<br> 
 This means that I will try to ensure backward compatibility if possible or provide a smooth transition - except if major issues are detected or at very rare circumstances.<br>
 This also counts for the headers version.h / Util.hpp / Exception.hpp.<br>
 All other classes / structures / types (including all its methods and members), and free functions are considered unstable and may change often or might be even removed entirely.
@@ -192,7 +192,7 @@ Second, use the high-level C++ API only (e.g. via class teascript::Engine ). Thi
 
 # License
 The TeaScript C++ Library is licensed under the the TeaScript Library Standard License.<br>
-Please, reed the LICENSE.TXT carefully. You may find another copy also at https://tea-age.solutions/teascript/product-variants/ <br>
+Please, read the LICENSE.TXT carefully. You may find another copy also at https://tea-age.solutions/teascript/product-variants/ <br>
 If the license does not fit for you, you can purchase a license with lesser restrictions via the contact form on<br>
 https://tea-age.solutions<br>
 or issue a request to <contact |at| tea-age.solutions><br>
