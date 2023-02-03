@@ -12,6 +12,18 @@ A Library bundle **with more example scripts** as well as a full featured **TeaS
 an interactive shell, a REPL, debugging opions, time measurement and more can be downloaded here: <br>
 https://tea-age.solutions/downloads/
 
+# About TeaScript
+Get a very nice overview with the most **impressive highlights** here:<br>
+https://tea-age.solutions/teascript/overview-and-highlights/ <br>
+<br>
+TeaScript language documentation:<br>
+https://tea-age.solutions/teascript/teascript-language-documentation/ <br>
+Integrated Core Library Documentation:<br>
+https://tea-age.solutions/teascript/teascript-core-library-documentation/<br>
+<br>
+Read a comparison between TeaScript and other C++ scripting libraries:<br>
+https://tea-age.solutions/2023/01/31/script-language-comparison-for-embed-in-cpp/
+
 # Example Usage
 
 The first example will do the classic "Hello World" with the TeaScript C++ Library.
