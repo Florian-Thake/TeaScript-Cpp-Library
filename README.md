@@ -142,18 +142,37 @@ You only need to set the include path in your project(s) / for compilation. Dete
 
 HINT: For Windows with C++20 it is also recommended to use libfmt for the best possible Unicode support for print to stdout.
 
+# Building the demo app
+
+**Windows:** Use the provided VS-project or the settings in compile.props.
+If you make a new project, you only need to add the teascript_demo.cpp file and
+set the include path to /include/
+
+**Linux:** Use the compile_gcc.sh or compile_clang.sh with prior updated include path to libfmt.
+
+**Other:** Try the way described for Linux. Maybe it will work.
+
+You can test the demo app by invoking it via the provided gcd.tea:<br>
+Windows:<br>
+`./teascript_demo.exe gcd.tea 18 42`
+
+Linux:<br>
+`./teascript_demo gcd.tea 18 42`
+
+If you see **6** as the result everything is functional.
+
 # API stability
 
 TeaScript is pre-mature and many things will probably change in some new (pre-)release.<br>
 Howerver, the public methods of the `teascript::Engine` class as well as the public getters of the `teascript::ValueObject` class are considered semi-stable (if not otherwise documented in the code).<br> 
 This means that I will try to ensure backward compatibility if possible or provide a smooth transition - except if major issues are detected or at very rare circumstances.<br>
 This also counts for the headers version.h / Util.hpp / Exception.hpp.<br>
-All other classes / structures / types (including all its methods and members), and free functions are consideres unstable and may change often or might be even removed entirely.
+All other classes / structures / types (including all its methods and members), and free functions are considered unstable and may change often or might be even removed entirely.
 
 Methods / Functions marked with 
 - **DEPRECATED**: Try to migrate to the new available way as soon as possible. This method might be removed in the next (pre-)release.
 - **INTERNAL**: Don't use this methods. They are reserved for internal usage and may render your program unstable / unusable.
-- **EXPERIMENTAL**: These is a new functionality / technique which needs some feedback from practical usage and might be chaged slightly before it become stable (or it might be removed, if some issuse raised up.)
+- **EXPERIMENTAL**: This is a new functionality / technique which needs some feedback from practical usage and might be chaged slightly before it become stable (or it might be removed, if some issuse raised up.)
 
 ## Can TeaScript be used for production already?
 
