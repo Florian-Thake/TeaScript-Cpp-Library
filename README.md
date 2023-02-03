@@ -188,6 +188,21 @@ This ensures a high level of quality already.
 
 Second, use the high-level C++ API only (e.g. via class teascript::Engine ). This API will stay backward compatible already or a soft migration will be provided – except if major issues are detected or at very rare circumstances.
 
+# License
+The TeaScript C++ Library is licensed under the the TeaScript Library Standard License.<br>
+Please, reed the LICENSE.TXT carefully. You may find another copy also at https://tea-age.solutions/teascript/product-variants/ <br>
+If the license does not fit for you, you can purchase a license with lesser restrictions via the contact form on<br>
+https://tea-age.solutions<br>
+or issue a request to <contact |at| tea-age.solutions><br>
+
+Because of the pre-mature nature of TeaScript, special offerings, discounts, more free support and influence to the feature list and feature priority is possible when purchasing a license.
+
+## Why a restrictive license?
+I put a lot of work and time into TeaScript so far. If somebody is able to generate some income with the help of my work/time, I want something back.<br>
+Because, otherwise, it would mean that I worked for free for others to make money. For me that is not fair. <br>
+But if somebody don't make money and just enjoy TeaScript or provide something for free, then I'll do so as well.<br>
+For develop TeaScript further I must be able to invest in time and resources. Otherwise a quick development (or a development at all) is not secured.
+
 # Disclaimer
 This software is provided “as-is” without any express or implied warranty. In no event shall the author be held liable for any damages arising from the use of this software.
 
