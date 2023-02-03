@@ -6,6 +6,7 @@ This Library can be used as **header only** library and is **dependency free** f
 
 Provided with this Library is a **demo app** for illustrating the C++ API usage and a basic way for execute TeaScript files.
 
+**TeaScript** is a **Multi-Paradigm script language** close to C++ syntax but easier to use.<br>
 More inforamtion about TeaScript is available here: https://tea-age.solutions/teascript/overview-and-highlights/
 
 A Library bundle **with more example scripts** as well as a full featured **TeaScript Host Application** for execute **standalone** script files, 
