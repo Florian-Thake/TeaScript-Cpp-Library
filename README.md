@@ -7,10 +7,10 @@ This Library can be used as **header only** library and is **dependency free** f
 Provided with this Library is a **demo app** for illustrating the C++ API usage and a basic way for execute TeaScript files.
 
 **TeaScript** is a **Multi-Paradigm script language** close to C++ syntax but easier to use.<br>
-More inforamtion about TeaScript is available here: https://tea-age.solutions/teascript/overview-and-highlights/
+More information about TeaScript is available here: https://tea-age.solutions/teascript/overview-and-highlights/
 
 A Library bundle **with more example scripts** as well as a full featured **TeaScript Host Application** for execute **standalone** script files, 
-an interactive shell, a REPL, debugging opions, time measurement and more can be downloaded here: <br>
+an interactive shell, a REPL, debugging options, time measurement and more can be downloaded here: <br>
 https://tea-age.solutions/downloads/
 
 # About TeaScript
@@ -145,7 +145,7 @@ clang 14 (with libstdc++ or libc++)
 Newer compilers should work in general.<br>
 All compilers are compiling in **C++20** and for **x86_64**.<br>
 <br>
-**Warning free** on Viusal Studio for Level 4 and gcc/clang for -Wall
+**Warning free** on Visual Studio for Level 4 and gcc/clang for -Wall
 
 # Dependencies
 
@@ -186,8 +186,8 @@ All other classes / structures / types (including all its methods and members), 
 
 Methods / Functions marked with 
 - **DEPRECATED**: Try to migrate to the new available way as soon as possible. This method will be removed within some next (pre-)release.
-- **INTERNAL**: Don't use these methods. They are reserved for internal usage and may render your program unstable / unusable. You cannot rely on the functionaity / behavior / existence.
-- **EXPERIMENTAL**: This is a new functionality / technique and mighht be changed/modified after some feedback from practical usage before it becomes stable (or it might be removed/created in a new way from scratch, if some issuse raised up.)
+- **INTERNAL**: Don't use these methods. They are reserved for internal usage and may render your program unstable / unusable. You cannot rely on the functionality / behavior / existence.
+- **EXPERIMENTAL**: This is a new functionality / technique and might be changed/modified after some feedback from practical usage before it becomes stable (or it might be removed/created in a new way from scratch, if some issue raised up.)
 
 ## Can TeaScript be used for production already?
 
