@@ -119,6 +119,7 @@ teascript::ValueObject calc_square( teascript::Context &rContext )
 teascript::Engine  engine;
 
 // register a function as a callback. can use arbitrary names.
+// PRO TIPP: use a capturing lambda or std::bind to carry any user context with you.
 engine.RegisterUserCallback( "squared", calc_square );
 
 // execute the script which will call our function
