@@ -1,6 +1,7 @@
 # TeaScript C++ Library
-This is a snapshot of the latest Release of the **TeaScript C++ Library** for embed in C++ Applications.
-Extend your applications dynamically during runtime with TeaScript.
+This is a snapshot of the latest Release of the **TeaScript C++ Library** for embed in C++ Applications.<br><br>
+**Extend** your applications **dynamically** during runtime with **TeaScript**.<br>
+**Once** your application has **customization points** for TeaScript you can extend **each** installation/distribution **without expensive re-compile and deployment procedure** with **arbitrary** and **individual** functionality.
 
 This Library can be used as **header only** library and is **dependency free** for fully C++20 supporting compilers / C++ standard libraries.
 
