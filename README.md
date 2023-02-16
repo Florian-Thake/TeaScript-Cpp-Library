@@ -132,6 +132,70 @@ std::cout << "square is " << res.GetAsInteger() << std::endl;
 
 More examples are in the teascript_demo.cpp of this repo.
 
+# Example TeaScript Code
+
+(Better syntax highlighting on the TeaScript home page.)
+
+```cpp
+def    age  := 42     // mutable variable of type i64
+const  year := 2022   // const variable of type i64
+
+// output: Thomas is 42 years old and born in 1980.
+println( "Thomas is %(age) years old and born in %(year - age)." ) 
+
+
+// result of a loop can be direct assigned to a variable. (can do this with any code blocks)
+// illustrating this by computing the gcd (greatest common divisor) with a loop and store the result directly in a variable:
+def x1 := 48
+def x2 := 18
+def gcd := repeat {         // assign the result of the repeat loop
+    if( x1 == x2 ) {
+        stop with x1        // the result of the loop
+    } else if( x1 > x2 ) {
+        x1 := x1 - x2
+    } else /* x2 > x1 */ {
+        x2 := x2 - x1
+    }
+}
+
+// gcd will be 6
+
+
+// easy loop control - loops are addressable
+def c := 10
+repeat "this" {         // loop is named "this"
+    repeat "that" {     // loop is named "that"
+        c := c – 1
+        if( c > 6 ) {
+            loop "that" // loop to the head (start) of the inner loop (the "that"-loop)
+        }
+        stop "this"     // stop the outer loop (the "this"-loop) directly from within the inner loop with one statement!
+    }
+    // This code will never be reached!
+    c := 0
+}
+   
+// c will be 6 here.
+
+
+// === Lambdas and higher order functions:
+
+// classical way to define a function.
+func call( f, arg )
+{
+    f( arg ) // calling f. f must be sth. callable, e.g., a function
+    // NOTE: return value of f will be implicit returned.
+}
+
+def squared := func ( x ) { x * x } // This is the Uniform Definition Syntax for define functions.
+
+call( squared, 3 )  // passing function as parameter. result: 9
+
+call( func (z) { z + z }, 3 ) // passing lambda as parameter. result: 6
+```
+More impressive highlights on:<br>
+https://tea-age.solutions/teascript/overview-and-highlights/
+
 
 # Supported compiler (tested with)
 
