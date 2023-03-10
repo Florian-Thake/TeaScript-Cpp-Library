@@ -1,7 +1,7 @@
 # TeaScript C++ Library
 This is a snapshot of the latest Release of the **TeaScript C++ Library** for embed in C++ Applications.<br><br>
-**Extend** your applications **dynamically** during runtime with **TeaScript**.<br>
-**Once** your application has **customization points** for TeaScript you can extend **each** installation/distribution **without expensive re-compile and deployment procedure** with **arbitrary** and **individual** functionality.
+**Extend** your applications dynamically during runtime with TeaScript.<br>
+Once your application has **customization points** for TeaScript you can extend each installation/distribution **without** expensive re-compile and deployment procedure with arbitrary and individual functionality.
 
 This Library can be used as **header only** library and is **dependency free** for fully C++20 supporting compilers / C++ standard libraries.
 
@@ -10,11 +10,14 @@ Provided with this Library is a **demo app** for illustrating the C++ API usage 
 **TeaScript** is a **Multi-Paradigm script language** close to C++ syntax but easier to use.<br>
 More information about TeaScript is available here: https://tea-age.solutions/teascript/overview-and-highlights/
 
-A Library bundle **with more example scripts** as well as a full featured **TeaScript Host Application** for execute **standalone** script files, 
+A Library bundle with more example scripts as well as a full featured **TeaScript Host Application** for execute **standalone** script files, 
 an interactive shell, a REPL, debugging options, time measurement and more can be downloaded here: <br>
 https://tea-age.solutions/downloads/
 
 # About TeaScript
+**What is new in TeaScript 0.10.0?** Get all infos in the news article:<br>
+https://tea-age.solutions/2023/03/10/release-of-teascript-0-10-0/ <br>
+<br>
 Get a very nice overview with the most **impressive highlights** here:<br>
 https://tea-age.solutions/teascript/overview-and-highlights/ <br>
 <br>
@@ -270,27 +273,25 @@ This ensures a high level of quality already.
 Second, use the high-level C++ API only (e.g. via class teascript::Engine ). This API will stay backward compatible already or a soft migration will be provided – except if major issues are detected or at very rare circumstances.
 
 # License
-The TeaScript C++ Library is licensed under the the TeaScript Library Standard License.<br>
-Please, read the LICENSE.TXT carefully. You may find another copy also at https://tea-age.solutions/teascript/product-variants/ <br>
-If the license does not fit for you, you can purchase a license with lesser restrictions via the contact form on<br>
-https://tea-age.solutions<br>
-or issue a request to <contact |at| tea-age.solutions><br>
-
-Because of the pre-mature nature of TeaScript, special offerings, discounts, more free support and influence to the feature list and feature priority is possible when purchasing a license.
-
-## Why a restrictive license?
-I put a lot of work and time into TeaScript so far. If somebody is able to generate some income with the help of my work/time, I want something back.<br>
-Because, otherwise, it would mean that I worked for free for others to make money. For me that is not fair. <br>
-But if somebody don't make money and just enjoy TeaScript or provide something for free, then I'll do so as well.<br>
-For develop TeaScript further I must be able to invest in time and resources. Otherwise a quick development (or a development at all) is not secured.
+The TeaScript C++ Library (Standard version) is dual licensed.<br>
+The here published version is licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3: see LICENSE.TXT <br>
+<br>
+If the license does not fit for you:<br>
+- for **non-commercial** projects a different license might be available on request.
+- for **commercial** use cases a different license can be purchased.
+<br>
+A purchased licensed will be individual fine grained for perfectly match the use cases and needs. Don’t hesitate to start a conversation / issue a request.
 
 # Disclaimer
 This software is provided “as-is” without any express or implied warranty. In no event shall the author be held liable for any damages arising from the use of this software.
 
-See also the included LICENSE.TXT for usage conditions and permissions.
+See also the included COPYRIGHT.TXT and LICENSE.TXT for license ifnormation, usage conditions and permissions.
 
 This software is a pre-release.
 The behavior, API/ABI, command line arguments, contents of the package, usage conditions + permissions and any other aspects of the software and the package may change in a non backwards compatible or a non upgradeable way without prior notice with any new (pre-)release.
 
 # Copyright
-Copyright (C) 2023 Florian Thake <support |at| tea-age.solutions>. All rights reserved.
+Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
+
+This file:
+Copyright (C) 2023 Florian Thake. All rights reserved.
