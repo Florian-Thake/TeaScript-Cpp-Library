@@ -15,7 +15,7 @@ in a non backwards compatible or a non upgradeable way without prior notice with
 
 If you encounter bugs or problems, have feature wishes or any other question you may try to contact:
 
-support |at| tea-age.solutions
+contact |at| tea-age.solutions
 
 
 Florian Thake

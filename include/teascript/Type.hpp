@@ -1,9 +1,12 @@
-/*
- * SPDX-FileCopyrightText:  Copyright (c) 2023 Florian Thake <support |at| tea-age.solutions>. All rights reserved.
- * SPDX-License-Identifier: SEE LICENSE IN LICENSE.txt
+/* === Part of TeaScript C++ Library ===
+ * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: AGPL-3.0-only
  *
- * Licensed under the TeaScript Library Standard License. See LICENSE.txt or you may find a copy at
- * https://tea-age.solutions/teascript/product-variants/
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
+ * as published by the Free Software Foundation, version 3.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
  */
 #pragma once
 
@@ -19,6 +22,7 @@ namespace teascript {
 // Primitive Types of TeaScript
 struct NotAValue {}; /// The Not A Value type.
 struct Number {};    /// tag for number, acts 'like a concept'
+struct Passthrough {}; /// tag for Passthrough data.
 
 using Bool = bool;                      /// The Boolean type.
 using I64  = signed long long int;      /// 64 bit signed integer
@@ -170,6 +174,7 @@ static TypeInfo const TypeString = MakeTypeInfo<String>("String");
 static TypeInfo const TypeLongLong = MakeTypeInfo<I64>("i64");
 static TypeInfo const TypeDouble = MakeTypeInfo<F64>("f64");
 static TypeInfo const TypeTypeInfo = MakeTypeInfo<TypeInfo>("TypeInfo");
+static TypeInfo const TypePassthrough = MakeTypeInfo<Passthrough>( "Passthrough" );
 
 /// helper class for store TypeInfo instances either as unique_ptr or a as raw pointer (for static instances).
 class TypePtr
@@ -221,7 +226,7 @@ public:
             MakeConst();
         }
         if( type_allocated ) {
-            SetTypeAllpocated( true );
+            SetTypeAllocated( true );
         }
     }
 
@@ -250,7 +255,7 @@ public:
         return mProps.test( 63 );
     }
 
-    void SetTypeAllpocated( bool const set ) noexcept
+    void SetTypeAllocated( bool const set ) noexcept
     {
         mProps.set( 63, set );
     }
@@ -284,6 +289,7 @@ public:
         mTypes.insert( std::make_pair( TypeLongLong.ToTypeIndex(), TypePtr( &TypeLongLong ) ) );
         mTypes.insert( std::make_pair( TypeDouble.ToTypeIndex(), TypePtr( &TypeDouble ) ) );
         mTypes.insert( std::make_pair( TypeTypeInfo.ToTypeIndex(), TypePtr( &TypeTypeInfo ) ) );
+        mTypes.insert( std::make_pair( TypePassthrough.ToTypeIndex(), TypePtr( &TypePassthrough ) ) );
     }
 
     template< RegisterableType T>

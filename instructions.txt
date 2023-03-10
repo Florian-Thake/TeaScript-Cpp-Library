@@ -1,6 +1,8 @@
 Instructions for the TeaScript C++ Library (Standard version)
 ==============================================================
 
+Please, also read the COPYRIGHT.TXT for several licensing information.
+
 
 Supported compiler (tested with):
 
@@ -52,9 +54,9 @@ https://tea-age.solutions/teascript/overview-and-highlights/
 
 https://tea-age.solutions/teascript/teascript-language-documentation/
 
-If you encounter bugs or problems, have feature wishes or any other question you may try to contact:
+If you encounter bugs or problems, have feature wishes or any other question you may contact:
 
-support |at| tea-age.solutions
+contact |at| tea-age.solutions
 
 
 Florian Thake

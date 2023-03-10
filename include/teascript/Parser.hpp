@@ -1,9 +1,12 @@
-/*
- * SPDX-FileCopyrightText:  Copyright (c) 2023 Florian Thake <support |at| tea-age.solutions>. All rights reserved.
- * SPDX-License-Identifier: SEE LICENSE IN LICENSE.txt
+/* === Part of TeaScript C++ Library ===
+ * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: AGPL-3.0-only
  *
- * Licensed under the TeaScript Library Standard License. See LICENSE.txt or you may find a copy at
- * https://tea-age.solutions/teascript/product-variants/
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
+ * as published by the Free Software Foundation, version 3.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
  */
 #pragma once
 
@@ -27,7 +30,7 @@ class Parser
     static constexpr char LF  = '\n';
     static constexpr char NUL = '\0';
 
-    static inline bool is_whitespace( unsigned char const c )
+    static inline bool is_whitespace( unsigned char const c ) noexcept
     {
         // NEW Super Fast, if all values in a switch are in (0..63) then it can be tested with one CPU instruction!
         switch( c ) {
@@ -40,7 +43,7 @@ class Parser
         }
     }
 
-    static inline bool is_keyword( std::string_view const &s )
+    static inline bool is_keyword( std::string_view const &s ) noexcept
     {
         struct KeywordLookup
         {
@@ -76,7 +79,7 @@ class Parser
         return kw_lookup.table.contains( s );
     }
 
-    static bool CheckWord( std::string_view const sv, Content &rHere )
+    static bool CheckWord( std::string_view const sv, Content &rHere ) noexcept
     {
         if( rHere.Remaining() < sv.size() - 1 ) {
             return false;
@@ -89,7 +92,7 @@ class Parser
         return !std::isalnum( c ) && c != '_';
     }
 
-    static bool CheckWordAndMove( std::string_view const sv, Content &rHere )
+    static bool CheckWordAndMove( std::string_view const sv, Content &rHere ) noexcept
     {
         if( CheckWord( sv, rHere ) ) {
             rHere.MoveInLine_Unchecked( static_cast<int>(sv.size()) );
@@ -99,7 +102,7 @@ class Parser
     }
 
     // a simple string does not handle escapes and other special things. It is taken like it is. Inner " as well as tabs or line breaks are not possible.
-    static bool SimpleString( std::string_view &rOut, Content &rHere )
+    static bool SimpleString( std::string_view &rOut, Content &rHere ) noexcept
     {
         if( rHere[0] != '"' ) {
             return false;
@@ -121,6 +124,19 @@ class Parser
     inline SourceLocation MakeSrcLoc( Content const &rHere ) const
     {
         return util::make_srcloc( mState->GetFilePtr(), rHere, mState->is_debug );
+    }
+
+    // checks for a valid parsing end or throws otherwise.
+    void CheckPartialEnd() const
+    {
+        if( mState->is_in_comment ) {
+            throw exception::parsing_error( mState->saved_loc, "multi line comment not closed! ( '*/' )" );
+        }
+        auto incomplete = mState->GetFirstIncompleteASTNode();
+        if( incomplete ) {
+            //FIXME: Better use exception from ASTNode. But that is an eval_error and can only obtained via call to Eval() actually!
+            throw exception::parsing_error( incomplete->GetSourceLocation(), "Parsing error: " + incomplete->GetInfoStr() + " is not complete!" );
+        }
     }
 
 public:
@@ -205,24 +221,36 @@ public:
     /// \returns the moved out ASTNodes (if any) inside an ASTNodeFile instance. The shared pointer is always valid. 
     ASTNodePtr ParsePartialEnd()
     {
-        if( mState->is_in_comment ) {
-            throw exception::parsing_error( mState->saved_loc, "multi line comment not closed! ( '*/' )" );
-        }
-        auto incomplete = mState->GetFirstIncompleteASTNode();
-        if( incomplete ) {
-            //FIXME: Better use exception from ASTNode. But that is an eval_error and can only obtained via call to Eval() actually!
-            throw exception::parsing_error( incomplete->GetSourceLocation(), "Parsing error: " + incomplete->GetInfoStr() + " is not complete!" );
-        }
+        CheckPartialEnd();
         return std::make_shared<ASTNode_File>( mState->GetFileName(), mState->MoveOutASTCollection() );
     }
 
-    // low level access to the last available top level ASTNode. ASTNodePtr might be a nullptr! (internal use only, might be reomved without further notice!)
+    /// EXPERIMENTAL interface for partial evaluation. Get available complete top level ASTNodes for partial evaluation.
+    /// This method can be called after 1 .. N calls to ParsePartial().
+    /// \param want specifies the amount of wanted ASTNodes, 0 means all available.
+    /// \throws exeception::out_of_range if want is greater than the available top level ast nodes.
+    ASTNode_FilePart_Ptr GetPartialParsedASTNodes( size_t const want = 0 )
+    {
+        return std::make_shared<ASTNode_FilePart>( mState->GetFileName(), mState->GetPartialASTNodes(want) );
+    }
+
+    /// EXPERIMENTAL interface for partial evaluation. Gets the final part of the partial parsed ASTNodes (if any).
+    /// IMPORTANT: This method must be called instead of ParsePartialEnd() when it is clear that no further content to parse is present / will arrive.
+    /// This method must be used in combination with ParsePartial() and GetPartialParsedASTNodes().
+    /// \throws if there are left overs like not closed multi-line comments or inclomplete ast nodes.
+    ASTNode_FilePart_Ptr GetFinalPartialParsedASTNodes( )
+    {
+        CheckPartialEnd();
+        return std::make_shared<ASTNode_FilePart>( mState->GetFileName(), mState->MoveOutASTCollection() );
+    }
+
+    // INTERNAL low level access to the last available top level ASTNode. ASTNodePtr might be a nullptr! (internal use only, might be reomved without further notice!)
     ASTNodePtr GetLastToplevelASTNode() const
     {
         return mState->GetLastToplevelASTNode();
     }
 
-    static inline void SkipToNextLine( Content &rHere )
+    static inline void SkipToNextLine( Content &rHere ) noexcept
     {
         // Benchmarked: OLD needs nearly double of time in combination with OLD SkipWhiteSpace benchmark.
 #if 1 // NEW
@@ -236,7 +264,7 @@ public:
 #endif
     }
 
-    static inline void SkipWhitespace( Content &rHere )
+    static inline void SkipWhitespace( Content &rHere ) noexcept
     {
         while( is_whitespace( static_cast<unsigned char>(*rHere) ) && rHere.HasMore() ) rHere.IncInLine_Unchecked();
     }
@@ -544,6 +572,12 @@ public:
                 ++rHere;
                 return eSymFound::Operator;
             }
+        case '.':
+            {
+                mState->AddASTNode( std::make_shared<ASTNode_Dot_Operator>( MakeSrcLoc( start ) ) );
+                ++rHere;
+                return eSymFound::Operator;
+            }
         case '<':
         case '>':
             {
@@ -831,7 +865,8 @@ public:
                     case eSymFound::CloseBlock:
                         next_line_required.Set( rHere );
                         break;
-                    case eSymFound::Nothing: [[fallthrough]];
+                    case eSymFound::Nothing:
+                        break;
                     default:
                         //TODO: use std::unreachable in C++23
 #if defined( _MSC_VER ) // MSVC

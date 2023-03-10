@@ -1,9 +1,12 @@
-/*
- * SPDX-FileCopyrightText:  Copyright (c) 2023 Florian Thake <support |at| tea-age.solutions>. All rights reserved.
- * SPDX-License-Identifier: SEE LICENSE IN LICENSE.txt
+/* === Part of TeaScript C++ Library ===
+ * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: AGPL-3.0-only
  *
- * Licensed under the TeaScript Library Standard License. See LICENSE.txt or you may find a copy at
- * https://tea-age.solutions/teascript/product-variants/
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
+ * as published by the Free Software Foundation, version 3.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
  */
 #pragma once
 
@@ -15,6 +18,7 @@
 #include "Context.hpp"
 #include "Exception.hpp"
 #include "ControlFlow.hpp"
+#include "TupleUtil.hpp"
 #include "Print.hpp"
 #include "ASTNodeBase.hpp"
 
@@ -252,7 +256,7 @@ class ASTNode_Expression : public ASTNode_Child_Capable
 public:
     enum class Mode
     {
-        ExprOrTuple, // evals last node (or build a tuple (future!))
+        ExprOrTuple, // evals last node or build a tuple
         Cond, // evals all nodes
     };
 
@@ -312,7 +316,20 @@ public:
         }
         // actually expr. with more than one node are reserved for build tuples and thus only the last node get executed (like it contains only one node)
         if( mMode == Mode::ExprOrTuple ) {
-            return mChildren.back()->Eval( rContext );
+            if( mChildren.size() == 1 ) { // 1 child is one value.
+                return mChildren.back()->Eval( rContext );
+            } else {
+                // more than 1 child will produce a tuple.
+                Collection<ValueObject>  tuple;
+                if( mChildren.size() > 1 ) {
+                    tuple.Reserve( mChildren.size() );
+                }
+                for( ASTNodePtr &node : mChildren ) {
+                    tuple.AppendValue( node->Eval(rContext).MakeShared() );
+                }
+               
+                return ValueObject( std::move( tuple ), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} );
+            }
         } else { /* Cond: Expr. used in Conditions evals all nodes, e.g. for if( def z:= fun(), z ) {} */
             ValueObject res;
             for( ASTNodePtr &node : mChildren ) {
@@ -390,7 +407,7 @@ class ASTNode_Binary_Operator : public ASTNode_Child_Capable
 {
     std::string const mOperator; //TODO: Use enum!
 public:
-    ASTNode_Binary_Operator( std::string const &rOperator, SourceLocation loc = {} )
+    explicit ASTNode_Binary_Operator( std::string const &rOperator, SourceLocation loc = {} )
         : ASTNode_Child_Capable( "BinOp", rOperator, std::move(loc) )
         , mOperator( rOperator )
     { }
@@ -522,6 +539,180 @@ public:
 };
 
 
+class ASTNode_Dot_Operator : public ASTNode_Binary_Operator
+{
+public:
+    explicit ASTNode_Dot_Operator( SourceLocation loc = {} )
+        : ASTNode_Binary_Operator( ".", std::move( loc ) )
+    {
+    }
+
+    int Precedence() const noexcept override
+    {
+        return 1;
+    }
+
+    inline
+    void Check()
+    {
+        if( !IsComplete() ) {
+            if( NeedLHS() ) {
+                throw exception::eval_error( GetSourceLocation(), "Dot Operator ASTNode incomplete! LHS and RHS missing!" );
+            } else { // mChildren.size() < 2
+                throw exception::eval_error( GetSourceLocation(), "Dot Operator ASTNode incomplete! RHS missing!" );
+            }
+        }
+    }
+
+    ValueObject AddValueObject( Context &rContext, ValueObject const &rVal )
+    {
+        Check();
+        ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
+        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+
+        if( lhs.IsConst() ) {
+            throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be added!" );
+        }
+
+        if( mChildren[1]->GetName() == "Constant" ) {
+            auto const idx = mChildren[1]->Eval( rContext ).GetAsInteger();
+            if( idx < 0 || static_cast<std::size_t>(idx) > tuple.Size() ) {
+                throw exception::out_of_range( GetSourceLocation() );
+            } else if( static_cast<std::size_t>(idx) != tuple.Size() ) {
+                throw exception::redefinition_of_variable( GetSourceLocation(), std::to_string(idx) );
+            } else {
+                tuple.AppendValue( rVal );
+                return tuple.GetValueByIdx( static_cast<std::size_t>(idx) );
+            }
+        } else if( mChildren[1]->GetName() == "Id" ) {
+            if( !tuple.AppendKeyValue( mChildren[1]->GetDetail(), rVal ) ) {
+                throw exception::redefinition_of_variable( GetSourceLocation(), mChildren[1]->GetDetail() );
+            }
+            return tuple.GetValueByKey( mChildren[1]->GetDetail() );
+        } else {
+            
+        }
+
+        throw exception::eval_error( GetSourceLocation(), "Dot Operator: Invalid access!" );
+    }
+
+    ValueObject SetValueObject( Context &rContext, ValueObject const &rValue, bool const shared )
+    {
+        Check();
+        ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
+        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+
+        if( lhs.IsConst() ) {
+            throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be changed!" );
+        }
+
+        if( mChildren[1]->GetName() == "Constant" ) {
+            auto const idx = mChildren[1]->Eval( rContext ).GetAsInteger();
+            if( idx >= 0 && static_cast<std::size_t>(idx) < tuple.Size() ) {
+                auto &obj = tuple.GetValueByIdx( static_cast<std::size_t>(idx) );
+                if( shared ) {
+                    obj.SharedAssignValue( rValue, GetSourceLocation() );
+                } else {
+                    obj.AssignValue( rValue, GetSourceLocation() );
+                }
+                return obj;
+            } else {
+                throw exception::out_of_range( GetSourceLocation() );
+            }
+        } else if( mChildren[1]->GetName() == "Id" ) {
+            auto idx = tuple.IndexOfKey( mChildren[1]->GetDetail() );
+            if( idx == static_cast<std::size_t>(-1) ) {
+                throw exception::unknown_identifier( GetSourceLocation(), mChildren[1]->GetDetail() );
+            }
+            auto &obj = tuple.GetValueByIdx_Unchecked( idx );
+            if( shared ) {
+                obj.SharedAssignValue( rValue, GetSourceLocation() );
+            } else {
+                obj.AssignValue( rValue, GetSourceLocation() );
+            }
+            return obj;
+        } else {
+
+        }
+
+        throw exception::eval_error( GetSourceLocation(), "Dot Operator: Invalid access!" );
+    }
+
+    ValueObject RemoveValueObject( Context &rContext )
+    {
+        Check();
+        ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
+        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+        if( lhs.IsConst() ) {
+            throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be removed!" );
+        }
+
+        if( mChildren[1]->GetName() == "Constant" ) {
+            auto const idx = mChildren[1]->Eval( rContext ).GetAsInteger();
+            if( idx >= 0 && static_cast<std::size_t>(idx) < tuple.Size() ) {
+                auto obj = tuple.GetValueByIdx( static_cast<std::size_t>(idx) );
+                tuple.RemoveValueByIdx( static_cast<std::size_t>(idx) );
+                return obj;
+            } else {
+                throw exception::out_of_range( GetSourceLocation() );
+            }
+        } else if( mChildren[1]->GetName() == "Id" ) {
+            auto idx = tuple.IndexOfKey( mChildren[1]->GetDetail() );
+            if( idx == static_cast<std::size_t>(-1) ) {
+                throw exception::unknown_identifier( GetSourceLocation(), mChildren[1]->GetDetail() );
+            }
+            auto obj = tuple.GetValueByIdx_Unchecked( idx );
+            tuple.RemoveValueByIdx( idx );
+            return obj;
+        } else {
+
+        }
+
+        throw exception::eval_error( GetSourceLocation(), "Dot Operator: Invalid access!" );
+    }
+
+    ValueObject GetValueObject( Context &rContext )
+    {
+        Check();
+        ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
+        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+
+        if( mChildren[1]->GetName() == "Constant" ) {
+            auto const idx = mChildren[1]->Eval( rContext ).GetAsInteger();
+            if( idx >= 0 && tuple.ContainsIdx( static_cast<std::size_t>(idx) ) ) {
+                auto obj = tuple.GetValueByIdx_Unchecked( static_cast<std::size_t>(idx) );
+                if( lhs.IsConst() ) obj.MakeConst();
+                return obj;
+            } else {
+                throw exception::out_of_range( GetSourceLocation() );
+            }
+        } else if( mChildren[1]->GetName() == "Id" ) {
+            auto idx = tuple.IndexOfKey( mChildren[1]->GetDetail() );
+            if( idx == static_cast<std::size_t>(-1) ) {
+                throw exception::unknown_identifier( GetSourceLocation(), mChildren[1]->GetDetail() );
+            }
+            auto obj = tuple.GetValueByIdx_Unchecked( idx );
+            if( lhs.IsConst() ) obj.MakeConst();
+            return obj;
+        } else {
+
+        }
+
+        throw exception::eval_error( GetSourceLocation(), "Dot Operator: Invalid access!" );
+    }
+
+    ValueObject Eval( Context &rContext ) override
+    {
+        try {
+            return GetValueObject( rContext );
+        } catch( exception::bad_value_cast const & ) {
+            throw exception::eval_error( GetSourceLocation(), "Dot Operator: LHS is not a Tuple/Record/Class/Module/Namespace!" );
+        }
+    }
+
+};
+
+
 /// ASTNode for assignment.
 class ASTNode_Assign : public ASTNode_Binary_Operator
 {
@@ -574,39 +765,59 @@ public:
                 throw exception::eval_error( GetSourceLocation(), "Assign Operator ASTNode incomplete! RHS missing!" );
             }
         }
-
-        if( mChildren[0]->GetName() != "Id" ) {
+        bool const is_id = mChildren[0]->GetName() == "Id";
+        if( not is_id && (mChildren[0]->GetName() != "BinOp" && mChildren[0]->GetDetail() != ".") ) {
             throw exception::eval_error( mChildren[0]->GetSourceLocation(), "Assign Operator can only assign to Identifiers! LHS ist not an identifier!" );
         }
 
         if( mMode == eMode::Assign ) {
             auto  val = mChildren[1]->Eval( rContext );
             try {
-                return rContext.SetValue( mChildren[0]->GetDetail(), val, mbShared, GetSourceLocation() );
+                if( is_id ) {
+                    return rContext.SetValue( mChildren[0]->GetDetail(), val, mbShared, GetSourceLocation() );
+                } else {
+                    return static_cast<ASTNode_Dot_Operator *>(mChildren[0].get())->SetValueObject( rContext, val, mbShared );
+                }
             } catch( exception::unknown_identifier const & ) {
                 if( rContext.auto_define_unknown_identifiers ) {
                     if( !mbShared ) {
                         val.Detach( true ); // make copy.
                     }
-                    return rContext.AddValueObject( mChildren[0]->GetDetail(), val.MakeShared(), mChildren[0]->GetSourceLocation() );
+                    if( is_id ) {
+                        return rContext.AddValueObject( mChildren[0]->GetDetail(), val.MakeShared(), mChildren[0]->GetSourceLocation() );
+                    } else {
+                        return static_cast<ASTNode_Dot_Operator *>(mChildren[0].get())->AddValueObject( rContext, val.MakeShared() );
+                    }
                 }
                 throw;
             }
         } else if( mMode == eMode::DefAssign ) {
             auto  val = mChildren[1]->Eval( rContext );
             if( !mbShared ) {
-                val.Detach( false ); // make copy
+                if( val.ShareCount() > 1 ) { // only make copy for values living on some store already.
+                    val.Detach( false ); // make copy
+                }
             } else if( val.IsShared() && val.IsConst() ) {
                 // FIXME: For function calls we want to show the call side. But the assign is at callee location! (mChildren[1] is then FromParamList, does also not have proper SrcLoc)
                 throw exception::const_shared_assign( GetSourceLocation() );
             }
-            return rContext.AddValueObject( mChildren[0]->GetDetail(), val.MakeShared(), mChildren[0]->GetSourceLocation() );
+            if( is_id ) {
+                return rContext.AddValueObject( mChildren[0]->GetDetail(), val.MakeShared(), mChildren[0]->GetSourceLocation() );
+            } else {
+                return static_cast<ASTNode_Dot_Operator *>(mChildren[0].get())->AddValueObject( rContext, val.MakeShared() );
+            }
         } else { /* ConstAssign */
             auto  val = mChildren[1]->Eval( rContext );
-            if( !mbShared ) {
+            if( !mbShared && val.ShareCount() > 1 ) { // only make copy for values living on some store already.
                 val.Detach( true ); // make copy
             }
-            return rContext.AddValueObject( mChildren[0]->GetDetail(), val.MakeShared().MakeConst(), mChildren[0]->GetSourceLocation() );
+
+            if( is_id ) {
+                return rContext.AddValueObject( mChildren[0]->GetDetail(), val.MakeShared().MakeConst(), mChildren[0]->GetSourceLocation() );
+            } else {
+                return static_cast<ASTNode_Dot_Operator *>(mChildren[0].get())->AddValueObject( rContext, val.MakeShared().MakeConst() );
+                //throw exception::eval_error( GetSourceLocation(), "Const definition of tuple elements is unsupported!" );
+            }
         }
     }
 };
@@ -638,7 +849,7 @@ public:
     void AddChildNode( ASTNodePtr node ) override
     {
         assert( node.get() != nullptr );
-        if( node->GetName() != "Id" ) {
+        if( node->GetName() != "Id" && (node->GetName() != "BinOp" && node->GetDetail() != ".") ) {
             throw exception::runtime_error( GetSourceLocation(), "Variable definition/undefinition requires an identifier name!" );
         }
         ASTNode_Unary_Operator::AddChildNode( std::move( node ) );
@@ -646,7 +857,7 @@ public:
 
     int Precedence() const noexcept override
     {
-        return 1; //NOTE: smaller than assign op ( :=, 16 ), then this will become the lhs of assign.
+        return 2; //NOTE: smaller than assign op ( :=, 16 ), then this will become the lhs of assign, but bigger than dot op (., 1)
     }
 
     ValueObject Eval( Context &rContext ) override
@@ -654,37 +865,51 @@ public:
         if( IsIncomplete() ) {
             throw exception::eval_error( GetSourceLocation(), "Unary Operator ASTNode incomplete! Operand missing!" );
         }
-        
+
+        bool const is_id = mChildren[0]->GetName() == "Id";
+
         if( mType == eType::Def ) {
             // NOTE: the Def Operator stays only there if it is without assignment. Otherwise the Assign Operator will do the work.
-            if( rContext.declare_identifiers_without_assign_allowed ) {
-                return rContext.AddValueObject( mChildren[0]->GetDetail(), ValueObject().MakeShared(), GetSourceLocation() ); //FIXME: need to be marked with type 'undefined' for can assign any type
+            // IMPORTANT: The option to have a TeaScript dialect where declaration without assignment is allowed is actually unsupported and not functional.
+            if( rContext.declare_identifiers_without_assign_allowed && is_id ) { // NOTE: Not implemented for Dot Op.
+                return rContext.AddValueObject( mChildren[0]->GetDetail(), ValueObject().MakeShared(), GetSourceLocation() ); //NOTE: need to be marked with type 'undefined' for can assign any type
             } else {
                 throw exception::declare_without_assign( GetSourceLocation(), mChildren[0]->GetDetail() );
             }
         } else if( mType == eType::IsDef ) {
             try {
-#if 0
-                (void) mChildren[0]->Eval( rContext );
-                return ValueObject( true );
-#else
-                long long scope = 0;
-                (void)rContext.FindValueObject( mChildren[0]->GetDetail(), GetSourceLocation(), &scope);
-                return ValueObject( scope );
-#endif
+                if( not is_id ) {
+                    (void)mChildren[0]->Eval( rContext );
+                    return ValueObject( true );
+                } else {
+                    long long scope = 0;
+                    (void)rContext.FindValueObject( mChildren[0]->GetDetail(), GetSourceLocation(), &scope );
+                    return ValueObject( scope );
+                }
 
             } catch( exception::unknown_identifier const & ) {
+                return ValueObject( false );
+            } catch( exception::out_of_range const & ) {
                 return ValueObject( false );
             }
         } else if( mType == eType::Undef ) {
             try {
                 auto const val = mChildren[0]->Eval( rContext );
-                if( val.IsConst() ) {
+                if( val.IsConst() ) { // TODO: Check if this shall be moved into RemoveValueObject
                     throw exception::eval_error( mChildren[0]->GetSourceLocation(), "Variable is const. Const variables cannot be undefined!" );
                 }
-                (void)rContext.RemoveValueObject( mChildren[0]->GetDetail(), GetSourceLocation() );
+                if( is_id ) {
+                    (void)rContext.RemoveValueObject( mChildren[0]->GetDetail(), GetSourceLocation() );
+                } else {
+                    static_cast<ASTNode_Dot_Operator *>(mChildren[0].get())->RemoveValueObject( rContext );
+                }
                 return ValueObject( true );
             } catch( exception::unknown_identifier const & ) {
+                if( rContext.undefine_unknown_idenitifiers_allowed ) {
+                    return ValueObject( false );
+                }
+                throw;
+            } catch( exception::out_of_range const & ) {
                 if( rContext.undefine_unknown_idenitifiers_allowed ) {
                     return ValueObject( false );
                 }
@@ -1262,6 +1487,39 @@ public:
 };
 
 
+/// experimental ASTNode for a partial parsed file. 
+/// All children of all ASTNode_FilePart innstances for one file would assemble the ASTNode_File.
+class ASTNode_FilePart : public ASTNode_Child_Capable
+{
+public:
+    ASTNode_FilePart( std::string const &rFileName, std::vector<ASTNodePtr> children )
+        : ASTNode_Child_Capable( "FilePart", rFileName )
+    {
+        mChildren = std::move( children );
+    }
+
+    auto begin()
+    {
+        return mChildren.begin();
+    }
+    auto end()
+    {
+        return mChildren.end();
+    }
+
+    ValueObject Eval( Context &rContext ) override
+    {
+        ValueObject res;
+        for( ASTNodePtr &node : mChildren ) {
+            res = node->Eval( rContext );
+        }
+        return res;
+    }
+};
+
+using ASTNode_FilePart_Ptr = std::shared_ptr< ASTNode_FilePart >;
+
+
 /// contains all top level statements of one file / eval call.
 class ASTNode_File : public ASTNode_Child_Capable
 {    
@@ -1284,7 +1542,6 @@ public:
         }
         return res;
     }
-
 };
 
 //TODO: have ASTNode_Root additionally? E.g. combine more than one file. Then we could pass the last value as input (as a special var???) ?!

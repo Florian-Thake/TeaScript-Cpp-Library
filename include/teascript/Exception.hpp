@@ -1,9 +1,12 @@
-/*
- * SPDX-FileCopyrightText:  Copyright (c) 2023 Florian Thake <support |at| tea-age.solutions>. All rights reserved.
- * SPDX-License-Identifier: SEE LICENSE IN LICENSE.txt
+/* === Part of TeaScript C++ Library ===
+ * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: AGPL-3.0-only
  *
- * Licensed under the TeaScript Library Standard License. See LICENSE.txt or you may find a copy at
- * https://tea-age.solutions/teascript/product-variants/
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
+ * as published by the Free Software Foundation, version 3.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
  */
 #pragma once
 
@@ -225,6 +228,14 @@ class modulo_with_floatingpoint : public eval_error
 {
 public:
     modulo_with_floatingpoint( SourceLocation const &rLoc = {} ) : eval_error( rLoc, "Modulo operator not available for floating point numbers!" ) {}
+};
+
+/// Exception thrown if an index was out of range.
+class out_of_range : public eval_error
+{
+public:
+    out_of_range( std::string const &rText, SourceLocation const &rLoc = {} ) : eval_error( rLoc, rText ) {}
+    out_of_range( SourceLocation const &rLoc = {} ) : out_of_range( "Invalid index! Index is out of range!", rLoc ) {}
 };
 
 /// Exception thrown if a file could not be opened or read.

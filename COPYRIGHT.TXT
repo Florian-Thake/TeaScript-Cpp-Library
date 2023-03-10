@@ -1,15 +1,34 @@
 Except where otherwise noted all files included are copyrighted by Florian Thake.
 
-Copyright (c) 2023 Florian Thake <support |at| tea-age.solutions>. All rights reserved.
+Copyright (c) 2023 Florian Thake <contact |at| tea-age.solutions>.
 
 
-See included LICENSE.TXT for usage conditions and permissions.
+All source files of the TeaScript C++ Library are dual licensed.
+This copy is licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3
+See included LICENSE.TXT or <https://www.gnu.org/licenses/>.
+If you cannot or don't want use this AGPL version, 
+you can ask for a different license via the contact information below.
+
+
+Additionally:
+
+All files marked with 
+SPDX-License-Identifier: AGPL-3.0-only 
+are licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3
+
+See included LICENSE.TXT or <https://www.gnu.org/licenses/>.
+
+
+All files marked with 
+SPDX-License-Identifier: MIT
+are licensed under the MIT License.
+See included MIT_LICENSE.TXT 
 
 
 Florian Thake
 TeaAge Solutions
 https://tea-age.solutions 
 
-Email: support |at| tea-age.solutions
+Email: contact |at| tea-age.solutions
 Alternative: tea.age.solutions |at| email.de
 

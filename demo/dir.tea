@@ -1,0 +1,29 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake, <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MIT
+ * see included file MIT_LICENSE.txt
+ */
+
+// this script prints all files of given dir (or current working dir if invoked without arguments)
+
+not is_defined arg1 and (def arg1 := ".")
+
+def cur := readdirfirst( arg1 )
+println( "file listing of %(cur.path): ")
+if( not cur.valid ) {
+    if( cur.error > 0 ) {
+        println( "error: %(cur.error)" )
+    }
+}
+repeat {
+    if( not cur.valid ) { stop }
+    
+    if( cur.is_file ) {
+        println( "file: %(cur.name), size: %(cur.size), last modified: %(cur.last_modified)" )
+    } else if( cur.is_dir ) {
+        println( "dir: %(cur.name), last modified: %(cur.last_modified)" )
+    }
+    
+    cur := readdirnext( cur )
+}

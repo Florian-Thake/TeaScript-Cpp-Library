@@ -1,9 +1,12 @@
-/*
- * SPDX-FileCopyrightText:  Copyright (c) 2023 Florian Thake <support |at| tea-age.solutions>. All rights reserved.
- * SPDX-License-Identifier: SEE LICENSE IN LICENSE.txt
+/* === Part of TeaScript C++ Library ===
+ * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: AGPL-3.0-only
  *
- * Licensed under the TeaScript Library Standard License. See LICENSE.txt or you may find a copy at
- * https://tea-age.solutions/teascript/product-variants/
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
+ * as published by the Free Software Foundation, version 3.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
  */
 #pragma once
 
@@ -11,15 +14,30 @@
 #include <variant>
 #include <optional>
 #include <string>
+#include <iostream> // for << operator
 #include <cmath> // isfinite
 
 #include "Type.hpp"
 #include "FunctionBase.hpp"
+#include "Collection.hpp"
 #include "Exception.hpp"
 #include "SourceLocation.hpp"
 
 
 namespace teascript {
+
+// forward declare
+class ValueObject;
+class ValueConfig;
+using Tuple = Collection<ValueObject>;
+namespace tuple {
+namespace {
+std::strong_ordering compare_values( Tuple const &, Tuple const & );
+ValueObject deep_copy( ValueObject const &, bool const );
+void deep_copy( Tuple &, Tuple const &, bool const );
+}// namespace {
+}// namespace tuple
+
 
 namespace exception {
 
@@ -68,6 +86,7 @@ class ValueConfig
 public:
     //FIXME: Make better solution, but std::optional<std::reference_wrapper< TypeSystem const >> is too boilerplate in use, e.g. mTS.has_value() ? mTs.value().get().XXX ....
     TypeSystem const *const mpTypeSystem = nullptr;
+    TypeInfo   const *const mpTypeInfo   = nullptr;
 public:
     inline ValueConfig( eShared const s, eConst const c ) noexcept
         : mShared( s ), mConst( c ), mpTypeSystem( nullptr )
@@ -76,6 +95,11 @@ public:
 
     inline ValueConfig( eShared const s, eConst const c, TypeSystem const &rSys ) noexcept
         : mShared( s ), mConst( c ), mpTypeSystem( &rSys )
+    {
+    }
+
+    inline ValueConfig( eShared const s, eConst const c, TypeInfo const *pTypeInfo ) noexcept
+        : mShared( s ), mConst( c ), mpTypeInfo( pTypeInfo )
     {
     }
 
@@ -122,7 +146,7 @@ class ValueObject final
 
     /// helper function for create the desired ValueVariant (shared VS unshared). 
     /// \note: needed because in_place_index_t cannot use in ? : operator _and_ std::any and std::shared_ptr<BareTypes> are ambiguous.
-    inline
+    inline static
     ValueVariant create_helper( bool const shared, BareTypes &&bare )
     {
         if( shared ) {
@@ -199,6 +223,29 @@ class ValueObject final
         return pLL ? static_cast<T const *>(pLL) : nullptr;
     }
 #endif
+
+    static std::string print_tuple( Collection<ValueObject> const &rTuple, int level = 1 )
+    {
+        std::string res = "(";
+        for( std::size_t i = 0; i < rTuple.Size(); ++i ) {
+            if( i > 0 ) {
+                res += ", ";
+            }
+            // NOTE: must avoid cyclic reference endless recursion!
+            auto const &val = rTuple.GetValueByIdx( i );
+            if( val.GetTypeInfo()->IsSame<Collection<ValueObject>>() ) {
+                if( level < 6 ) {
+                    res += print_tuple( val.GetValue< Collection<ValueObject> >(), level + 1 );
+                } else {
+                    res += "(...)";
+                }
+            } else {
+                res += val.PrintValue();
+            }
+        }
+        res += ")";
+        return res;
+    }
 
 
 public:
@@ -307,6 +354,21 @@ public:
     }
 
     inline
+    explicit ValueObject( Collection<ValueObject> &&rVals, ValueConfig const &cfg )
+        : mValue( create_helper( true, BareTypes( std::move( rVals ) ) ) )
+        , mpValue( std::get<1>( mValue ).get() )
+        , mpType( cfg.mpTypeSystem != nullptr
+                  ? cfg.mpTypeSystem->Find< Collection<ValueObject> >()
+                  : cfg.mpTypeInfo )
+        , mProps( cfg.IsConst() )
+    {
+        // not allow nullptr and wrong type for this usage. also we don't want manually alloc a type here.
+        if( nullptr == mpType || not mpType->IsSame<Collection<ValueObject>>() ) {
+            throw exception::runtime_error( "Usage Error! No TypeSystem or wrong TypeInfo for ValueObject constructor!" );
+        }
+    }
+
+    inline
     explicit ValueObject( TypeInfo const & rTypeInfo, ValueConfig const &cfg )
         : mValue( create_helper( true, BareTypes( rTypeInfo ) ) )
         , mpValue( std::get<1>( mValue ).get() )
@@ -314,6 +376,23 @@ public:
         , mProps( cfg.IsConst() )
     {
 
+    }
+
+    // note: Passthrough data is in experimental state for now
+    inline
+    explicit ValueObject( Passthrough /*tag*/, std::any &&any, ValueConfig const &cfg = {} )
+        : mValue( create_helper( true, BareTypes(std::move(any) ) ) )
+        , mpValue( std::get<1>( mValue ).get() )
+        , mpType( &TypePassthrough )
+        , mProps( cfg.IsConst() )
+    {
+    }
+
+    /// Factory for create a ValueObject containing arbitrary passthrough data.
+    /// \note Passthrough data is in experimental state
+    static ValueObject CreatePassthrough( std::any &&any )
+    {
+        return ValueObject( Passthrough{}, std::move( any ) );
     }
 
     ~ValueObject()
@@ -359,7 +438,7 @@ public:
         , mProps( rOther.mProps )
     {
         if( rOther.mProps.IsTypeAllocated() ) { // must move out!
-            rOther.mProps.SetTypeAllpocated( false );
+            rOther.mProps.SetTypeAllocated( false );
             rOther.mpType = nullptr;
         }
     }
@@ -373,7 +452,7 @@ public:
             mpType = rOther.mpType;
             mProps = rOther.mProps;
             if( rOther.mProps.IsTypeAllocated() ) { // must move out!
-                rOther.mProps.SetTypeAllpocated( false );
+                rOther.mProps.SetTypeAllocated( false );
                 rOther.mpType = nullptr;
             }
         }
@@ -413,7 +492,11 @@ public:
         // only if shared...
         if( mValue.index() == 1 ) {
             // costruct a new shared again to avoid extra copies for classes without moves when calling MakeShared() as the next step!!
-            if( mpValue->index() == TypeAny ) {
+            if( GetTypeInfo()->GetName() == "Tuple" ) {
+                auto new_val = tuple::deep_copy( *this, keep_const );
+                mValue = new_val.mValue;
+                mpValue = std::get<1>( mValue ).get();
+            } else if( mpValue->index() == TypeAny ) {
                 auto s = std::make_shared<BareTypes>( *mpValue ); // new copy with new (unshared) shared_ptr
                 mValue = std::move( s );
                 mpValue = std::get<1>( mValue ).get();
@@ -470,7 +553,13 @@ public:
         if( mProps.IsConst() ) {
             throw exception::const_assign( rLoc );
         }
-        *mpValue = *rOther.mpValue;
+        if( pT1->GetName() == "Tuple" && rOther.ShareCount() > 1 ) {
+            //throw exception::eval_error( "Assign Error! Tuples only support shared assign, use _tuple_copy() instead!" );
+            auto new_val = tuple::deep_copy( rOther, false );
+            *mpValue = std::move( *new_val.mpValue ); // cannot assign to *this since it might be shared
+        } else {
+            *mpValue = *rOther.mpValue;
+        }
     }
 
     /// Shares assign a new value by using the same value via a reference counted mechanism. Types must match.
@@ -495,7 +584,7 @@ public:
     }
 
     /// returns whether the given instance shares the same value as this instance.
-    bool IsSharedWith( ValueObject const &rOther ) const
+    bool IsSharedWith( ValueObject const &rOther ) const noexcept
     {
         if( IsShared() && rOther.IsShared() ) {
             return mpValue == rOther.mpValue;
@@ -504,7 +593,7 @@ public:
     }
 
     /// \returns the count of the value is shared.
-    long long ShareCount() const
+    long long ShareCount() const noexcept
     {
         if( IsShared() ) {
             return static_cast<long long>(std::get<1>( mValue ).use_count());
@@ -524,7 +613,11 @@ public:
     bool HasPrintableValue() const noexcept
     {
         //return mValue.index() != TypeNaV && mValue.index() != TypeAny;
-        return mpValue->index() > TypeFirst && mpValue->index() < TypeLast;
+        //return mpValue->index() > TypeFirst && mpValue->index() < TypeLast;
+        if( mpValue->index() == TypeAny ) {
+            return get_impl<Collection<ValueObject>>() != nullptr;
+        }
+        return mpValue->index() > TypeFirst;
     }
 
     /// \return the stored value as T & or throws exception::bad_value_cast
@@ -553,11 +646,30 @@ public:
         return get_impl<T>();
     }
 
+    /// \returns the stored passthrough data. \throws exception::bad_value_cast.
+    std::any const &GetPassthroughData() const
+    {
+        if( not mpType->IsSame<Passthrough>() ) {
+            throw exception::bad_value_cast();
+        }
+        return std::get<std::any>( *mpValue );
+    }
+
+    /// \returns the stored passthrough data. \throws exception::bad_value_cast.
+    std::any &GetPassthroughData()
+    {
+        return const_cast<std::any &>(const_cast<ValueObject const &>(*this).GetPassthroughData());
+    }
+
     /// Converts the value to bool if possible, otherwise throws exception::bad_value_cast
     bool GetAsBool() const
     {
         return std::visit( overloaded{
             []( auto ) -> bool { throw exception::bad_value_cast("ValueObject not convertible to bool!"); },
+            []( std::any &a ) {
+                if( auto const *p_tuple = std::any_cast<Collection<ValueObject>>(&a); p_tuple != nullptr ) {
+                    return p_tuple->Size() > 0u;
+                } else throw exception::bad_value_cast( "ValueObject not convertible to bool!" ); },
             []( NotAValue ) -> bool { throw exception::bad_value_cast( "ValueObject is NaV (Not A Value)!" ); },
             []( bool b ) { return b; },
             []( I64 const i ) { return static_cast<bool>(i); },
@@ -585,6 +697,10 @@ public:
     {
         return std::visit( overloaded{
             []( auto ) -> std::string { throw exception::bad_value_cast( "ValueObject not convertible to string!" ); },
+            []( std::any &a ) {
+                if( auto const *p_tuple = std::any_cast<Collection<ValueObject>>(&a); p_tuple != nullptr ) {
+                    return print_tuple( *p_tuple );
+                } else throw exception::bad_value_cast( "ValueObject not convertible to string!" ); },
             []( NotAValue ) -> std::string { throw exception::bad_value_cast( "ValueObject is NaV (Not A Value)!" ); },
             []( bool const b ) { return std::string( b ? "true" : "false" ); },
             []( I64 const i ) { return std::to_string( i ); },
@@ -599,12 +715,23 @@ public:
     {
         return std::visit( overloaded{
             []( auto ) { return std::string("<not printable>"); },
+            []( std::any &a ) { 
+                if( auto const *p_tuple = std::any_cast<Collection<ValueObject>>(&a); p_tuple != nullptr ) {
+                    return print_tuple( *p_tuple );
+                } else return std::string( "<not printable>" ); },
             []( NotAValue ) { return std::string( "NaV (Not A Value)" ); },
             []( bool const b ) { return std::string( b ? "true" : "false"); },
             []( I64 const i ) { return std::to_string( i ); },
             []( F64 const d ) { return std::to_string( d ); }, //FIXME: use better way, this will lose precision for small numbers!
             []( std::string const &rStr ) { return "\"" + rStr + "\""; }
         }, *mpValue );
+    }
+
+    /// ostream operator support
+    friend std::ostream &operator<<( std::ostream &os, ValueObject const &rObj )
+    {
+        os << rObj.PrintValue();
+        return os;
     }
 
     //FIXME: strong_ordering is not ok for floating point and special custom types!
@@ -663,6 +790,10 @@ public:
 #endif
         }
 
+        if( lhs.GetTypeInfo()->GetName() == "Tuple" && rhs.GetTypeInfo()->GetName() == "Tuple" ) {
+            return tuple::compare_values( lhs.GetValue<Tuple>(), rhs.GetValue<Tuple>() );
+        }
+
         //FIXME: Now need type info for check equal types or conversion
         throw exception::bad_value_cast( "types do not match for comparison!" );
     }
@@ -683,3 +814,4 @@ public:
 
 } // namespace teascript
 
+#include "TupleUtil.hpp"

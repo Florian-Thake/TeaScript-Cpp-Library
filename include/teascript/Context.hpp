@@ -1,9 +1,12 @@
-/*
- * SPDX-FileCopyrightText:  Copyright (c) 2023 Florian Thake <support |at| tea-age.solutions>. All rights reserved.
- * SPDX-License-Identifier: SEE LICENSE IN LICENSE.txt
+/* === Part of TeaScript C++ Library ===
+ * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: AGPL-3.0-only
  *
- * Licensed under the TeaScript Library Standard License. See LICENSE.txt or you may find a copy at
- * https://tea-age.solutions/teascript/product-variants/
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
+ * as published by the Free Software Foundation, version 3.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
  */
 #pragma once
 
@@ -106,8 +109,10 @@ private:
 
 public:
 
+    // IMPORTANT: The option to have a TeaScript dialect where unknown identifiers will get automatically defined is actually unsupported and untested.
     bool auto_define_unknown_identifiers       = TEASCRIPT_DEFAULT_AUTO_DEFINE_UNKNOWN_IDENTIFIERS;
     bool undefine_unknown_idenitifiers_allowed = TEASCRIPT_UNDEFINE_UNKNOWN_IDENTIFIERS_ALLOWED;
+    // IMPORTANT: The option to have a TeaScript dialect where declaration without assignment is allowed is actually unsupported and not functional.
     bool declare_identifiers_without_assign_allowed = TEASCRIPT_DECLARE_IDENTIFIERS_WITHOUT_ASSIGN_ALLOWED;
 
     bool is_debug = false; // from and for parser. TODO: cover parameters_are_default_const and ASTNodeFactory (integrate Parser in Context??)

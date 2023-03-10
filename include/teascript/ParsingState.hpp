@@ -1,9 +1,12 @@
-/*
- * SPDX-FileCopyrightText:  Copyright (c) 2023 Florian Thake <support |at| tea-age.solutions>. All rights reserved.
- * SPDX-License-Identifier: SEE LICENSE IN LICENSE.txt
+/* === Part of TeaScript C++ Library ===
+ * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: AGPL-3.0-only
  *
- * Licensed under the TeaScript Library Standard License. See LICENSE.txt or you may find a copy at
- * https://tea-age.solutions/teascript/product-variants/
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
+ * as published by the Free Software Foundation, version 3.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
  */
 #pragma once
 
@@ -72,6 +75,9 @@ class ParsingState
 
     std::stack<IndexState> mIndexStack;
 
+    // for partial evaluation. memorize last partial index.
+    size_t ast_offset = 0;
+
     // NOTE: This bool does _NOT_ reflect nested operations, it does only reflect the status of the last added statement!
     bool open_statement = false; // true if the very last added statement is still open. 
 
@@ -94,6 +100,7 @@ public:
     /// Clears previous state
     void Clear()
     {
+        ast_offset = 0;
         open_statement = false;
         utf8_bom_removed = false;
         is_in_comment = false;
@@ -645,7 +652,9 @@ public:
 
         if( !mWorkingAST.empty() && open_statement && 
             //              call function by name  ||                   direct call a lambda  || direct call the return value of a called func!
-            (mWorkingAST.back()->GetName() == "Id" || mWorkingAST.back()->GetName() == "Func" || mWorkingAST.back()->GetName() == "CallFunc") ) {
+            (mWorkingAST.back()->GetName() == "Id" || mWorkingAST.back()->GetName() == "Func" || mWorkingAST.back()->GetName() == "CallFunc"  
+            //                                   call function after sequence of dot operators
+            || (mWorkingAST.back()->GetName() == "BinOp" && mWorkingAST.back()->GetDetail() == ".") ) ) {
             StartCall( std::move(loc) );
             return;
         }
@@ -657,7 +666,8 @@ public:
             if( mWorkingAST.back()->HasChildren() && mWorkingAST.back()->IsComplete() ) {
                 auto ch = mWorkingAST.back()->PopChild();
 #if TEASCRIPT_ENABLED_STARTCALL_DEEP_LIFTING
-                while( (ch->GetName() == "UnOp" || ch->GetName() == "BinOp") 
+                // lift up all operators except (sequence of) dot operators.
+                while( (ch->GetName() == "UnOp" || (ch->GetName() == "BinOp" && ch->GetDetail() != ".") )
                        && ch->HasChildren() /*safety!*/ ) {
                     auto inner = ch->PopChild();
                     // add it uncoditional as last item, ch is inomplete now!
@@ -665,7 +675,8 @@ public:
                     ch = std::move( inner );
                 }
 #endif
-                if( ch->GetName() == "Id" || ch->GetName() == "Func" ) {
+                // start the call for the id or lambda or (sequence of) dot operators.
+                if( ch->GetName() == "Id" || ch->GetName() == "Func" || (ch->GetName() == "BinOp" && ch->GetDetail() == ".") ) {
                     // add it uncoditional as last item and start Call-State
                     mWorkingAST.push_back( std::move( ch ) );
                     StartCall( std::move(loc) );
@@ -854,11 +865,18 @@ public:
     size_t GetCompleteStmCount() const noexcept
     {
         size_t count = 0;
-        for( auto const &ast : mWorkingAST ) {
-            if( ast->IsIncomplete() || ast->IsDummy() ) {
+        size_t idx   = ast_offset;
+        for( ; idx < mWorkingAST.size(); ++idx ) {
+            if( mWorkingAST[idx]->IsIncomplete() || mWorkingAST[idx]->IsDummy() ) {
                 break;
             }
             ++count;
+        }
+        if( count > 0 ) {
+            // check if last is an if and the node cache is filled for a possible else.
+            if( mWorkingAST[idx - 1]->GetName() == "If" && not mCache.empty() ) {
+                --count; // don't use this if yet!
+            }
         }
         return count;
     }
@@ -880,15 +898,36 @@ public:
         return mWorkingAST.empty() ? ASTNodePtr() : mWorkingAST.back();
     }
 
+    // experimental  (want == 0 means all possible available)
+    ASTNodeCollection GetPartialASTNodes( size_t const want = 0 )
+    {
+        auto const available = GetCompleteStmCount();
+        if( want > available ) {
+            throw exception::out_of_range( "GetOutPartialASTNodes(): not sufficient amout of ASTNodes available!" );
+        }
+        if( not available ) {
+            return {};
+        }
+
+        auto const count = want > 0 ? want : available;
+        ASTNodeCollection  res( mWorkingAST.begin() + ast_offset, mWorkingAST.begin() + ast_offset + count );
+        ast_offset += count;
+        return res;
+    }
+
     //TODO: revise?
     ASTNodeCollection MoveOutASTCollection()
     {
         ASTNodeCollection  res = std::move( mWorkingAST );
+        if( ast_offset > 0 ) {
+            res.erase( res.begin(), res.begin() + ast_offset );
+        }
         mWorkingAST.clear(); // make re-usable
         mWorkingAST.reserve( 8 ); // reserve again here (for _EVAL_). note: probably not the best place.
         mCache = NodeCache();
         mIndexStack = std::stack<IndexState>();
         open_statement = false;
+        ast_offset = 0;
         return res;
     }
 };

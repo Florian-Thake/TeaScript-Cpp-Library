@@ -26,11 +26,7 @@ Beside feature incompleteness there are the following known issues which will be
     For convert i64 to f64 you can either use to_f64 or simply add 0.0 for f64 promotion.
     
     
-4.) [PLATFORM: any]
-    Actually only the last statement/expression inside an expression formed with parantheses will be evaluated!
-    (a := 4, b := 5) // the assignment to a will not be done!
-    This is because actually parenthesis with more than one expression are reserved for build tuples.
-    But tuples are not implemented yet.
+4.) [PLATFORM: any] : Solved! (Tuples are implemented now.)
     
 
 5.) [PLATFORM: Windows]
@@ -65,4 +61,15 @@ Beside feature incompleteness there are the following known issues which will be
     
 8.) [PLATFORM: Linux]
     CoreLibrary function clock_utc() will return UTC time _without_ leap seconds.
+    
+9.) [PLATFORM: Linux]
+    The readline functionality (e.g. for the REPL) lacks history and nice editing support as it is present on Windows.
+    
+10.) [PLATFORM: any]
+     Accessing nested tuples via index must be surrounded with parenthesis like this:
+     (tup.0).1  // access index 1 of the tuple at index 0 of the tuple 'tup'.
+     note: tup.0.1 is parsed to ID: tup, dot-op, f64( 0.1 ) which results only in index 0 of tup.
 
+11.) [PLATFORM: any]
+     the 'debug' operator displays a dot (.) instead of the name for tuple elements 
+     although the element itself is displayed correct.
