@@ -273,8 +273,8 @@ This ensures a high level of quality already.
 Second, use the high-level C++ API only (e.g. via class teascript::Engine ). This API will stay backward compatible already or a soft migration will be provided – except if major issues are detected or at very rare circumstances.
 
 # License
-The TeaScript C++ Library (Standard version) is dual licensed.<br>
-The here published version is licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3: see LICENSE.TXT <br>
+The TeaScript C++ Library is 100% Open Source and Free Software and licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 (AGPL-3.0): see LICENSE.TXT <br>
+<br>The library is dual licensed.<br>
 <br>
 If the license does not fit for you:<br>
 - for **non-commercial** projects a different license might be available on request.
