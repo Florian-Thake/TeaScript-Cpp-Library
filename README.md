@@ -1,17 +1,17 @@
 # TeaScript C++ Library
 This is a snapshot of the latest Release of the **TeaScript C++ Library** for embed in C++ Applications.<br><br>
 **Extend** your applications dynamically during runtime with TeaScript.<br>
-Once your application has **customization points** for TeaScript you can extend each installation/distribution **without** expensive re-compile and deployment procedure with arbitrary and individual functionality.
+Once your application has **customization points** for TeaScript each installation/distribution can be extended/modified **without** expensive re-compile and deployment procedure with arbitrary and individual functionality.
 
 This Library can be used as **header only** library and is **dependency free** for fully C++20 supporting compilers / C++ standard libraries.
 
 Provided with this Library is a **demo app** for illustrating the C++ API usage and a basic way for execute TeaScript files.
 
-**TeaScript** is a **Multi-Paradigm script language** close to C++ syntax but easier to use.<br>
+**TeaScript** is an embeddable and standalone **Multi-Paradigm script language** close to C++ syntax but easier to use.<br>
 More information about TeaScript is available here: https://tea-age.solutions/teascript/overview-and-highlights/
 
 A Library bundle with more example scripts as well as a full featured **TeaScript Host Application** for execute **standalone** script files, 
-an interactive shell, a REPL, debugging options, time measurement and more can be downloaded here: <br>
+an interactive shell, a REPL, debugging options, time measurement and more can be downloaded for free here: <br>
 https://tea-age.solutions/downloads/
 
 # About TeaScript
