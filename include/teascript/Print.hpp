@@ -12,11 +12,19 @@
 
 // This header provides a switch via the TEASCRIPT_PRINT macro for the internal used way to output to stdout.
 
+
+// Define this if you have C++23 but you don't want to use std::vprint_unicode
+//#define TEASCRIPT_DISABLE_STDFORMAT_23   1
+
+// Define this if the format library (libfmt) is present in your inlcude pathes but you don't want to use it.
+//#define TEASCRIPT_DISABLE_FMTLIB         1
+
+
 // Priority order:
-// 1.) Use std::print if available.
+// 1.) Use std::vprint_unicode if available.
 // 2.) Use fmt::print
 // 3.) Use std::cout + std::format
-#if defined( __cpp_lib_format ) && __cpp_lib_format > 202110L && !defined( TEASCRIPT_DISABLE_STDFORMAT_23 )
+#if defined( __cpp_lib_format ) && __cpp_lib_format > 202110L && __cplusplus > 202002L && !defined( TEASCRIPT_DISABLE_STDFORMAT_23 )
 # define TEASCRIPT_STDFORMAT_23   1
 # include <format>
 # include <print>

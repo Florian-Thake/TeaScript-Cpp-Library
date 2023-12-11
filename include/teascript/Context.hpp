@@ -24,8 +24,11 @@
 #include <memory>
 
 
+// IMPORTANT: The option to have a TeaScript dialect where unknown identifiers will get automatically defined is actually not official supported and untested.
 #define TEASCRIPT_DEFAULT_AUTO_DEFINE_UNKNOWN_IDENTIFIERS    false
+// if true: undef an unknown identifier is allowed and will not produce an eval error (default: true)
 #define TEASCRIPT_UNDEFINE_UNKNOWN_IDENTIFIERS_ALLOWED       true
+// IMPORTANT: The option to have a TeaScript dialect where declaration without assignment is allowed is actually unsupported and not functional.
 #define TEASCRIPT_DECLARE_IDENTIFIERS_WITHOUT_ASSIGN_ALLOWED false
 
 
@@ -109,8 +112,9 @@ private:
 
 public:
 
-    // IMPORTANT: The option to have a TeaScript dialect where unknown identifiers will get automatically defined is actually unsupported and untested.
+    // IMPORTANT: The option to have a TeaScript dialect where unknown identifiers will get automatically defined is actually not official supported and untested.
     bool auto_define_unknown_identifiers       = TEASCRIPT_DEFAULT_AUTO_DEFINE_UNKNOWN_IDENTIFIERS;
+    // if true: undef an unknown identifier is allowed and will not produce an eval error (default: true)
     bool undefine_unknown_idenitifiers_allowed = TEASCRIPT_UNDEFINE_UNKNOWN_IDENTIFIERS_ALLOWED;
     // IMPORTANT: The option to have a TeaScript dialect where declaration without assignment is allowed is actually unsupported and not functional.
     bool declare_identifiers_without_assign_allowed = TEASCRIPT_DECLARE_IDENTIFIERS_WITHOUT_ASSIGN_ALLOWED;

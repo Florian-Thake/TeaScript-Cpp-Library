@@ -62,6 +62,7 @@ class ParsingState
             Func,
             Params, // more generic: List / Tuple ?
             Call,
+            Subscript, // [
         } type;
         inline operator size_t() const noexcept
         {
@@ -89,6 +90,8 @@ public:
     // these state infos are maintained and only be used by the outer level. It is just here to have everything collected in one state object.
     bool utf8_bom_removed = false;
     bool is_in_comment    = false;
+    size_t is_in_rawstring = 0;    // >0 in rawstring. Is the amount of parsed starting ".
+    std::string     raw_string;
     SourceLocation  saved_loc; // saved starting position for line-by-line calls, e.g. during multi line comments.
 
 public:
@@ -104,6 +107,8 @@ public:
         open_statement = false;
         utf8_bom_removed = false;
         is_in_comment = false;
+        is_in_rawstring = 0;
+        raw_string.clear();
         saved_loc = SourceLocation();
         mFileName = std::make_shared<std::string>( "" );
         mWorkingAST.clear();
@@ -593,7 +598,7 @@ public:
 
     void EndCall( SourceLocation loc = {} )
     {
-        // check if we have a starting expression.
+        // check if we have a starting call.
         if( mIndexStack.empty() || !mWorkingAST.at( mIndexStack.top() )->IsDummy() || mIndexStack.top().type != IndexState::Call ) {
             throw exception::parsing_error( std::move( loc ), "EndCall: There is no (start of a) parameter list / function call!" );
         }
@@ -654,7 +659,7 @@ public:
             //              call function by name  ||                   direct call a lambda  || direct call the return value of a called func!
             (mWorkingAST.back()->GetName() == "Id" || mWorkingAST.back()->GetName() == "Func" || mWorkingAST.back()->GetName() == "CallFunc"  
             //                                   call function after sequence of dot operators
-            || (mWorkingAST.back()->GetName() == "BinOp" && mWorkingAST.back()->GetDetail() == ".") ) ) {
+            || (mWorkingAST.back()->GetName() == "BinOp" && mWorkingAST.back()->GetDetail() == "." && mWorkingAST.back()->IsComplete() ) ) ) {
             StartCall( std::move(loc) );
             return;
         }
@@ -749,6 +754,104 @@ public:
         AddASTNode( std::move(expr) );
 
         // === END COMMON CODE BLOCK ===
+    }
+
+    void StartSubscript( SourceLocation loc = {} )
+    {
+
+       // IMPORTANT: This workaround bloch differs a litte from the one in StartExpressin. Check before merge blocks!!
+#if 1 //NOTE: Workaround needed to lift up (RHS) Operand for building the subscript operator with it instead! Can be removed only with "Parse ahead".
+// WORKAROUND for use subscript operator in return or stop-with statement and also in unary/binary operators. TODO: Make clean!
+        if( !mWorkingAST.empty() && open_statement &&
+            (mWorkingAST.back()->GetName() == "Return" || mWorkingAST.back()->GetName() == "Stop"
+              || mWorkingAST.back()->GetName() == "UnOp" || (mWorkingAST.back()->GetName() == "BinOp" && mWorkingAST.back()->GetDetail() != ".")) ) {
+            if( mWorkingAST.back()->HasChildren() && mWorkingAST.back()->IsComplete() ) {
+                auto ch = mWorkingAST.back()->PopChild();
+#if TEASCRIPT_ENABLED_STARTCALL_DEEP_LIFTING
+                // lift up all operators except (sequence of) dot operators.
+                while( (ch->GetName() == "UnOp" || (ch->GetName() == "BinOp" && ch->GetDetail() != "."))
+                       && ch->HasChildren() /*safety!*/ ) {
+                    auto inner = ch->PopChild();
+                    // add it uncoditional as last item, ch is inomplete now!
+                    mWorkingAST.push_back( std::move( ch ) );
+                    ch = std::move( inner );
+                }
+#endif
+                // start the subscript operator for the id or called lambda/func or (sequence of) dot operators.
+                if( ch->GetName() == "Id" || ch->GetName() == "CallFunc" || (ch->GetName() == "BinOp" && ch->GetDetail() == ".") ) {
+                    // add it uncoditional as last item and start Call-State
+                    mWorkingAST.push_back( std::move( ch ) );
+                    //StartCall( std::move( loc ) );
+                    //return;
+                } else {
+                    // bad luck, put it back...
+#if TEASCRIPT_ENABLED_STARTCALL_DEEP_LIFTING
+                    AddASTNode( std::move( ch ) ); // this will re-build a complete branch if we lifted it up above!
+#else 
+                    mWorkingAST.back()->AddChildNode( std::move( ch ) );
+#endif
+                }
+            }
+        }
+        // END WORKAROUND
+#endif
+
+        mIndexStack.push( IndexState{mWorkingAST.size(), IndexState::Subscript} );
+
+        // dummy node ensures that new nodes will be inserted after it - not inside it!
+        mWorkingAST.emplace_back( std::make_shared<ASTNode_Dummy>( "subscript", std::move( loc ) ) );
+    }
+
+    void EndSubscript( SourceLocation loc = {} )
+    {
+        // check if we have a starting subscript operator.
+        if( mIndexStack.empty() || !mWorkingAST.at(mIndexStack.top())->IsDummy() || mIndexStack.top().type != IndexState::Subscript ) {
+            throw exception::parsing_error( std::move( loc ), "EndSubscript: There is no (start of a) subscript oprator!" );
+        }
+
+        // empty subscript operators not allowed
+        if( mIndexStack.top() == mWorkingAST.size() - 1 ) {
+            throw exception::parsing_error( mWorkingAST.back()->GetSourceLocation(), "EndSubscript: No index or key operand present!" );
+        } else {
+            if( mWorkingAST.back()->IsIncomplete() ) {
+                throw exception::parsing_error( mWorkingAST.back()->GetSourceLocation(), "EndSubscript: Last node is not complete, probably a RHS is missing!" );
+            }
+        }
+
+        // merge the source locations start call / end call
+        SourceLocation  start_loc = mWorkingAST.at( mIndexStack.top() ).get()->GetSourceLocation();
+        if( loc.IsSet() ) {
+            start_loc.SetEnd( loc.GetStartLine(), loc.GetStartColumn() );
+        }
+
+        // === START COMMON CODE BLOCK ===
+
+        auto param_list = std::make_shared<ASTNode_ParamList>( std::move( start_loc ) );
+        // collect all childs, which are after the dummy
+        for( size_t i = mIndexStack.top() + 1; i != mWorkingAST.size(); ++i ) {
+            param_list->AddChildNode( mWorkingAST[i] );
+        }
+        // this param list is complete now.
+        param_list->SetComplete();
+        // erase all nodes from dummy to end
+        mWorkingAST.erase( mWorkingAST.begin() + mIndexStack.top().to_ptrdiff(), mWorkingAST.end() );
+        // remove saved index
+        mIndexStack.pop();
+        // SPECIAL here... need the node for ASTNode_SubscriptOperator
+        //UNCOMMON!//AddASTNode( std::move( param_list ) );
+
+        // === END COMMON CODE BLOCK ===
+
+        // last node is now the id
+        auto id = mWorkingAST.back();
+        mWorkingAST.pop_back();
+        auto sub = std::make_shared<ASTNode_Subscript_Operator>( param_list->GetSourceLocation() );
+        sub->AddChildNode( std::move( id ) );
+        sub->AddChildNode( std::move( param_list ) );
+        sub->SetComplete();
+
+        // finally add new 
+        AddASTNode( std::move( sub ) );
     }
 
     // helper function. checks if a new node, which needs a LHS, can be added.

@@ -1,0 +1,465 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText: Copyright (C) 2023 Florian Thake <contact@tea-age.solutions>. All rights reserved.
+ */
+ 
+// This is a follow up Unittest for the TeaScript Core Library written in TeaScript for versions >= 0.10
+// This test mainly focussing on Tuples.
+
+// NOTE: assuming all C++ UnitTests and test01.tea passed 100%!
+
+// some pre-check of the environment. 
+
+// set version_major | version_minor either to provided underscore _version or use a default value for an old version.
+is_defined _version_major and (def version_major := _version_major)
+is_defined _version_minor and (def version_minor := _version_minor)
+is_defined version_major  or  (def version_major := 0)
+is_defined version_minor  or  (def version_minor := 5)
+
+if( version_major < 1 and version_minor < 6 ) {
+    // comma , is not supported and will be a parse error
+    version_major, version_major // if you get an error here, version is too old!
+}
+
+if( version_major < 1 and version_minor < 10 ) {
+    fail_with_message( "version too old or set wrong!", _exit_failure )
+} else if( not is_defined _core_config or _core_config mod 16 < 8 /* LevelFull */ ) {
+    return "Tests must always run with CoreLibrary LevelFull."
+}
+// --- pre check done...
+
+// --- UnitTest function definitions 
+
+func TEST_EQ( val, expected, msg )
+{
+    def res := val == expected
+    if( not res ) {
+        fail_with_message( "expected %(expected) but was %(val). " % msg, _exit_failure )
+    }
+}
+
+func TEST_TRUE( c, msg )
+{
+    // enforce a boolean!
+    TEST_EQ( not not c, true, msg )
+}
+
+func TEST_FALSE( c, msg )
+{
+    // enforce a boolean!
+    TEST_EQ( not not c, false, msg )
+}
+
+// --- Start the test
+
+_out( "Start testing TeaScript Core Library ...\n" )
+
+print( "testing tuple basics ... " )
+
+{
+    def tup := (3,5,7)
+    TEST_TRUE( tup is Tuple, "tup is not Tuple!" )
+    TEST_EQ( _tuple_size( tup ), 3, "_tuple_size failed!" )
+    if( not tup ) {
+        TEST_TRUE( false, "non empty tup evals to false!" )
+    }
+    // access by idx
+    TEST_EQ( tup.0, 3 , "tup.0 failed!" )
+    TEST_EQ( tup.1, 5 , "tup.1 failed!" )
+    TEST_EQ( tup.2, 7 , "tup.2 failed!" )
+    
+    // is_defined
+    TEST_TRUE( is_defined tup.0, "is_defined tup.0 failed!" )
+    TEST_TRUE( is_defined tup.1, "is_defined tup.1 failed!" )
+    TEST_TRUE( is_defined tup.2, "is_defined tup.2 failed!" )
+    
+    // not existing elements can be checked
+    TEST_FALSE( is_defined tup.3, "tup.3 is defined?" )
+    
+    TEST_TRUE( tuple_contains( tup, 2 ), "tuple_contains( tup, 2 ) failed!" )
+    
+    // add element with function
+    _tuple_append( tup, 9 )
+    TEST_EQ( _tuple_size( tup ), 4 , "_tuple_size/_tuple_append failed!" )
+    
+    TEST_EQ( tup.3, 9 , "tup.3 failed!" )
+    
+    // add element with "Uniform definition syntax"
+    def tup.4 := 11
+    TEST_EQ( _tuple_size( tup ), 5, "_tuple_size/def tup.4 failed!" )
+    TEST_EQ( tup.4, 11 , "tup.3 failed!" )
+    
+    // access by function
+    TEST_EQ( _tuple_val( tup, 0 ), 3 , "_tuple_val( tup, 0 ) failed!" )
+    TEST_EQ( _tuple_val( tup, 1 ), 5 , "_tuple_val( tup, 1 ) failed!" )
+    TEST_EQ( _tuple_val( tup, 2 ), 7 , "_tuple_val( tup, 2 ) failed!" )
+    TEST_EQ( _tuple_val( tup, 3 ), 9 , "_tuple_val( tup, 3 ) failed!" )
+    TEST_EQ( _tuple_val( tup, 4 ), 11 , "_tuple_val( tup, 4 ) failed!" )
+    
+    // change a value
+    _tuple_set( tup, 1, 4 )
+    TEST_EQ( tup.1, 4, "tup.1/_tuple_set( tup, 1, 4 ) failed!" )
+    tup.2 := 8
+    TEST_EQ( tup.2, 8, "tup.2 := 8 failed!" )
+}
+
+print( "mixed types ... " )
+
+{
+    def tup := (7, "Hello", true, 3.33)
+    TEST_EQ( _tuple_size( tup ), 4 , "_tuple_size failed!" )
+    TEST_TRUE( tup.0 is i64, "tup.0 is wrong type!" )
+    TEST_TRUE( tup.1 is String, "tup.1 is wrong type!" )
+    TEST_TRUE( tup.2 is Bool, "tup.2 is wrong type!" )
+    TEST_TRUE( tup.3 is f64, "tup.3 is wrong type!" )
+    
+    def tup.4 := (7,8,9)
+    TEST_TRUE( tup.4 is Tuple, "tup.4 is wrong type!" )
+    
+    // access inner tuple (note: must use parenthesis for prevent parsing 4.1 as double!)
+    
+    TEST_EQ( (tup.4).0, 7 , "(tup.4).0 failed!" )
+    TEST_EQ( (tup.4).1, 8 , "(tup.4).1 failed!" )
+    TEST_EQ( (tup.4).2, 9 , "(tup.4).2 failed!" )
+    
+    def tup.5 := func () { 11 }
+    TEST_EQ( tup.5(), 11 , "tup.5() failed!" )
+}
+
+print( "named ... " )
+
+{
+    def tup := _tuple_create()   // empty tuple
+    TEST_TRUE( tup is Tuple, "tup is not Tuple!" )
+    TEST_EQ( _tuple_size( tup ), 0, "_tuple_size failed!" )
+    
+    // add element by "Uniform definition syntax"
+    def tup.name := "Peter"
+    
+    TEST_EQ( _tuple_size( tup ), 1, "_tuple_size failed!" )
+    
+    TEST_EQ( tup.name, "Peter", "tup.name failed!" )
+    // by index
+    TEST_EQ( tup.0, "Peter", "tup.0 failed!" )
+    // by function
+    TEST_EQ( _tuple_named_val( tup, "name" ), "Peter", "_tuple_named_val( tup, \"name\" ) failed!" )
+    
+    // add element by function
+    _tuple_named_append( tup, "age", 42 )
+    
+    TEST_EQ( _tuple_size( tup ), 2, "_tuple_size failed!" )
+    
+    TEST_EQ( tup.age, 42, "tup.age failed!" )
+    // by index
+    TEST_EQ( tup.1, 42, "tup.1 failed!" )
+    // by function
+    TEST_EQ( _tuple_named_val( tup, "age" ), 42, "_tuple_named_val( tup, \"age\" ) failed!" )
+    
+    TEST_TRUE( tuple_contains( tup, "age" ), "tuple_contains( tup, 2 ) failed!" )
+    
+    // change a value
+    _tuple_named_set( tup, "age", 33 )
+    TEST_EQ( tup.age, 33, "tup.age/_tuple_named_set( tup, \"age\", 33 ) failed!" )
+    
+    // can add Unicode names
+    
+    _tuple_named_append( tup, "🚀 🍀 ☠ 🔥", func() { 1337 } )
+    
+    TEST_EQ( _tuple_size( tup ), 3, "_tuple_size failed!" )
+    TEST_EQ( _tuple_named_val( tup, "🚀 🍀 ☠ 🔥" )(), 1337, "_tuple_named_val( tup, \"🚀 🍀 ☠ 🔥\" )() failed!" )
+}
+
+println( "ok." )
+
+print( "testing tuple remove ... " )
+
+{
+    def tup := (1,3,5,7,9)
+    TEST_EQ( _tuple_size( tup ), 5, "_tuple_size failed!" )
+    
+    // remove by function
+    _tuple_remove( tup, 2 )  // 5
+    
+    TEST_EQ( _tuple_size( tup ), 4, "_tuple_size failed!" )
+    
+    TEST_EQ( tup.0, 1 , "tup.0 failed!" )
+    TEST_EQ( tup.1, 3 , "tup.1 failed!" )
+    TEST_EQ( tup.2, 7 , "tup.2 failed!" )
+    TEST_EQ( tup.3, 9 , "tup.3 failed!" )
+    
+    // remove by "Uniform definition syntax"
+    undef tup.2
+    
+    TEST_EQ( tup.0, 1 , "tup.0 failed!" )
+    TEST_EQ( tup.1, 3 , "tup.1 failed!" )
+    TEST_EQ( tup.2, 9 , "tup.2 failed!" )
+}
+
+{
+    def tup := _tuple_create()   // empty tuple
+    def tup.name := "Peter"
+    def tup.age := 42
+    def tup.email := "peter@anymail.com"
+    def tup.flag := true
+    
+    TEST_EQ( _tuple_size( tup ), 4, "_tuple_size failed!" )
+    
+    // remove by function
+    _tuple_named_remove( tup, "age" )
+    
+    TEST_EQ( _tuple_size( tup ), 3, "_tuple_size failed!" )
+    
+    TEST_FALSE( is_defined tup.age, "tup.age is defined?" )
+    
+    TEST_EQ( tup.0, "Peter" , "tup.0 failed!" )
+    TEST_EQ( tup.1, "peter@anymail.com" , "tup.1 failed!" )
+    TEST_EQ( tup.2, true , "tup.2 failed!" )
+    
+    TEST_EQ( tup.name, "Peter" , "tup.name failed!" )
+    TEST_EQ( tup.email, "peter@anymail.com" , "tup.email failed!" )
+    TEST_EQ( tup.flag, true , "tup.flag failed!" )
+    
+    // remove by "Uniform definition syntax"
+    undef tup.email
+    
+    TEST_EQ( _tuple_size( tup ), 2, "_tuple_size failed!" )
+    
+    TEST_FALSE( is_defined tup.email, "tup.email is defined?" )
+    
+    TEST_EQ( tup.0, "Peter" , "tup.0 failed!" )
+    TEST_EQ( tup.1, true , "tup.1 failed!" )
+    
+    TEST_EQ( tup.name, "Peter" , "tup.name failed!" )
+    TEST_EQ( tup.flag, true , "tup.flag failed!" )
+}
+
+print( "insert ... " )
+
+{
+    def tup := (1,3,4)
+    TEST_EQ( _tuple_size( tup ), 3, "_tuple_size failed!" )
+    
+    _tuple_insert( tup, 1, 2 )
+    
+    TEST_EQ( _tuple_size( tup ), 4, "_tuple_size failed!" )
+    
+    TEST_EQ( tup.0, 1 , "tup.0 failed!" )
+    TEST_EQ( tup.1, 2 , "tup.1 failed!" )
+    TEST_EQ( tup.2, 3 , "tup.2 failed!" )
+    TEST_EQ( tup.3, 4 , "tup.3 failed!" )
+    
+    // special case, append a new element to the end.
+    _tuple_insert( tup, 4, 5 )
+    
+    TEST_EQ( _tuple_size( tup ), 5, "_tuple_size failed!" )
+    
+    TEST_EQ( tup.0, 1 , "tup.0 failed!" )
+    TEST_EQ( tup.1, 2 , "tup.1 failed!" )
+    TEST_EQ( tup.2, 3 , "tup.2 failed!" )
+    TEST_EQ( tup.3, 4 , "tup.3 failed!" )
+    TEST_EQ( tup.4, 5 , "tup.4 failed!" )
+}
+
+{
+    def tup := _tuple_create()   // empty tuple
+    def tup.name := "Peter"
+    def tup.age := 42
+    
+    _tuple_named_insert( tup, 1, "city", "Miami" )
+    
+    TEST_EQ( _tuple_size( tup ), 3, "_tuple_size failed!" )
+    
+    TEST_EQ( tup.name, "Peter" , "tup.name failed!" )
+    TEST_EQ( tup.city, "Miami" , "tup.city failed!" )
+    TEST_EQ( tup.age, 42 , "tup.age failed!" )
+    
+    TEST_EQ( tup.0, "Peter" , "tup.0 failed!" )
+    TEST_EQ( tup.1, "Miami" , "tup.1 failed!" )
+    TEST_EQ( tup.2, 42 , "tup.2 failed!" )
+    
+    // name of, index of
+    TEST_EQ( _tuple_name_of( tup, 1 ), "city" , "_tuple_name_of( tup, 1 ) failed!" )
+    TEST_EQ( _tuple_index_of( tup, "age" ), 2 , "_tuple_index_of( tup, \"age\" ) failed!" )
+}
+
+println( "ok." )
+
+print( "testing tuple same types ... " )
+
+{
+    def tup1 := (1,3,5)
+    def tup2 := (2,4,6)
+    def tup3 := (1,3,5,7)
+    def tup4 := (1,3,true)
+    def tup5 := (1,3,5) // equal to tup1
+    
+    TEST_TRUE( _tuple_same_types( tup1, tup2 ), "_tuple_same_types( tup1, tup2 ) failed!" )
+    TEST_FALSE( _tuple_same_types( tup1, tup3 ), "_tuple_same_types( tup1, tup3 ) failed!" )
+    TEST_FALSE( _tuple_same_types( tup1, tup4 ), "_tuple_same_types( tup1, tup4 ) failed!" )
+    TEST_TRUE( _tuple_same_types( tup1, tup5 ), "_tuple_same_types( tup1, tup5 ) failed!" )
+    
+    TEST_EQ( tup5, tup1, "tup5 != tup1" )
+    TEST_FALSE( tup2 == tup1, "tup2 == tup1 failed!" )
+
+    def copy := tup1
+    
+    TEST_TRUE( _tuple_same_types( copy, tup1 ), "_tuple_same_types( copy, tup1 ) failed!" )
+    TEST_EQ( copy, tup1, "copy != tup1" )
+}
+
+{
+    def tup1 := _tuple_create()
+    def tup1.name := "Peter"
+    def tup1.age := 42
+    def tup1.email := "peter@anymail.com"
+    def tup1.flag := true
+    
+    // same structure, different values
+    def tup2 := _tuple_create()
+    def tup2.name := "Lisa"
+    def tup2.age := 25
+    def tup2.email := "lisa@anymail.com"
+    def tup2.flag := false
+    
+    // different structure, same values
+    def tup3 := _tuple_create()
+    def tup3.abc := "Peter"
+    def tup3.age := 42
+    def tup3.email := "peter@anymail.com"
+    def tup3.flag := true
+    
+    // different
+    def tup4 := _tuple_create()
+    def tup4.xyz := 123
+    def tup4.foo := 42
+    def tup4.text := "hello"
+    
+    // equal to 1
+    def tup5 := _tuple_create()
+    def tup5.name := "Peter"
+    def tup5.age := 42
+    def tup5.email := "peter@anymail.com"
+    def tup5.flag := true
+    
+    TEST_TRUE( _tuple_same_types( tup1, tup2 ), "_tuple_same_types( tup1, tup2 ) failed!" )
+    TEST_FALSE( _tuple_same_types( tup1, tup3 ), "_tuple_same_types( tup1, tup3 ) failed!" )
+    TEST_FALSE( _tuple_same_types( tup1, tup4 ), "_tuple_same_types( tup1, tup4 ) failed!" )
+    TEST_TRUE( _tuple_same_types( tup1, tup5 ), "_tuple_same_types( tup1, tup5 ) failed!" )
+    
+    TEST_EQ( tup5, tup1, "tup5 != tup1" )
+    TEST_FALSE( tup2 == tup1, "tup2 == tup1 failed!" )
+
+    def copy := tup1
+    
+    TEST_TRUE( _tuple_same_types( copy, tup1 ), "_tuple_same_types( copy, tup1 ) failed!" )
+    TEST_EQ( copy, tup1, "copy != tup1" )
+}
+
+
+print( "index swap (bubble sort) ... " )
+
+{
+    // some unsorted tuple... 
+    def tup := (7,9,3,1,6,2,4,8,0,5)
+    
+    const size := _tuple_size( tup )
+    
+    func inc( n @= ) { n := n + 1 }
+    
+    // Bubble Sort
+    def i := 0
+    repeat {
+        if( i == size ) { stop }
+        
+        def j := i + 1
+        repeat {
+            if( j == size ) { stop }
+            
+            if( _tuple_val( tup, j ) < _tuple_val( tup, i ) ) {
+                _tuple_swap( tup, i, j )
+            }
+            
+            inc( j )
+        }
+        
+        inc( i )
+    }
+    
+    TEST_EQ( tup.0, 0 , "tup.0 failed!" )
+    TEST_EQ( tup.1, 1 , "tup.1 failed!" )
+    TEST_EQ( tup.2, 2 , "tup.2 failed!" )
+    TEST_EQ( tup.3, 3 , "tup.3 failed!" )
+    TEST_EQ( tup.4, 4 , "tup.4 failed!" )
+    TEST_EQ( tup.5, 5 , "tup.5 failed!" )
+    TEST_EQ( tup.6, 6 , "tup.6 failed!" )
+    TEST_EQ( tup.7, 7 , "tup.7 failed!" )
+    TEST_EQ( tup.8, 8 , "tup.8 failed!" )
+    TEST_EQ( tup.9, 9 , "tup.9 failed!" )
+}
+
+println( "ok." )
+
+
+print( "testing stack support ... " )
+
+{
+    def stack := _tuple_create()
+    
+    stack_push( stack, 1 )
+    stack_push( stack, 2 )
+    stack_push( stack, 3 )
+    
+    TEST_EQ( _tuple_size( stack ), 3, "_tuple_size( stack ) failed!" )
+    
+    TEST_EQ( stack_pop( stack ), 3, "stack_pop( stack ) 3 failed!" )
+    TEST_EQ( stack_pop( stack ), 2, "stack_pop( stack ) 2 failed!" )
+    TEST_EQ( stack_pop( stack ), 1, "stack_pop( stack ) 1 failed!" )
+    
+    TEST_EQ( _tuple_size( stack ), 0, "_tuple_size( stack ) failed!" )
+    
+    if( stack ) {
+        TEST_TRUE( false, "empty stack evals to true!" )
+    }
+}
+
+
+println( "ok." )
+
+
+if( version_major >= 1 or version_minor >= 11 )
+{
+    print( "testing dot string support ... " )
+
+    // NOTE: the syntax can be parsed by old 0.10.0 without problems, but the functionality was implemented in 0.11.0.
+    def tup := _tuple_create()
+    def tup."🚀 🍀 ☠ 🔥" := "test"
+    TEST_EQ( tup."🚀 🍀 ☠ 🔥", "test", "def tup.\"🚀 🍀 ☠ 🔥\" := \"test\" failed!" )
+    tup."🚀 🍀 ☠ 🔥" := "xyz"
+    TEST_EQ( tup."🚀 🍀 ☠ 🔥", "xyz", "tup.\"🚀 🍀 ☠ 🔥\" := \"xyz\" failed!" )
+    undef tup."🚀 🍀 ☠ 🔥"
+    TEST_FALSE( is_defined tup."🚀 🍀 ☠ 🔥", "undef tup.\"🚀 🍀 ☠ 🔥\" failed!" )
+
+    println( "ok." )
+}
+
+
+println( "\n=== TEST PASSED ===" )
+
+println( "\nFinally testing tuple print." )
+println( "\nTHIS MUST BE VERIFIED MANUALLY!!!\n" )
+
+{
+    def tup := _tuple_create()   // empty tuple
+    def tup.name := "Peter"
+    def tup.age := 42
+    def tup.email := "peter@anymail.com"
+    def tup.inner  := _tuple_create()   // empty tuple
+    def tup.inner.abc := 123
+    def tup.inner.flag := true
+    def tup.inner.functor := func() { 999 }
+    
+    println( "Showing a tuple with name, age, email, inner.abc, inner.flag, inner.functor\n" )
+    
+    tuple_print( tup, "tup", 4 )
+}
+

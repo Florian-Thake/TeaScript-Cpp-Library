@@ -1,0 +1,123 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake, <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MIT
+ * see included file MIT_LICENSE.txt
+ */
+
+
+// This is a test script for manual testing the TOML Support in TeaScript
+
+
+// older versions (0.10.0 and below) will produce a parse error when raw string literals are used...
+// cover this case here first and try to produce a readable error.
+if( _version_major < 1 and _version_minor < 11 ) {
+    // return from 'main' exists since 0.8.0 which was the first public release...
+    return """Version is too old. Need 0.11.0 as minimum."""
+}
+
+if( not is_defined _core_config or _core_config mod 16 < 4 /* LevelUtil */ ) {
+    return "You need CoreLibrary LevelUtil or above for TOML Support."
+}
+
+if( not is_defined readtomlstring ) {
+    fail_with_message( "TOML support is not available!", _exit_failure )
+}
+
+
+// TOML examples are from  https://toml.io/en/v1.0.0
+
+// table
+
+def toml_01 := readtomlstring( """
+[name]
+first = "Tom"
+last = "Preston-Werner"
+
+[point]
+x = 1
+y = 2
+
+[animal]
+type.name = "pug"
+""" )
+
+
+println( "\ntoml_01:" )
+tuple_print( toml_01, "toml_01", 10 )
+
+
+// arrays
+
+def toml_02 := readtomlstring( """
+integers = [ 1, 2, 3 ]
+colors = [ "red", "yellow", "green" ]
+nested_arrays_of_ints = [ [ 1, 2 ], [3, 4, 5] ]
+nested_mixed_array = [ [ 1, 2 ], ["a", "b", "c"] ]
+
+# Mixed-type arrays are allowed
+numbers = [ 0.1, 0.2, 0.5, 1, 2, 5 ]
+contributors = [
+  "Foo Bar <foo@example.com>",
+  { name = "Baz Qux", email = "bazqux@example.com", url = "https://example.com/bazqux" }
+]
+""" )
+
+
+println( "\ntoml_02:" )
+tuple_print( toml_02, "toml_02", 15 )
+
+
+
+// array of tables (simple)
+
+def toml_03 := readtomlstring( """
+[[products]]
+name = "Hammer"
+sku = 738594937
+
+[[products]]  # empty table within the array
+
+[[products]]
+name = "Nail"
+sku = 284758393
+
+color = "gray"
+""" )
+
+
+println( "\ntoml_03:" )
+tuple_print( toml_03, "toml_03", 10 )
+
+
+
+// array of tables (complex)
+
+def toml_04 := readtomlstring( """
+[[fruits]]
+name = "apple"
+
+[fruits.physical]  # subtable
+color = "red"
+shape = "round"
+
+[[fruits.varieties]]  # nested array of tables
+name = "red delicious"
+
+[[fruits.varieties]]
+name = "granny smith"
+
+
+[[fruits]]
+name = "banana"
+
+[[fruits.varieties]]
+name = "plantain"
+""" )
+
+
+println( "\ntoml_04:" )
+tuple_print( toml_04, "toml_04", 15 )
+
+println("\nThe output above must be verified manually." )
+

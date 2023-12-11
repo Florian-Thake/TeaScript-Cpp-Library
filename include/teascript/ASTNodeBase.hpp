@@ -149,7 +149,7 @@ public:
     }
 
     /// applies a callback function recursively to the AST. Stops nesting if callback returns false.
-    virtual void Apply( std::function<bool( ASTNode const *, int )> const &callback, int depth = 1 )
+    virtual void Apply( std::function<bool( ASTNode const *, int )> const &callback, int depth = 1 ) const
     {
         callback( this, depth );
     }

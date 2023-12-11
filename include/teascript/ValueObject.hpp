@@ -301,7 +301,7 @@ public:
 
     }
 
-     // TODO: Decide if explicit should be removed for ease of use ?
+    // TODO: Decide if explicit should be removed for ease of use ?
     inline
     explicit ValueObject( std::string const &rStr, ValueConfig const &cfg = {} )
         : mValue( create_helper( cfg.IsShared(), BareTypes( rStr ) ) )
@@ -460,13 +460,13 @@ public:
     }
 
     /// \warning INTERNAL interface
-    inline uintptr_t GetInternalID() const
+    inline uintptr_t GetInternalID() const noexcept
     {
         return reinterpret_cast<uintptr_t>(mpValue);
     }
 
     /// \return whether this instance uses a reference counting mechanism for the stored value.
-    inline bool IsShared() const
+    inline bool IsShared() const noexcept
     {
         return mValue.index() == 1;
     }
@@ -733,6 +733,57 @@ public:
         os << rObj.PrintValue();
         return os;
     }
+
+
+    /// \return whether the operator [] has a usefull meaning, e.g. this object might have nested child objects via a Tuple or another container.
+    inline
+    bool IsSubscriptable() const noexcept
+    {
+        return mpType->IsSame<Tuple>();
+    }
+
+    /// Subscript operator [] for index based access of nested child objects, e.g. inside a Tuple.
+    /// Will throw if this object is not subscriptable or index is out of range.
+    ValueObject const &operator[]( std::size_t const idx ) const
+    {
+        if( IsSubscriptable() ) {
+            return GetValue<Tuple>().GetValueByIdx( idx );
+        }
+        throw exception::bad_value_cast( "Object is not subscriptable!" );
+    }
+
+    /// Subscript operator [] for index based access of nested child objects, e.g. inside a Tuple. 
+    /// Will throw if this object is not subscriptable or index is out of range.
+    ValueObject &operator[]( std::size_t const idx )
+    {
+        if( IsSubscriptable() ) {
+            return GetValue<Tuple>().GetValueByIdx( idx );
+        }
+        throw exception::bad_value_cast( "Object is not subscriptable!" );
+    }
+
+    /// Subscript operator [] for key based access of nested child objects, e.g. inside a Tuple.
+    /// Will throw if this object is not subscriptable or key is not present.
+    /// Unlike std::map this operator will _not_ create a missing key / value!
+    ValueObject const &operator[]( String const &rKey ) const
+    {
+        if( IsSubscriptable() ) {
+            return GetValue<Tuple>().GetValueByKey( rKey );
+        }
+        throw exception::bad_value_cast( "Object is not subscriptable!" );
+    }
+
+    /// Subscript operator [] for key based access of nested child objects, e.g. inside a Tuple.
+    /// Will throw if this object is not subscriptable or key is not present.
+    /// Unlike std::map this operator will _not_ create a missing key / value!
+    ValueObject &operator[]( String const &rKey )
+    {
+        if( IsSubscriptable() ) {
+            return GetValue<Tuple>().GetValueByKey( rKey );
+        }
+        throw exception::bad_value_cast( "Object is not subscriptable!" );
+    }
+
 
     //FIXME: strong_ordering is not ok for floating point and special custom types!
     /// Returns the order of the 2 ValueObjects. long long is preferred over bool. bool is preferred over string.

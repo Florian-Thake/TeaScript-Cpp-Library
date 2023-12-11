@@ -157,13 +157,13 @@ public:
         AddValueObject( rName, ValueObject( s, ValueConfig( eShared::ValueShared, eConst::ValueMutable ) ) );
     }
 
-    /// Adds the given value as a mutable String with name \param rName to the current scope.
+    /// Adds the given value as a mutable String with name \param rName to the current scope. The char array \param s must be zero terminated.
     /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
     template<size_t N>
     inline
     void AddVar( std::string const &rName, char const (&s)[N] )
     {
-        AddVar( rName, teascript::String( s, N ) );
+        AddVar( rName, teascript::String( s, N - 1 ) ); // - 1 for not add the \0 as content. String will be null terminated anyway.
     }
 
 
@@ -238,13 +238,13 @@ public:
         AddValueObject( rName, ValueObject( s, ValueConfig( eShared::ValueShared, eConst::ValueConst ) ) );
     }
 
-    /// Adds the given value as a const String with name \param rName to the current scope.
+    /// Adds the given value as a const String with name \param rName to the current scope. The char array \param s must be zero terminated.
     /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
     template<size_t N>
     inline
     void AddConst( std::string const &rName, char const (&s)[N] )
     {
-        AddConst( rName, teascript::String( s, N ) );
+        AddConst( rName, teascript::String( s, N - 1 ) ); // - 1 for not add the \0 as content. String will be null terminated anyway.
     }
 
 

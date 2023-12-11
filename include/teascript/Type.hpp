@@ -22,6 +22,7 @@ namespace teascript {
 // Primitive Types of TeaScript
 struct NotAValue {}; /// The Not A Value type.
 struct Number {};    /// tag for number, acts 'like a concept'
+struct Const {};     /// tag for const, acts 'like a concept'
 struct Passthrough {}; /// tag for Passthrough data.
 
 using Bool = bool;                      /// The Boolean type.

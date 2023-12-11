@@ -10,17 +10,11 @@
  */
 #pragma once
 
-#if defined _MSC_VER  && !defined _SILENCE_CXX20_U8PATH_DEPRECATION_WARNING
-# define _SILENCE_CXX20_U8PATH_DEPRECATION_WARNING
-#endif
-#if defined _MSC_VER  && !defined _CRT_SECURE_NO_WARNINGS
-# define _CRT_SECURE_NO_WARNINGS
-#endif
-
 #include "Func.hpp"
 #include "Context.hpp"
 #include "Type.hpp"
 #include "TupleUtil.hpp"
+#include "TomlSupport.hpp"
 #include "Print.hpp"
 #include "Parser.hpp"
 #include "version.h"
@@ -37,7 +31,7 @@ namespace teascript {
 namespace config {
 
 /// Config enum for specify what shall be loaded.
-enum eConfig
+enum eConfig : unsigned int
 {
     LevelMask           = 0x00'00'00'0f,
     FeatureOptOutMask   = 0xff'ff'ff'00,
@@ -981,7 +975,7 @@ protected:
         // add start time stamp of this CoreLibrary incarnation, the Core Lib config and our copyright information
         {
             res.push_back( std::make_pair( "_init_core_stamp", ValueObject( GetTimeStamp(), cfg ) ) );
-            res.push_back( std::make_pair( "_core_config", ValueObject( static_cast<long long>(config), cfg ) ) ); // config of Core Lib
+            res.push_back( std::make_pair( "_core_config", ValueObject( static_cast<long long>(static_cast<unsigned long long>(config)), cfg ) ) ); // config of Core Lib (first cast to ull for avoid - by accident)
             res.push_back( std::make_pair( "__teascript_copyright", ValueObject( std::string(TEASCRIPT_COPYRIGHT), cfg ) ) );
         }
 
@@ -996,7 +990,7 @@ protected:
             res.push_back( std::make_pair( "Number", ValueObject( MakeTypeInfo<Number>("Number"), cfg))); //TEST TEST TEST - Fake concept for 'Number'
             res.push_back( std::make_pair( "Function", ValueObject( MakeTypeInfo<FunctionPtr>("Function"), cfg)));
             res.push_back( std::make_pair( "Tuple", ValueObject( MakeTypeInfo<Collection<ValueObject>>( "Tuple" ), cfg ) ) );
-            //res.push_back( std::make_pair( "const", ValueObject( MakeTypeInfo<Number>( "const" ), cfg ) ) ); //TEST TEST TEST - Fake concept for 'const'
+            res.push_back( std::make_pair( "Const", ValueObject( MakeTypeInfo<Const>( "Const" ), cfg ) ) ); //EXPERIMENTAL: TEST TEST TEST - Fake concept for 'const'
         }
 
 
@@ -1330,6 +1324,15 @@ protected:
                 ValueObject val{std::move( func ), cfg_mutable};
                 res.push_back( std::make_pair( "random", std::move( val ) ) );
             }
+
+#if TEASCRIPT_TOMLSUPPORT
+            // readtomlstring : Tuple ( String ) --> creates a named tuple from the given TOML formatted string (or false on error).
+            {
+                auto func = std::make_shared< LibraryFunction1< decltype(TomlSupport::ReadTomlString), std::string, ValueObject, true> >( &TomlSupport::ReadTomlString );
+                ValueObject val{std::move( func ), cfg_mutable};
+                res.push_back( std::make_pair( "readtomlstring", std::move( val ) ) ); // missing _ is intended
+            }
+#endif
         }
 
         // minimalistic (text) file io support
@@ -1684,6 +1687,20 @@ func file_exists( file )
 }
 )_SCRIPT_";
 
+#if TEASCRIPT_TOMLSUPPORT
+        static constexpr char core_lib_toml[] = R"_SCRIPT_(
+func readtomlfile( file )
+{
+    const content := readtextfile( file )
+    if( content is String ) {
+        readtomlstring( content )
+    } else {
+        false
+    }
+}
+)_SCRIPT_";
+#endif
+
         static constexpr char core_lib_teascript[] = R"_SCRIPT_(
 
 // checks whether the tuple contains the given name or index
@@ -1853,6 +1870,11 @@ func rolldice( eyes := 6 )
             (config & (config::NoFileWrite | config::NoFileRead | config::NoFileDelete)) ) {
             p.Parse( core_lib_file, "Core" )->Eval( rContext );
         }
+#if TEASCRIPT_TOMLSUPPORT
+        if( not (config & config::NoFileRead) ) {
+            p.Parse( core_lib_toml, "Core" )->Eval( rContext );
+        }
+#endif
 
         if( (config & config::LevelMask) >= config::LevelFull ) {
             p.Parse( core_lib_teascript, "Core" )->Eval( rContext );

@@ -52,7 +52,6 @@ public:
     void Clear()
     {
         mLookup.clear();
-        //TODO: (future) Need to lookup registered Destructor functions and call them!
         while( !mStorage.empty() ) {
             mStorage.pop_back();
         }
@@ -181,6 +180,36 @@ public:
     {
         // one of the rare unevil const_cast: first make this const to can re-use the const code, then remove the const again from result.
         return const_cast<ValueType &>(const_cast<Collection const &>(*this).GetValueByKey( rKey ));
+    }
+
+    /// Subscript operator [] for index based access. As for std::vector it is undefined behavior if idx is out of range.
+    inline
+    ValueType const &operator[]( std::size_t const idx ) const noexcept
+    {
+        return mStorage[idx].second;
+    }
+
+    /// Subscript operator [] for index based access. As for std::vector it is undefined behavior if idx is out of range.
+    inline
+    ValueType &operator[]( std::size_t const idx ) noexcept
+    {
+        return mStorage[idx].second;
+    }
+
+    /// Subscript operator [] for key based access. Unlike std::map this operator will _not_ create a missing key / value!
+    /// IMPORTANT: A call of this operator for an unpresent key will result in undefined behavior!
+    inline
+    ValueType const &operator[]( KeyType const &rKey ) const noexcept
+    {
+        return GetValueByIdx_Unchecked( mLookup.find( rKey )->second );
+    }
+
+    /// Subscript operator [] for key based access. Unlike std::map this operator will _not_ create a missing key / value!
+    /// IMPORTANT: A call of this operator for an unpresent key will result in undefined behavior!
+    inline
+    ValueType &operator[]( KeyType const &rKey ) noexcept
+    {
+        return GetValueByIdx_Unchecked( mLookup.find( rKey )->second );
     }
 
 protected:

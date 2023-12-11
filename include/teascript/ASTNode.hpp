@@ -112,7 +112,7 @@ class ASTNode_Constant : public ASTNode
 
 public:
     ASTNode_Constant( ValueObject &&value, SourceLocation loc = {} )
-        : ASTNode( "Constant", std::move( loc ) ) //TODO: add type info name of value?
+        : ASTNode( "Constant", value.GetTypeInfo()->GetName(), std::move( loc ) )
         , mConstantValue( std::move( value ) )
     {
 
@@ -163,6 +163,12 @@ public:
         return mConstantValue;
     }
 
+    // INTERNAL: returns a copy of the constant value (for debug information)
+    ValueObject GetValue() const noexcept
+    {
+        return mConstantValue;
+    }
+
     std::string GetInfoStr() const override
     {
         std::string name = GetName();
@@ -170,7 +176,7 @@ public:
             name += ": NaV";
         } else if( mConstantValue.HasPrintableValue() ) {
             std::string const v = mConstantValue.PrintValue();
-            name += ": " + v;
+            name += " (" + GetDetail() + "): " + v;
         }
         return name;
     }
@@ -201,7 +207,7 @@ class ASTNode_Child_Capable : public ASTNode
 protected:
     std::vector<ASTNodePtr> mChildren;
 
-    void ApplyChildren( std::function<bool( ASTNode const *, int )> const &callback, int depth )
+    void ApplyChildren( std::function<bool( ASTNode const *, int )> const &callback, int depth ) const
     {
         for( auto p : mChildren ) {
             p->Apply( callback, depth + 1 );
@@ -242,7 +248,7 @@ public:
         return child;
     }
 
-    void Apply( std::function<bool( ASTNode const *, int )> const &callback, int depth ) override
+    void Apply( std::function<bool( ASTNode const *, int )> const &callback, int depth = 1 ) const override
     {
         if( callback( this, depth ) ) {
             ApplyChildren( callback, depth );
@@ -539,8 +545,174 @@ public:
 };
 
 
+/// The Subscript operator ( lhs [ op1,...] ) for index or key based access via square brackets.
+class ASTNode_Subscript_Operator : public ASTNode_Child_Capable
+{
+    bool mIsComplete = false;
+
+    inline
+    void Check() const
+    {
+        if( IsIncomplete() ) {
+            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode incomplete! Closing ']' were not parsed!" );
+        } else if( mChildren.empty() ) {
+            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode incomplete! LHS missing!" );
+        } else if( mChildren.size() < 2 ) {
+            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode incomplete! No index or key operand present!" );
+        }
+    }
+
+public:
+    explicit ASTNode_Subscript_Operator( SourceLocation loc = {} )
+        : ASTNode_Child_Capable( "Subscript", std::move( loc ) )
+    {
+    }
+
+    //FIXME: not working with standard operator mechanics, AddASTNode will not repair possible incomplete BinOps.
+    bool NeedLHS() const noexcept override
+    {
+        return mChildren.empty();
+    }
+
+    int Precedence() const noexcept override
+    {
+        return 1;
+    }
+
+    bool IsComplete() const noexcept override
+    {
+        return mIsComplete;
+    }
+
+    void SetComplete() noexcept
+    {
+        mIsComplete = true;
+    }
+
+    void AddChildNode( ASTNodePtr node ) override
+    {
+        assert( node.get() != nullptr );
+        if( IsComplete() ) {
+            throw exception::runtime_error( GetSourceLocation(), "Subscript ASTNode complete! Cannot add additional child!" );
+        }
+        mChildren.emplace_back( std::move( node ) );
+    }
+
+    ValueObject SetValueObject( Context &rContext, ValueObject const &rValue, bool const shared )
+    {
+        Check();
+        ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
+        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+
+        if( lhs.IsConst() ) {
+            throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be changed!" );
+        }
+
+        // get and evaluate parameter list
+        auto  paramval = mChildren[1]->Eval( rContext );
+        auto &params = paramval.GetValue< std::vector< ValueObject> >();
+
+        if( params.empty() ) {
+            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode incomplete! No index or key operand present!" );
+        } else if( params.size() > 1 ) {
+            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode with more than one operand is not implemented!" );
+        }
+
+        auto const &index_or_key = params[0];
+
+        auto &obj = index_or_key.GetTypeInfo()->IsSame<String>() ? tuple.GetValueByKey( index_or_key.GetValue<String>() ) : tuple.GetValueByIdx( index_or_key.GetAsInteger() );
+        if( shared ) {
+            obj.SharedAssignValue( rValue, GetSourceLocation() );
+        } else {
+            obj.AssignValue( rValue, GetSourceLocation() );
+        }
+        return obj;
+    }
+
+    ValueObject GetValueObject( Context &rContext ) const
+    {
+        Check();
+        ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
+        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+
+        // get and evaluate parameter list
+        auto  paramval = mChildren[1]->Eval( rContext );
+        auto &params = paramval.GetValue< std::vector< ValueObject> >();
+
+        if( params.empty() ) {
+            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode incomplete! No index or key operand present!" );
+        } else if( params.size() > 1 ) {
+            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode with more than one operand is not implemented!" );
+        }
+
+        auto const &index_or_key = params[0];
+
+        if( index_or_key.GetTypeInfo()->IsSame<String>() ) {
+            return tuple.GetValueByKey( index_or_key.GetValue<String>() );
+        } else {
+            return tuple.GetValueByIdx( index_or_key.GetAsInteger() );
+        }
+    }
+
+    ValueObject Eval( Context &rContext ) override
+    {
+        try {
+            return GetValueObject( rContext );
+        } catch( exception::bad_value_cast const & ) {
+            throw exception::eval_error( GetSourceLocation(), "Subscript Operator: LHS is not a Tuple or Array!" );
+        }
+    }
+};
+
+
+/// The dot operator ( lhs . rhs ), working with Tuples.
 class ASTNode_Dot_Operator : public ASTNode_Binary_Operator
 {
+    inline
+    void Check() const
+    {
+        if( !IsComplete() ) {
+            if( NeedLHS() ) {
+                throw exception::eval_error( GetSourceLocation(), "Dot Operator ASTNode incomplete! LHS and RHS missing!" );
+            } else { // mChildren.size() < 2
+                throw exception::eval_error( GetSourceLocation(), "Dot Operator ASTNode incomplete! RHS missing!" );
+            }
+        }
+    }
+
+
+    std::size_t GetIndex( Tuple const &tuple, Context &rContext ) const
+    {
+        std::size_t  idx = static_cast<std::size_t>(-1);
+        std::string  identifier;
+
+        if( mChildren[1]->GetName() == "Id" ) {
+            identifier = mChildren[1]->GetDetail();
+        // if Expression is allowed, then this code is valid: tup.(4-1).0 , but now we can also just use this: tup[4-1].0
+        } else if( mChildren[1]->GetName() == "Constant" /*|| mChildren[1]->GetName() == "Expression"*/ ) {
+            auto const  val = mChildren[1]->Eval( rContext );
+            if( val.GetTypeInfo()->IsSame( TypeString ) ) {
+                identifier = val.GetValue<String>();
+            } else {
+                idx = static_cast<std::size_t>(val.GetAsInteger());
+            }
+        } else {
+            throw exception::eval_error( GetSourceLocation(), "Dot Operator: Invalid access!" );
+        }
+
+        if( not identifier.empty() ) {
+            idx = static_cast<std::size_t>(tuple.IndexOfKey( identifier ));
+        }
+
+        if( idx == static_cast<std::size_t>(-1) ) {
+            throw exception::unknown_identifier( GetSourceLocation(), identifier );
+        } else if( not tuple.ContainsIdx( idx ) ) {
+            throw exception::out_of_range( GetSourceLocation() );
+        }
+
+        return idx;
+    }
+
 public:
     explicit ASTNode_Dot_Operator( SourceLocation loc = {} )
         : ASTNode_Binary_Operator( ".", std::move( loc ) )
@@ -552,17 +724,23 @@ public:
         return 1;
     }
 
-    inline
-    void Check()
+    /// \warning EXPERIMENTAL interface, builds the branch string of all nested dot ops
+    std::string BuildBranchString() const
     {
-        if( !IsComplete() ) {
-            if( NeedLHS() ) {
-                throw exception::eval_error( GetSourceLocation(), "Dot Operator ASTNode incomplete! LHS and RHS missing!" );
-            } else { // mChildren.size() < 2
-                throw exception::eval_error( GetSourceLocation(), "Dot Operator ASTNode incomplete! RHS missing!" );
+        std::string res;
+        Apply( [&res]( ASTNode const *p, int ) -> bool {
+            if( p->GetName() == "Id" ) {
+                if( not res.empty() ) { res += "."; }
+                res += p->GetDetail();
+            } else if( p->GetName() == "Constant" ) {
+                if( not res.empty() ) { res += "."; }
+                res += static_cast<ASTNode_Constant const *>(p)->GetValue().PrintValue();
             }
-        }
+            return true;
+        } );
+        return res;
     }
+
 
     ValueObject AddValueObject( Context &rContext, ValueObject const &rVal )
     {
@@ -574,7 +752,19 @@ public:
             throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be added!" );
         }
 
-        if( mChildren[1]->GetName() == "Constant" ) {
+        std::string identifier;
+        if( mChildren[1]->GetName() == "Id" ) {
+            identifier = mChildren[1]->GetDetail();
+        } else if( mChildren[1]->GetName() == "Constant" && mChildren[1]->GetDetail() == "String" ) {
+            identifier = mChildren[1]->Eval( rContext ).GetValue<String>();
+        }
+
+        if( not identifier.empty() ) {
+            if( !tuple.AppendKeyValue( identifier, rVal ) ) {
+                throw exception::redefinition_of_variable( GetSourceLocation(), identifier );
+            }
+            return tuple.GetValueByKey( identifier );
+        } else if( mChildren[1]->GetName() == "Constant" ) {
             auto const idx = mChildren[1]->Eval( rContext ).GetAsInteger();
             if( idx < 0 || static_cast<std::size_t>(idx) > tuple.Size() ) {
                 throw exception::out_of_range( GetSourceLocation() );
@@ -584,11 +774,6 @@ public:
                 tuple.AppendValue( rVal );
                 return tuple.GetValueByIdx( static_cast<std::size_t>(idx) );
             }
-        } else if( mChildren[1]->GetName() == "Id" ) {
-            if( !tuple.AppendKeyValue( mChildren[1]->GetDetail(), rVal ) ) {
-                throw exception::redefinition_of_variable( GetSourceLocation(), mChildren[1]->GetDetail() );
-            }
-            return tuple.GetValueByKey( mChildren[1]->GetDetail() );
         } else {
             
         }
@@ -606,36 +791,14 @@ public:
             throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be changed!" );
         }
 
-        if( mChildren[1]->GetName() == "Constant" ) {
-            auto const idx = mChildren[1]->Eval( rContext ).GetAsInteger();
-            if( idx >= 0 && static_cast<std::size_t>(idx) < tuple.Size() ) {
-                auto &obj = tuple.GetValueByIdx( static_cast<std::size_t>(idx) );
-                if( shared ) {
-                    obj.SharedAssignValue( rValue, GetSourceLocation() );
-                } else {
-                    obj.AssignValue( rValue, GetSourceLocation() );
-                }
-                return obj;
-            } else {
-                throw exception::out_of_range( GetSourceLocation() );
-            }
-        } else if( mChildren[1]->GetName() == "Id" ) {
-            auto idx = tuple.IndexOfKey( mChildren[1]->GetDetail() );
-            if( idx == static_cast<std::size_t>(-1) ) {
-                throw exception::unknown_identifier( GetSourceLocation(), mChildren[1]->GetDetail() );
-            }
-            auto &obj = tuple.GetValueByIdx_Unchecked( idx );
-            if( shared ) {
-                obj.SharedAssignValue( rValue, GetSourceLocation() );
-            } else {
-                obj.AssignValue( rValue, GetSourceLocation() );
-            }
-            return obj;
+        auto const idx = GetIndex( tuple, rContext ); // throws on error!
+        auto &obj = tuple.GetValueByIdx_Unchecked( idx );
+        if( shared ) {
+            obj.SharedAssignValue( rValue, GetSourceLocation() );
         } else {
-
+            obj.AssignValue( rValue, GetSourceLocation() );
         }
-
-        throw exception::eval_error( GetSourceLocation(), "Dot Operator: Invalid access!" );
+        return obj;
     }
 
     ValueObject RemoveValueObject( Context &rContext )
@@ -647,58 +810,22 @@ public:
             throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be removed!" );
         }
 
-        if( mChildren[1]->GetName() == "Constant" ) {
-            auto const idx = mChildren[1]->Eval( rContext ).GetAsInteger();
-            if( idx >= 0 && static_cast<std::size_t>(idx) < tuple.Size() ) {
-                auto obj = tuple.GetValueByIdx( static_cast<std::size_t>(idx) );
-                tuple.RemoveValueByIdx( static_cast<std::size_t>(idx) );
-                return obj;
-            } else {
-                throw exception::out_of_range( GetSourceLocation() );
-            }
-        } else if( mChildren[1]->GetName() == "Id" ) {
-            auto idx = tuple.IndexOfKey( mChildren[1]->GetDetail() );
-            if( idx == static_cast<std::size_t>(-1) ) {
-                throw exception::unknown_identifier( GetSourceLocation(), mChildren[1]->GetDetail() );
-            }
-            auto obj = tuple.GetValueByIdx_Unchecked( idx );
-            tuple.RemoveValueByIdx( idx );
-            return obj;
-        } else {
-
-        }
-
-        throw exception::eval_error( GetSourceLocation(), "Dot Operator: Invalid access!" );
+        auto const idx = GetIndex( tuple, rContext ); // throws on error!
+        auto obj = tuple.GetValueByIdx_Unchecked( idx );
+        tuple.RemoveValueByIdx( idx );
+        return obj;
     }
 
-    ValueObject GetValueObject( Context &rContext )
+    ValueObject GetValueObject( Context &rContext ) const
     {
         Check();
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
         auto &tuple = lhs.GetValue<Collection<ValueObject>>();
 
-        if( mChildren[1]->GetName() == "Constant" ) {
-            auto const idx = mChildren[1]->Eval( rContext ).GetAsInteger();
-            if( idx >= 0 && tuple.ContainsIdx( static_cast<std::size_t>(idx) ) ) {
-                auto obj = tuple.GetValueByIdx_Unchecked( static_cast<std::size_t>(idx) );
-                if( lhs.IsConst() ) obj.MakeConst();
-                return obj;
-            } else {
-                throw exception::out_of_range( GetSourceLocation() );
-            }
-        } else if( mChildren[1]->GetName() == "Id" ) {
-            auto idx = tuple.IndexOfKey( mChildren[1]->GetDetail() );
-            if( idx == static_cast<std::size_t>(-1) ) {
-                throw exception::unknown_identifier( GetSourceLocation(), mChildren[1]->GetDetail() );
-            }
-            auto obj = tuple.GetValueByIdx_Unchecked( idx );
-            if( lhs.IsConst() ) obj.MakeConst();
-            return obj;
-        } else {
-
-        }
-
-        throw exception::eval_error( GetSourceLocation(), "Dot Operator: Invalid access!" );
+        auto const idx = GetIndex( tuple, rContext ); // throws on error!
+        auto obj = tuple.GetValueByIdx_Unchecked( idx );
+        if( lhs.IsConst() ) obj.MakeConst();
+        return obj;
     }
 
     ValueObject Eval( Context &rContext ) override
@@ -766,17 +893,22 @@ public:
             }
         }
         bool const is_id = mChildren[0]->GetName() == "Id";
-        if( not is_id && (mChildren[0]->GetName() != "BinOp" && mChildren[0]->GetDetail() != ".") ) {
+        if( not is_id 
+            && not (mChildren[0]->GetName() == "BinOp" && mChildren[0]->GetDetail() == ".")
+            && not (mChildren[0]->GetName() == "Subscript" && mMode == eMode::Assign) ) {
             throw exception::eval_error( mChildren[0]->GetSourceLocation(), "Assign Operator can only assign to Identifiers! LHS ist not an identifier!" );
         }
 
         if( mMode == eMode::Assign ) {
             auto  val = mChildren[1]->Eval( rContext );
             try {
+                // FIXME: Make clean!!
                 if( is_id ) {
                     return rContext.SetValue( mChildren[0]->GetDetail(), val, mbShared, GetSourceLocation() );
-                } else {
+                } else if( mChildren[0]->GetName() == "BinOp" ) {
                     return static_cast<ASTNode_Dot_Operator *>(mChildren[0].get())->SetValueObject( rContext, val, mbShared );
+                } else {
+                    return static_cast<ASTNode_Subscript_Operator *>(mChildren[0].get())->SetValueObject( rContext, val, mbShared );
                 }
             } catch( exception::unknown_identifier const & ) {
                 if( rContext.auto_define_unknown_identifiers ) {
@@ -932,14 +1064,28 @@ public:
                         util::prepare_string_for_print( valstr, 40 );
                         valstr += " (" + std::to_string( size ) + " glyphs)";
                     }
+
+                    std::string name;
+                    if( mChildren[0]->GetName() == "BinOp" && mChildren[0]->GetDetail() == "." ) {
+                        name = static_cast<ASTNode_Dot_Operator const *>(mChildren[0].get())->BuildBranchString();
+                    } else {
+                        name = mChildren[0]->GetDetail();
+                    }
+
                     //               name (TypeName, const/mutable, address, schare count): value
-                    TEASCRIPT_PRINT( "{} ({}, {}, {:#x}, sc:{}) : {}\n", mChildren[0]->GetDetail(), val.GetTypeInfo()->GetName(),
+                    TEASCRIPT_PRINT( "{} ({}, {}, {:#x}, sc:{}) : {}\n", name, val.GetTypeInfo()->GetName(),
                                      (val.IsConst() ? "const" : "mutable"), val.GetInternalID(), val.ShareCount(),
                                      valstr );
                 }
                 //return ValueObject( true );
             } catch( exception::unknown_identifier const & ) {
-                TEASCRIPT_PRINT( "{} : <undefined>\n", mChildren[0]->GetDetail() );
+                std::string name;
+                if( mChildren[0]->GetName() == "BinOp" && mChildren[0]->GetDetail() == "." ) {
+                    name = static_cast<ASTNode_Dot_Operator const *>(mChildren[0].get())->BuildBranchString();
+                } else {
+                    name = mChildren[0]->GetDetail();
+                }
+                TEASCRIPT_PRINT( "{} : <undefined>\n", name );
                 //return ValueObject( false );
             }
             return ValueObject();
@@ -1022,8 +1168,8 @@ public:
                     auto const &t2 = rhs.GetValue<TypeInfo>();
                     if( t2.GetName() == "Number" ) { // fake concept 'Number' //TODO: Make clean! Match interface? or switch to class Type ?
                         return ValueObject( pT1->IsArithmetic() );
-//                    } else if( t2.GetName() == "const" ) {
-//                        return ValueObject( lhs.IsConst() );
+                    } else if( t2.GetName() == "Const" ) { //EXPERIMENTAL: fake concept 'Const' //TODO: Make clean! Match interface? or switch to class Type ?
+                        return ValueObject( lhs.IsConst() || not lhs.IsShared() ); // Contants are treated as Const here since the value cannot be changed.
                     }
                     return ValueObject( t2.IsSame( *pT1 ) );
                 }
@@ -1356,36 +1502,15 @@ public:
     }
 };
 
-// TODO/FIXME: now after redesign can be merged with ParamList ?!
-/// represents a TeaScript Function Parameter specification (list of assign statements)
-class ASTNode_ParamSpec : public ASTNode_Expression
-{
-public:
-    explicit ASTNode_ParamSpec( SourceLocation loc = {} )
-        : ASTNode_Expression( "ParamSpec", std::move(loc) )
-    {
-    }
 
-    ValueObject Eval( Context &rContext ) override
-    {
-        if( IsIncomplete() ) {
-            throw exception::eval_error( GetSourceLocation(), "ParamSpec ASTNode incomplete! Some parts are missing!" );
-        }
-
-        std::vector< ValueObject > vals;
-        vals.reserve( mChildren.size() );
-        for( auto &node : mChildren ) {
-            vals.push_back( node->Eval( rContext ) );
-        }
-
-        return ValueObject(std::move(vals), ValueConfig( ValueShared, ValueMutable, rContext.GetTypeSystem() ) );
-    }
-};
-
-// TODO/FIXME: now after redesign can be merged with ParamSpec ?!
 /// represents a TeaScript Function Parameter List (list of statements each for one parameter)
 class ASTNode_ParamList : public ASTNode_Expression
 {
+protected:
+    explicit ASTNode_ParamList( std::string name, SourceLocation loc = {} )
+        : ASTNode_Expression( std::move(name), std::move(loc) )
+    {
+    }
 public:
     explicit ASTNode_ParamList( SourceLocation loc = {} )
         : ASTNode_Expression( "ParamList", std::move(loc) )
@@ -1395,7 +1520,7 @@ public:
     ValueObject Eval( Context &rContext ) override
     {
         if( IsIncomplete() ) {
-            throw exception::eval_error( GetSourceLocation(), "ParamList ASTNode incomplete! Some parts are missing!" );
+            throw exception::eval_error( GetSourceLocation(), GetName() + " ASTNode incomplete! Some parts are missing!" );
         }
 
         std::vector< ValueObject > vals;
@@ -1407,6 +1532,18 @@ public:
         return ValueObject( std::move( vals ), ValueConfig( ValueShared, ValueMutable, rContext.GetTypeSystem() ) );
     }
 };
+
+
+/// represents a TeaScript Function Parameter specification (list of assign statements)
+class ASTNode_ParamSpec : public ASTNode_ParamList
+{
+public:
+    explicit ASTNode_ParamSpec( SourceLocation loc = {} )
+        : ASTNode_ParamList( "ParamSpec", std::move( loc ) )
+    {
+    }
+};
+
 
 /// represents the return statement of a function
 class ASTNode_Return_Statement : public ASTNode_StopLoop_Statement

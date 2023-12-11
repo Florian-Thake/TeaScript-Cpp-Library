@@ -172,11 +172,12 @@ void test_code2()
     engine.RegisterUserCallback( "call_me", user_callback );
 
     // execute the script which will create variable 'some_var' and then call our callback function.
-    engine.ExecuteCode( "const some_var := \"Hello!\"\n"
-                        "if( is_defined call_me and call_me is Function ) { // safety checks! \n"
-                        "    call_me( )\n"
-                        "}\n"                 
-                      );
+    engine.ExecuteCode( R"_SCRIPT_(
+const some_var := "Hello!"
+if( is_defined call_me and call_me is Function ) { // safety checks!
+    call_me( )
+}
+)_SCRIPT_" );
 }
 
 
@@ -207,7 +208,7 @@ void test_code3()
     engine.RegisterUserCallback( "sum", calc_sum );
 
     // execute the script which will call our function
-    auto const res = engine.ExecuteCode( "sum( 1234, 4321 )\n" );
+    auto const res = engine.ExecuteCode( "sum( 1234, 4321 )" );
 
     // print the result.
     std::cout << "res is " << res.GetAsInteger() << std::endl;
@@ -236,7 +237,7 @@ void test_code4()
     engine.RegisterUserCallback( "getmagic", lambda );
 
     // execute the script which will call our function
-    auto const res = engine.ExecuteCode( "getmagic()\n" );
+    auto const res = engine.ExecuteCode( "getmagic()" );
 
     // print the result.
     std::cout << "res is " << std::hex << res.GetAsInteger() << std::endl;
@@ -454,6 +455,73 @@ def result := process( the_processor, create_data( 97, 500 ) )
 }
 
 
+// This testcode demonstrates the (optional) integrated TOML Support.
+// In order to activate TOML Support you need the toml++ library from here: https://github.com/marzer/tomlplusplus
+// Then just add the toml++ include folder to the include pathes of this demo. See teascript/TomlSupport.hpp for some more details.
+// --
+// The test code reads a TOML formatted string direct into a Named Tuple structure of TeaScript.
+// Also, it shows the raw string literal support as well as the new subscript operators for ValueObjects.
+void test_code7()
+{
+#if !TEASCRIPT_TOMLSUPPORT
+    std::cout << "TOML Support is deactivated. Please ensure toml++ is added to the include pathes.\nSee teascript/TomlSupport.hpp for more details." << std::endl;
+#else
+    // The TeasScript default engine. This time we configure it to not load any eval functions and use only the util level.
+    // The util level contains the Toml Support already.
+    teascript::Engine  engine{teascript::config::no_eval( teascript::config::util() ) };
+
+    // add a TOML formatted string (usually read it from a file)
+    engine.AddConst( "content", R"_TOML_(
+[[people]]
+first_name = "Bruce"
+last_name = "Springsteen"
+
+[[people]]
+first_name = "Eric"
+last_name = "Clapton"
+
+[[people]]
+first_name = "Bob"
+last_name = "Seger"
+)_TOML_" );
+
+    // read the TOML string into a Tuple via readtomlstring function (NOTE: use readtomlfile function for read it from a file instead.)
+    engine.ExecuteCode( R"_SCRIPT_(
+const dict := readtomlstring( content )
+)_SCRIPT_" );
+
+    // access the result via script
+    std::cout << "second entry first name: " << engine.ExecuteCode( "dict.people[1].first_name" ).GetValue<std::string>() << std::endl; // Eric
+    std::cout << "third entry last name: " << engine.ExecuteCode( "dict.people[2].last_name" ).GetValue<std::string>() << std::endl; // Seger
+
+    
+    // now use a second TOML formatted string directly in TeaScript via a raw string literal.
+    engine.ExecuteCode( R"_SCRIPT_(
+const stock := readtomlstring( """
+[[products]]
+name = "Hammer"
+sku = 738594937
+
+[[products]]
+name = "Nail"
+sku = 284758393
+
+color = "gray"
+""" )
+)_SCRIPT_" );
+
+
+    // we only want the 'toml array' products.
+    auto const  products = engine.ExecuteCode( "stock.products" );
+
+    // access the result via C++ interface.
+    std::cout << "name of first entry: " << products[0]["name"].GetValue<std::string>() << std::endl; // Hammer
+    std::cout << "sku of second entry: " << products[1]["sku"].GetValue<teascript::Integer>() << std::endl; // 284758393
+    std::cout << "color of second entry: " << products[1]["color"].GetValue<std::string>() << std::endl; // gray
+#endif
+}
+
+
 // Executes a TeaScript file and returns its result. 
 // This function has a very basic feature set. The TeaScript Host Application has more capabilities.
 // Beside other features it also comes with an interactive shell, REPL, debug options and time measurement.
@@ -517,6 +585,8 @@ int main( int argc, char **argv )
         test_code5();
     } else if( argc == 2 && args[1] == "-6" ) {
         test_code6();
+    } else if( argc == 2 && args[1] == "-7" ) {
+        test_code7();
     } else if( argc >= 2 ) {
         return exec_script_file( args );
     } else {

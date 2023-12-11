@@ -15,6 +15,7 @@
 #include "ASTNode.hpp"
 #include "Util.hpp"
 #include "Exception.hpp"
+#include "version.h"
 #include <unordered_set>
 #include <cctype> // isdigit
 #include <charconv>
@@ -131,6 +132,9 @@ class Parser
     {
         if( mState->is_in_comment ) {
             throw exception::parsing_error( mState->saved_loc, "multi line comment not closed! ( '*/' )" );
+        }
+        if( mState->is_in_rawstring > 0 ) {
+            throw exception::parsing_error( mState->saved_loc, "raw string not closed! ( '\"\"\"' )" );
         }
         auto incomplete = mState->GetFirstIncompleteASTNode();
         if( incomplete ) {
@@ -273,7 +277,32 @@ public:
     bool HashLine( Content &rHere )
     {
         if( rHere.CurrentColumn() == 1 && *rHere == '#' ) {
-            //TODO: parse '##option' for set options of the parser/engine.
+
+            // ## is an option/command for the Parser or Engine.
+            if( rHere.Remaining() > 1 && rHere[1] == '#' ) {
+                rHere.MoveInLine_Unchecked( 2 ); // skip ##
+
+                // minimum_version is directly checked here.
+                if( CheckWordAndMove( "minimum_version", rHere ) ) {
+                    SkipWhitespace( rHere );
+                    unsigned int major = 0, minor = 0, patch = 0, reserved = 0;
+#if defined(_MSC_VER)
+                    auto const scanned = sscanf_s( &(*rHere), "%u.%u.%u.%u", &major, &minor, &patch, &reserved );
+#else // FIXME: check on linux!
+                    auto const scanned = sscanf( &(*rHere), "%u.%u.%u.%u", &major, &minor, &patch, &reserved );
+#endif
+                    if( scanned < 1 || scanned > 3 ) {
+                        util::throw_parsing_error( rHere, mState->GetFilePtr(), "Parser option minimum_version: Invalid version specification! Must be \"major[.minor[.patch]]\"" );
+                    } else {
+                        unsigned int const combined = TEASCRIPT_BUILD_VERSION_NUMBER( major, minor, patch );
+                        if( teascript::version::combined_number() < combined ) {
+                            std::string const min_version = std::to_string( major ) + "." + std::to_string( minor ) + "." + std::to_string( patch );
+                            util::throw_parsing_error( rHere, mState->GetFilePtr(), "Minimum version requirement not met: Need at least version " + min_version );
+                        }
+                    }
+                }
+            }
+
             SkipToNextLine( rHere );
             return true;
         }
@@ -324,6 +353,85 @@ public:
 
             return false;
         }
+    }
+
+    /// Parses a (possible) multi-line raw string (no escaping). 
+    /// There must be at least 3 quote signs (or more) to start a raw string. The amount of starting " must match the amount of end ".
+    /// If direct after the start is a new line, the new line is not included to the string.
+    bool RawString( Content &rHere )
+    {
+        bool start = false;
+        if( 0 == mState->is_in_rawstring ) {
+            if( rHere.Remaining() > 1 ) {
+                if( rHere[0] == '"' && rHere[1] == '"' && rHere[2] == '"' ) {
+                    start = true;
+                }
+            }
+            if( not start ) { // early bail out.
+                return false;
+            }
+        }
+        Content const saved( rHere );
+        if( start ) {
+            rHere.MoveInLine_Unchecked( 3 );
+            mState->is_in_rawstring = 3;
+            // count possible additional quotes.
+            while( rHere.HasMore() && rHere == '"' ) {
+                ++mState->is_in_rawstring;
+                ++rHere;
+            }
+            // check for immediate new line (NOTE: Here we must take care of '\r' as well!!!)
+            if( rHere.HasMore() && (rHere == LF || (rHere == '\r' && rHere[1] == LF)) ) {
+                SkipToNextLine( rHere );
+            }
+        }
+
+        Content const raw_start( rHere );
+        while( rHere.HasMore() ) {
+            if( rHere != '"' ) {
+                ++rHere;
+            } else {
+                if( rHere.Remaining() >= (mState->is_in_rawstring - 1) ) {
+                    bool end_found = true;
+                    for( auto i = mState->is_in_rawstring - 1; i > 0; --i ) {
+                        if( rHere[i] != '"' ) {
+                            end_found = false;
+                            break;
+                        }
+                    }
+                    if( end_found ) {
+                        std::string_view const  str{&(*raw_start), &(*rHere)};
+                        mState->raw_string += str;
+
+                        // Add the String
+                        mState->AddASTNode( std::make_shared<ASTNode_Constant>( mState->raw_string ) );
+
+                        rHere += mState->is_in_rawstring; // skip all the quotes.
+
+                        // we are done with this string.
+                        mState->is_in_rawstring = 0;
+                        mState->raw_string.clear();
+
+                        return true;
+                    }
+                    // end not found yet.
+                } // if Remaining()
+
+                //NOTE: for the case \"\n\"\"\" and similar we can only increment by one in order to not pass the end by accident!
+                ++rHere;
+            }
+        }
+
+        // reaching here end was not found (yet).
+        // save actual parsed string 
+        std::string_view const  str{&(*raw_start), &(*rHere)};
+        mState->raw_string += str;
+
+        if( start ) {
+            mState->saved_loc = MakeSrcLoc( saved );
+        }
+
+        return true;
     }
 
 
@@ -540,6 +648,8 @@ public:
         CloseExpr,
         OpenBlock,
         CloseBlock,
+        OpenSubscr,
+        CloseSubscr,
     };
 
     /// parses all non alpha-numeric symbols (except strings)
@@ -627,6 +737,18 @@ public:
                 return eSymFound::Operator;
             }
             return eSymFound::Nothing;
+        case '[':
+            if( mState->CanAddNodeWhichNeedLHS() ) {
+                mState->StartSubscript( MakeSrcLoc( start ) );
+                ++rHere;
+                return eSymFound::OpenSubscr;
+            } else {
+                return eSymFound::Nothing;
+            }
+        case ']':
+            mState->EndSubscript( MakeSrcLoc( start ) );
+            ++rHere;
+            return eSymFound::CloseSubscr;
         case '(':
             mState->StartExpression( MakeSrcLoc( start ) );
             ++rHere;
@@ -829,6 +951,11 @@ public:
                 if( mState->is_in_comment ) { // still in comment ...
                     return not rHere.HasMore();
                 }
+            } else if( mState->is_in_rawstring > 0 ) {
+                RawString( rHere );
+                if( mState->is_in_rawstring > 0 ) { // still in raw string ...
+                    return not rHere.HasMore();
+                }
             } else if( HashLine( rHere ) ) {
 
             } else {
@@ -836,6 +963,10 @@ public:
 
                 if( Comment( rHere ) ) {
                     if( mState->is_in_comment ) {
+                        return not rHere.HasMore();
+                    }
+                } else if( RawString( rHere ) ) {
+                    if( mState->is_in_rawstring > 0 ) { // still in raw string ...
                         return not rHere.HasMore();
                     }
                 } else if( eSymFound const symfound = Symbol( rHere ); symfound != eSymFound::Nothing ) {
@@ -863,6 +994,12 @@ public:
                         }
                         break;
                     case eSymFound::CloseBlock:
+                        next_line_required.Set( rHere );
+                        break;
+                    case eSymFound::OpenSubscr:
+                        next_line_required.Unset();
+                        break;
+                    case eSymFound::CloseSubscr:
                         next_line_required.Set( rHere );
                         break;
                     case eSymFound::Nothing:
