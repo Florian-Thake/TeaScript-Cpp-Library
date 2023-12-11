@@ -15,8 +15,8 @@ an interactive shell, a REPL, debugging options, time measurement and more can b
 https://tea-age.solutions/downloads/
 
 # About TeaScript
-**What is new in TeaScript 0.10.0?** Get all infos in the news article:<br>
-https://tea-age.solutions/2023/03/10/release-of-teascript-0-10-0/ <br>
+**What is new in TeaScript 0.11.0?** Get all infos in the news article:<br>
+https://tea-age.solutions/2023/12/11/release-of-teascript-0-11-0/ <br>
 <br>
 Get a very nice overview with the most **impressive highlights** here:<br>
 https://tea-age.solutions/teascript/overview-and-highlights/ <br>
@@ -133,7 +133,7 @@ auto const res = engine.ExecuteCode( "squared( 2 )" );
 std::cout << "square is " << res.GetAsInteger() << std::endl;
 ```
 
-More examples are in the teascript_demo.cpp of this repo.
+More examples are in the [teascript_demo.cpp](demo/teascript_demo.cpp) of this repo.
 
 # Example TeaScript Code
 
@@ -226,6 +226,12 @@ You only need to set the include path in your project(s) / for compilation. Dete
 
 HINT: For Windows with C++20 it is also recommended to use libfmt for the best possible Unicode support for print to stdout.
 
+**Optional Features:** <br>
+**TOML Support** - for the integrated TOML Support you need the toml++ Library. (tested with **3.4.0**) <br>
+You can find the toml++ library here: https://github.com/marzer/tomlplusplus <br>
+You only need to set the include path in your project(s) / for compilation. Detection is then done automatically. <br>
+See include/teascript/TomlSupport.hpp for some more details.
+
 # Building the demo app
 
 **Windows:** Use the provided VS-project or the settings in compile.props.
@@ -247,10 +253,10 @@ If you see **6** as the result everything is functional.
 
 # API stability
 
-TeaScript is pre-mature and many things will probably change in some new (pre-)release.<br>
-However, the public methods of the `teascript::Engine` class as well as the public getters of the `teascript::ValueObject` class are considered semi-stable (if not otherwise documented in the code).<br> 
+TeaScript is pre-mature and many things will probably change in some new release.<br>
+However, the public methods of the `teascript::Engine` class as well as the public getters of the `teascript::ValueObject` class are considered stable (if not otherwise documented in the code).<br> 
 This means that I will try to ensure backward compatibility if possible or provide a smooth transition - except if major issues are detected or at very rare circumstances.<br>
-This also counts for the headers version.h / Util.hpp / Exception.hpp.<br>
+This also counts for the headers version.h / Exception.hpp / SourceLocation.hpp.<br>
 All other classes / structures / types (including all its methods and members), and free functions are considered unstable and may change often or might be even removed entirely.
 
 Methods / Functions marked with 
@@ -260,27 +266,25 @@ Methods / Functions marked with
 
 ## Can TeaScript be used for production already?
 
-Yes, it can for certain and specific scenarios. I explain why and which:
+Yes, it can. I explain why and what is the best practice:
 
 First, although the 1.0 release is not done yet, every release has 3 levels of quality assurance:
 
-- UnitTests – on C++ as well as on TeaScript level (TeaScript files testing TeaScript features).
-- Functional tests with scripts.
-- Manual testing.
+* UnitTests – on C++ as well as on TeaScript level (TeaScript files testing TeaScript features).
+* Functional tests with scripts.
+* Manual testing.
 
 This ensures a high level of quality already.
 
-Second, use the high-level C++ API only (e.g. via class teascript::Engine ). This API will stay backward compatible already or a soft migration will be provided – except if major issues are detected or at very rare circumstances.
+Second, the TeaScript syntax and language features which are present already will stay compatible and are covered by the tests mentioned above. In new versions new syntax and new language features will be added, but old written scripts will still be functional in 99% of the cases (only if the script used some quirks or rely on broken functionality or if really big issues are addressed, this backward compatibility might not be hold.)
+
+Third, usage of the high-level C++ API only. This API will stay backward compatible or a soft migration will be provided – except if major issues are detected or at very rare circumstances.
+The high-level API consists of the classes teascript::Engine / teascript::EngineBase, all public getters in teascript::ValueObject as well as everything in Exception.hpp / SourceLocation.hpp and version.h (except if otherwise noted).
 
 # License
 The TeaScript C++ Library is 100% Open Source and Free Software and licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 (AGPL-3.0): see LICENSE.TXT <br>
-<br>The library is dual licensed.<br>
-<br>
-If the license does not fit for you:<br>
-- for **non-commercial** projects a different license might be available on request.
-- for **commercial** use cases a different license can be purchased.
-<br>
-A purchased licensed will be individual fine grained for perfectly match the use cases and needs. Don’t hesitate to start a conversation / issue a request.
+
+If you cannot or don’t want use this specific open source license, you may ask for a different license.
 
 # Disclaimer
 This software is provided “as-is” without any express or implied warranty. In no event shall the author be held liable for any damages arising from the use of this software.
@@ -289,6 +293,13 @@ See also the included COPYRIGHT.TXT and LICENSE.TXT for license ifnormation, usa
 
 This software is a pre-release.
 The behavior, API/ABI, command line arguments, contents of the package, usage conditions + permissions and any other aspects of the software and the package may change in a non backwards compatible or a non upgradeable way without prior notice with any new (pre-)release.
+
+# Support my work
+If you want to support my work, especially to further develop TeaScript and to run this website, you can do this by a donation of your choice via Paypal:
+
+https://paypal.me/FlorianThake
+
+The donation will be for covering the monthly and yearly costs as well as for free personal use. All donations will help me to put more time and effort into TeaScript and this webpage. Thank you very much! 🙂
 
 # Copyright
 Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
