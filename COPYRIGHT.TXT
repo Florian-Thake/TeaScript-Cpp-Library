@@ -1,13 +1,23 @@
 Except where otherwise noted all files included are copyrighted by Florian Thake.
 
-Copyright (c) 2023 Florian Thake <contact |at| tea-age.solutions>.
+Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
 
 
-All source files of the TeaScript C++ Library are dual licensed.
-This copy is licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3
+The TeaScript C++ Library as well as the TeaScript Host Application
+are licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3
 See included LICENSE.TXT or <https://www.gnu.org/licenses/>.
-If you cannot or don't want use this AGPL version, 
-you can ask for a different license via the contact information below.
+If you cannot or don't want use this AGPL license, 
+you may ask for a different license via the contact information below.
+
+
+Some distribution packages (e.g. the TeaScript Host for Linux) might use other (A)GPL software.
+
+The source code of the TeaScript C++ Library, the TeaScript Host as well as the eventually used 
+other (A)GPL software is available here:
+https://tea-age.solutions/downloads/
+
+A snapshot of the TeaScript C++ Library can be also found here:
+https://github.com/Florian-Thake/TeaScript-Cpp-Library/
 
 
 Additionally:
@@ -18,10 +28,10 @@ are licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3
 
 See included LICENSE.TXT or <https://www.gnu.org/licenses/>.
 
-
 All files marked with 
 SPDX-License-Identifier: MIT
 are licensed under the MIT License.
+
 See included MIT_LICENSE.TXT 
 
 

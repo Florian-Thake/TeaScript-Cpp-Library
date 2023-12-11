@@ -22,7 +22,15 @@ Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 9.1.0)
 Libfmt can be downloaded here https://fmt.dev/latest/index.html
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 
-For Windows with C++20 it is also recommended to use libfmt for the best possible Unicode support for stdout.
+HINT: For Windows with C++20 it is also recommended to use libfmt for the best possible Unicode support for stdout.
+
+
+Optional Features:
+
+TOML Support - for the integrated TOML Support you need the toml++ Library.
+You can find the toml++ library here: https://github.com/marzer/tomlplusplus (tested with 3.4.0)
+You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
+See include/teascript/TomlSupport.hpp for some more details.
 
 
 For building the demo app:
