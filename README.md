@@ -295,11 +295,11 @@ This software is a pre-release.
 The behavior, API/ABI, command line arguments, contents of the package, usage conditions + permissions and any other aspects of the software and the package may change in a non backwards compatible or a non upgradeable way without prior notice with any new (pre-)release.
 
 # Support my work
-If you want to support my work, especially to further develop TeaScript and to run this website, you can do this by a donation of your choice via Paypal:
+If you want to support my work, especially to further develop TeaScript and to run its website, you can do this by a donation of your choice via Paypal:
 
 https://paypal.me/FlorianThake
 
-The donation will be for covering the monthly and yearly costs as well as for free personal use. All donations will help me to put more time and effort into TeaScript and this webpage. Thank you very much! 🙂
+The donation will be for covering the monthly and yearly costs as well as for free personal use. All donations will help me to put more time and effort into TeaScript and its webpage. Thank you very much! 🙂
 
 # Copyright
 Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
