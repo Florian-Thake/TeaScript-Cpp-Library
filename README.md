@@ -15,8 +15,9 @@ an interactive shell, a REPL, debugging options, time measurement and more can b
 https://tea-age.solutions/downloads/
 
 # About TeaScript
-**What is new in TeaScript 0.11.0?** Get all infos in the news article:<br>
-https://tea-age.solutions/2023/12/11/release-of-teascript-0-11-0/ <br>
+**What is new in TeaScript 0.12.0?** TeaScript 0.12 comes with Colored Output, Format String, Forall Loop, Sequences and interactive debugging.<br>
+<br>Get all infos in the news article:<br>
+https://tea-age.solutions/2024/01/18/release-of-teascript-0-12-0/ <br>
 <br>
 Get a very nice overview with the most **impressive highlights** here:<br>
 https://tea-age.solutions/teascript/overview-and-highlights/ <br>
@@ -220,7 +221,7 @@ All compilers are compiling in **C++20** and for **x86_64**.<br>
 
 **None** -- for fully C++20 supporting compilers / C++ standard libraries.
 
-**Libfmt (as header only)** -- for gcc 11 / clang 14 (tested with **libfmt 9.1.0**)<br>
+**Libfmt (as header only)** -- for gcc 11 / clang 14 (tested with **libfmt 10.1.1** and **libfmt 9.1.0**)<br>
 - Libfmt can be downloaded here https://fmt.dev/latest/index.html <br>
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 
@@ -231,6 +232,9 @@ HINT: For Windows with C++20 it is also recommended to use libfmt for the best p
 You can find the toml++ library here: https://github.com/marzer/tomlplusplus <br>
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically. <br>
 See include/teascript/TomlSupport.hpp for some more details.
+
+**Color and Format String Support** - for colorful output and the format string feature you need the libfmt library.<br>
+See Libfmt section above.
 
 # Building the demo app
 
