@@ -22,12 +22,30 @@
 namespace teascript {
 
 /// The TeaScript standard engine.
+/// This is a single-thread engine and this class is _not_ thread-safe.
+/// You cannot use the same instance in more than 1 thread the same time.
+/// However, it is safe to use one distinct instance per thread.
 class Engine : public EngineBase
 {
 protected:
     config::eConfig  mCoreConfig;
     Context          mContext;
     Parser           mParser;
+
+    /// Constructs the engine without bootstrapping the Core Library if \param bootstrap is false.
+    /// If \param bootstrap is true it will bootstrap the Core Library with specified config from \param config.
+    /// \note This constructor is useful for derived classes which don't want the default bootstrapping, e.g.
+    ///       using another CoreLibrary or a derived class. Don't forget to override ResetState() in such a case.
+    Engine( bool const bootstrap, config::eConfig const config )
+        : EngineBase()
+        , mCoreConfig( config )
+        , mContext()
+        , mParser()
+    {
+        if( bootstrap ) {
+            CoreLibrary().Bootstrap( mContext, mCoreConfig );
+        }
+    }
 
     /// Adds the given ValuObject \param val to the current scope as name \praam rName.
     /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
@@ -96,6 +114,16 @@ public:
     {
         mParser.SetDebug( enabled );
         mContext.is_debug = enabled;
+    }
+
+    /// Activates the old behavior of function parameters are mutable by default. 
+    /// This was changed in 0.12.0 where copy assigned parameters are now const by default and only shared assigned parameters are still mutable by default.
+    // \warning This function is only temporarily available (for transition) and will be marked deprecated in 0.13.0 and removed in 0.14.0.
+    /// Please modify your script code accordingly (or decide to use an inofficial legacy dialect \see Dialect.hpp.)
+    void ActivateDeprecatedDefaultMutableParameters() noexcept
+    {
+        mContext.dialect.parameters_are_default_const = false;
+        mParser.OverwriteDialect( mContext.dialect );
     }
 
     /// Returns the stored variable with name \param rName starting search in the current scope up to toplevel scope.

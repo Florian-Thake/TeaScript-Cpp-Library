@@ -17,8 +17,9 @@
 #include "ASTNode.hpp"
 #include "ASTNodeFunc.hpp"
 #include "Exception.hpp"
+#include "Dialect.hpp"
 
-#define TEASCRIPT_DEFAULT_CONST_PARAMETERS                   false   //TODO: Implement!
+
 #define TEASCRIPT_ENABLED_STARTCALL_DEEP_LIFTING   1
 #define TEASCRIPT_DEBUG_ADDASTNODE  0
 
@@ -63,6 +64,8 @@ class ParsingState
             Params, // more generic: List / Tuple ?
             Call,
             Subscript, // [
+            Forall,
+            ForallCond,
         } type;
         inline operator size_t() const noexcept
         {
@@ -84,9 +87,10 @@ class ParsingState
 
 public:
     // settings, these survive clear calls.
-    bool parameters_are_default_const = TEASCRIPT_DEFAULT_CONST_PARAMETERS; //TODO: Implement!
+    Dialect  dialect;      // TeaScipt language behavior. (default is TeaScript standard language)
     bool is_debug = false;
 
+    // these settings will be reset on clear calls.
     // these state infos are maintained and only be used by the outer level. It is just here to have everything collected in one state object.
     bool utf8_bom_removed = false;
     bool is_in_comment    = false;
@@ -158,6 +162,16 @@ public:
     bool IsInCall() const noexcept
     {
         return !mIndexStack.empty() && mIndexStack.top().type == IndexState::Call;
+    }
+
+    bool IsInForall() const noexcept
+    {
+        return !mIndexStack.empty() && mIndexStack.top().type == IndexState::Forall;
+    }
+
+    bool IsInForallCondition() const noexcept
+    {
+        return !mIndexStack.empty() && mIndexStack.top().type == IndexState::ForallCond;
     }
 
     void NewLine()
@@ -293,6 +307,110 @@ public:
         mIndexStack.pop();
         // finally add new repeat statement
         AddASTNode( std::move( loop ) );
+    }
+
+
+    void StartForall( std::string const &rLabel = "", SourceLocation loc = {} )
+    {
+        mIndexStack.push( IndexState{mWorkingAST.size(), IndexState::Forall} );
+        // dummy node ensures that new nodes will be inserted after it - not inside it!
+        mWorkingAST.emplace_back( std::make_shared<ASTNode_Dummy>( "forall", rLabel, std::move( loc ) ) );
+    }
+
+    void EndForall( SourceLocation loc = {} )
+    {
+        // check if we have a starting forall.
+        if( mIndexStack.empty() || !mWorkingAST.at( mIndexStack.top() )->IsDummy() || mIndexStack.top().type != IndexState::Forall ) {
+            throw exception::parsing_error( std::move( loc ), "EndForall: There is no forall!" );
+        }
+
+        // merge the source locations start forall / end forall
+        SourceLocation  start_loc = mWorkingAST.at( mIndexStack.top() ).get()->GetSourceLocation();
+        if( loc.IsSet() ) {
+            start_loc.SetEnd( loc.GetStartLine(), loc.GetStartColumn() );
+        }
+
+        // first after dummy must be the identifier, second is either "in" or (later) "from".
+
+        // first check if we have 4 + 1 (the dummy) nodes (TODO: 'from' needs more nodes!)
+        if( mWorkingAST.size() < 5 || mIndexStack.top() != mWorkingAST.size() - 5 /*dummy + id + "in/from" + seq + block */ ) {
+            throw exception::parsing_error( std::move( start_loc ), "EndForall: wrong forall statement. Need 'forall(' following by one id + \"in\" + statement + ')' + block." );
+        }
+
+        // safety!
+        if( mWorkingAST.back()->IsIncomplete() ) {
+            throw exception::parsing_error( mWorkingAST.back()->GetSourceLocation(), "EndForall: Last node is not complete!" );
+        }
+
+        // TODO: relax this check??
+        if( nullptr == dynamic_cast<ASTNode_Block *>(mWorkingAST.at( mWorkingAST.size() - 1 ).get()) ) {
+            throw exception::parsing_error( mWorkingAST.at( mWorkingAST.size() - 1 )->GetSourceLocation(),
+                                            "EndForall: wrong forall statement. The block is missing!" );
+        }
+
+        // NOTE: Actually we are only supporting 'in' keyword for iterate over tuples.
+        // check for 'in/from'
+        if( mWorkingAST[mIndexStack.top() + 2]->GetDetail() != "in" ) {
+            throw exception::parsing_error( std::move( start_loc ), "EndForall: wrong condition. 'in' keyword missing or at wrong position!" );
+        }
+        // remove the 'in'
+        mWorkingAST.erase( mWorkingAST.begin() + mIndexStack.top().to_ptrdiff() + 2 );
+
+
+        // === START COMMON CODE BLOCK ===
+
+        auto loop = std::make_shared<ASTNode_Forall>( mWorkingAST.at( mIndexStack.top() )->GetDetail(), std::move( start_loc ) ); // NOT COMMON! (detail is the optional label string)
+        // collect all childs which are after the dummy
+        for( size_t i = mIndexStack.top() + 1; i != mWorkingAST.size(); ++i ) {
+            loop->AddChildNode( mWorkingAST[i] );
+        }
+        // this forall statement is complete now.
+        loop->SetComplete();
+        // erase all nodes from dummy to end
+        mWorkingAST.erase( mWorkingAST.begin() + mIndexStack.top().to_ptrdiff(), mWorkingAST.end() );
+        // remove saved index
+        mIndexStack.pop();
+        // finally add new repeat statement
+        AddASTNode( std::move( loop ) );
+
+    }
+
+    void StartForallCondition( SourceLocation loc = {} )
+    {
+        mIndexStack.push( IndexState{mWorkingAST.size(), IndexState::ForallCond} );
+        // dummy node ensures that new nodes will be inserted after it - not inside it!
+        mWorkingAST.emplace_back( std::make_shared<ASTNode_Dummy>( "forallcondition", std::move( loc ) ) );
+    }
+
+    void EndForallCondition( SourceLocation loc = {} )
+    {
+        // check if we have a starting forall condition.
+        if( mIndexStack.empty() || !mWorkingAST.at( mIndexStack.top() )->IsDummy() || mIndexStack.top().type != IndexState::ForallCond ) {
+            throw exception::parsing_error( std::move( loc ), "EndForallCondition: There is no forall condition!" );
+        }
+
+        // merge the source locations opening ( to closing )
+        SourceLocation  start_loc = mWorkingAST.at( mIndexStack.top() ).get()->GetSourceLocation();
+        if( loc.IsSet() ) {
+            start_loc.SetEnd( loc.GetStartLine(), loc.GetStartColumn() );
+        }
+
+        // first after dummy must be the identifier, second is either "in" or (later) "from".
+        
+        // first check if we have 3 + 1 (the dummy) nodes (TODO: 'from' needs more nodes!)
+        if( mWorkingAST.size() < 4 || mIndexStack.top() != mWorkingAST.size() - 4 /*dummy + id + "in/from" + seq */ ) {
+            throw exception::parsing_error( std::move( start_loc ), "EndForallCondition: wrong condition. Need 'forall(' following by one id + \"in\" + one statement." );
+        }
+
+        if( mWorkingAST[mIndexStack.top() + 2]->GetDetail() != "in" ) {
+            throw exception::parsing_error( std::move( start_loc ), "EndForallCondition: wrong condition. 'in' keyword missing or at wrong position!" );
+        }
+
+        // for the time being we do all the work in EndForall()
+        // just remove the dummy here.
+        mWorkingAST.erase( mWorkingAST.begin() + mIndexStack.top().to_ptrdiff() );
+        // remove saved index
+        mIndexStack.pop();
     }
 
 
@@ -486,6 +604,8 @@ public:
                 EndElse( std::move( loc ) );
             } else if( mIndexStack.top().type == IndexState::Repeat ) {
                 EndRepeat( std::move( loc ) );
+            } else if( mIndexStack.top().type == IndexState::Forall ) {
+                EndForall( std::move( loc ) );
             } else if( mIndexStack.top().type == IndexState::Func ) {
                 EndFunc( std::move(loc) );
             }
@@ -536,8 +656,9 @@ public:
             auto cur = mWorkingAST[i];
             if( cur->GetName() == "Id" ) {
                 // 1. case: we have a simple identifier.
-                //          make it to a def assign: def ID := <from param list>
-                auto def_node = std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::Def ); //TODO: default const switch!
+                //          make it to a const (or def) assign: const ID := <from param list>
+                auto const def_type = dialect.parameters_are_default_const ? ASTNode_Var_Def_Undef::eType::Const : ASTNode_Var_Def_Undef::eType::Def;
+                auto def_node = std::make_shared<ASTNode_Var_Def_Undef>( def_type );
                 def_node->AddChildNode( std::move( cur ) );
                 auto assign_node = std::make_shared<ASTNode_Assign>( );
                 assign_node->AddChildNode( std::move( def_node ) );
@@ -559,7 +680,10 @@ public:
                 if( pAssign->IsAssignWithDef() ) {
                     cur->AddChildNode( std::move( lhs ) );
                 } else {
-                    auto def_node = std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::Def ); //TODO: default const switch!
+                    // default const only for not shared assign :=, shared assign @= is always mutable by default.
+                    auto const def_type = dialect.parameters_are_default_const && not pAssign->IsSharedAssign() 
+                                        ? ASTNode_Var_Def_Undef::eType::Const : ASTNode_Var_Def_Undef::eType::Def;
+                    auto def_node = std::make_shared<ASTNode_Var_Def_Undef>( def_type );
                     def_node->AddChildNode( std::move( lhs ) );
                     cur->AddChildNode( std::move( def_node ) );
                 }
@@ -655,11 +779,18 @@ public:
             return;
         }
 
+        if( IsInForall() ) {
+            StartForallCondition( std::move( loc ) );
+            return;
+        }
+
         if( !mWorkingAST.empty() && open_statement && 
             //              call function by name  ||                   direct call a lambda  || direct call the return value of a called func!
             (mWorkingAST.back()->GetName() == "Id" || mWorkingAST.back()->GetName() == "Func" || mWorkingAST.back()->GetName() == "CallFunc"  
             //                                   call function after sequence of dot operators
-            || (mWorkingAST.back()->GetName() == "BinOp" && mWorkingAST.back()->GetDetail() == "." && mWorkingAST.back()->IsComplete() ) ) ) {
+            || (mWorkingAST.back()->GetName() == "BinOp" && mWorkingAST.back()->GetDetail() == "." && mWorkingAST.back()->IsComplete() ) 
+            //                                   call function after subscript operator
+            || (mWorkingAST.back()->GetName() == "Subscript" && mWorkingAST.back()->IsComplete() ) ) ) {
             StartCall( std::move(loc) );
             return;
         }
@@ -717,6 +848,11 @@ public:
             return;
         }
 
+        if( not mIndexStack.empty() && mIndexStack.top().type == IndexState::ForallCond ) {
+            EndForallCondition( std::move( loc ) );
+            return;
+        }
+
         // check if we have a starting expression.
         if( mIndexStack.empty() || !mWorkingAST.at( mIndexStack.top() )->IsDummy() || mIndexStack.top().type != IndexState::Expr ) {
             throw exception::parsing_error( std::move(loc), "EndExpression: There is no (start of an) expression!" );
@@ -759,9 +895,9 @@ public:
     void StartSubscript( SourceLocation loc = {} )
     {
 
-       // IMPORTANT: This workaround bloch differs a litte from the one in StartExpressin. Check before merge blocks!!
+        // IMPORTANT: This workaround block differs a litte from the one in StartExpression. Check before merge blocks!!
 #if 1 //NOTE: Workaround needed to lift up (RHS) Operand for building the subscript operator with it instead! Can be removed only with "Parse ahead".
-// WORKAROUND for use subscript operator in return or stop-with statement and also in unary/binary operators. TODO: Make clean!
+        // WORKAROUND for use subscript operator in return or stop-with statement and also in unary/binary operators. TODO: Make clean!
         if( !mWorkingAST.empty() && open_statement &&
             (mWorkingAST.back()->GetName() == "Return" || mWorkingAST.back()->GetName() == "Stop"
               || mWorkingAST.back()->GetName() == "UnOp" || (mWorkingAST.back()->GetName() == "BinOp" && mWorkingAST.back()->GetDetail() != ".")) ) {

@@ -34,7 +34,7 @@ void foreach_element( ValueObject &rVal, bool inclusive, F && f, int level = 0 )
             return;
         }
     }
-    if( rVal.GetTypeInfo()->GetName() == "Tuple" ) {
+    if( rVal.GetTypeInfo()->IsSame<Tuple>() ) {
         Tuple &tuple = rVal.GetValue< Tuple >();
         for( auto &kv : tuple ) {
             foreach_element( kv.second, true, f, level + 1 );
@@ -55,7 +55,7 @@ void foreach_named_element( std::string const &fullname, ValueObject &rVal, bool
             return;
         }
     }
-    if( rVal.GetTypeInfo()->GetName() == "Tuple" ) {
+    if( rVal.GetTypeInfo()->IsSame<Tuple>() ) {
         Tuple &tuple = rVal.GetValue< Tuple >();
         size_t idx = 0;
         for( auto &kv : tuple ) {
@@ -86,7 +86,7 @@ bool is_same_structure( Tuple const &rTup1, Tuple const &rTup2 ) noexcept
         if( not it1->second.GetTypeInfo()->IsSame( *it2->second.GetTypeInfo() ) ) {
             return false;
         }
-        if( it1->second.GetTypeInfo()->GetName() == "Tuple" ) {
+        if( it1->second.GetTypeInfo()->IsSame<Tuple>() ) {
             if( not is_same_structure( it1->second.GetValue<Tuple>(), it2->second.GetValue<Tuple>() ) ) {
                 return false;
             }
@@ -141,7 +141,7 @@ void deep_copy( Tuple &rDest, Tuple const &rSrc, bool const keep_const = false )
         }
         for( auto const &kv : rSrc ) {
             auto val = kv.second;
-            if( val.GetTypeInfo()->GetName() == "Tuple" ) {
+            if( val.GetTypeInfo()->IsSame<Tuple>() ) {
                 Tuple  tuple;
                 auto  const  cfg = ValueConfig{ValueShared, val.IsConst() && keep_const ? ValueConst : ValueMutable, val.GetTypeInfo()};
                 deep_copy( tuple, kv.second.GetValue<Tuple>(), keep_const );
@@ -166,7 +166,7 @@ void deep_copy( Tuple &rDest, Tuple const &rSrc, bool const keep_const = false )
 
 ValueObject deep_copy( ValueObject const &rVal, bool const keep_const = false )
 {
-    if( rVal.GetTypeInfo()->GetName() != "Tuple" ) {
+    if( not rVal.GetTypeInfo()->IsSame<Tuple>() ) {
         auto copy( rVal );
         copy.Detach( keep_const );
         return copy;

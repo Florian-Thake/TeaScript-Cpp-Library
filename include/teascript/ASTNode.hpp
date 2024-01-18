@@ -326,7 +326,7 @@ public:
                 return mChildren.back()->Eval( rContext );
             } else {
                 // more than 1 child will produce a tuple.
-                Collection<ValueObject>  tuple;
+                Tuple  tuple;
                 if( mChildren.size() > 1 ) {
                     tuple.Reserve( mChildren.size() );
                 }
@@ -602,7 +602,7 @@ public:
     {
         Check();
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
-        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+        auto &tuple = lhs.GetValue<Tuple>();
 
         if( lhs.IsConst() ) {
             throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be changed!" );
@@ -633,7 +633,7 @@ public:
     {
         Check();
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
-        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+        auto &tuple = lhs.GetValue<Tuple>();
 
         // get and evaluate parameter list
         auto  paramval = mChildren[1]->Eval( rContext );
@@ -746,7 +746,7 @@ public:
     {
         Check();
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
-        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+        auto &tuple = lhs.GetValue<Tuple>();
 
         if( lhs.IsConst() ) {
             throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be added!" );
@@ -785,7 +785,7 @@ public:
     {
         Check();
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
-        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+        auto &tuple = lhs.GetValue<Tuple>();
 
         if( lhs.IsConst() ) {
             throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be changed!" );
@@ -805,7 +805,7 @@ public:
     {
         Check();
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
-        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+        auto &tuple = lhs.GetValue<Tuple>();
         if( lhs.IsConst() ) {
             throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be removed!" );
         }
@@ -820,7 +820,7 @@ public:
     {
         Check();
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
-        auto &tuple = lhs.GetValue<Collection<ValueObject>>();
+        auto &tuple = lhs.GetValue<Tuple>();
 
         auto const idx = GetIndex( tuple, rContext ); // throws on error!
         auto obj = tuple.GetValueByIdx_Unchecked( idx );
@@ -860,6 +860,11 @@ public:
     inline bool IsAssignWithDef() const noexcept
     {
         return mMode != eMode::Assign;
+    }
+
+    inline bool IsSharedAssign() const noexcept
+    {
+        return mbShared;
     }
 
     void AddChildNode( ASTNodePtr node ) override
@@ -911,7 +916,7 @@ public:
                     return static_cast<ASTNode_Subscript_Operator *>(mChildren[0].get())->SetValueObject( rContext, val, mbShared );
                 }
             } catch( exception::unknown_identifier const & ) {
-                if( rContext.auto_define_unknown_identifiers ) {
+                if( rContext.dialect.auto_define_unknown_identifiers ) {
                     if( !mbShared ) {
                         val.Detach( true ); // make copy.
                     }
@@ -1003,7 +1008,7 @@ public:
         if( mType == eType::Def ) {
             // NOTE: the Def Operator stays only there if it is without assignment. Otherwise the Assign Operator will do the work.
             // IMPORTANT: The option to have a TeaScript dialect where declaration without assignment is allowed is actually unsupported and not functional.
-            if( rContext.declare_identifiers_without_assign_allowed && is_id ) { // NOTE: Not implemented for Dot Op.
+            if( rContext.dialect.declare_identifiers_without_assign_allowed && is_id ) { // NOTE: Not implemented for Dot Op.
                 return rContext.AddValueObject( mChildren[0]->GetDetail(), ValueObject().MakeShared(), GetSourceLocation() ); //NOTE: need to be marked with type 'undefined' for can assign any type
             } else {
                 throw exception::declare_without_assign( GetSourceLocation(), mChildren[0]->GetDetail() );
@@ -1037,12 +1042,12 @@ public:
                 }
                 return ValueObject( true );
             } catch( exception::unknown_identifier const & ) {
-                if( rContext.undefine_unknown_idenitifiers_allowed ) {
+                if( rContext.dialect.undefine_unknown_idenitifiers_allowed ) {
                     return ValueObject( false );
                 }
                 throw;
             } catch( exception::out_of_range const & ) {
-                if( rContext.undefine_unknown_idenitifiers_allowed ) {
+                if( rContext.dialect.undefine_unknown_idenitifiers_allowed ) {
                     return ValueObject( false );
                 }
                 throw;
@@ -1448,6 +1453,106 @@ public:
         return res;
     }
 };
+
+
+/// ASTNode for the forall loop
+class ASTNode_Forall : public ASTNode_Child_Capable
+{
+public:
+    explicit ASTNode_Forall( std::string const &rLabelName = "", SourceLocation loc = {} )
+        : ASTNode_Child_Capable( "Forall", rLabelName, std::move( loc ) )
+    {
+    }
+
+    bool IsComplete() const noexcept override
+    {
+        return mChildren.size() > 2;
+    }
+
+    void SetComplete() noexcept
+    {
+        // dummy
+    }
+
+    void AddChildNode( ASTNodePtr node ) override
+    {
+        assert( node.get() != nullptr );
+        if( IsComplete() ) {
+            throw exception::runtime_error( GetSourceLocation(), "Forall ASTNode complete! Cannot add additional child!" );
+        } else if( mChildren.empty() ) {
+            if( node->GetName() != "Id" ) {
+                throw exception::eval_error( GetSourceLocation(), "Forall ASTNode needs an Identifier as first child!" );
+            }
+        } else if( mChildren.size() == 1 ) {
+            // cannot check, must eval to Seq
+        } else if( mChildren.size() == 2 ) {
+            // note: this could be relaxed here and ensured at parsing level for have more flexible ASTNodes.
+            if( node->GetName() != "Block" ) {
+                throw exception::eval_error( GetSourceLocation(), "Forall ASTNode needs a Block as last child!" );
+            }
+        }
+        mChildren.emplace_back( std::move( node ) );
+    }
+
+    ValueObject Eval( Context &rContext ) override
+    {
+        if( IsIncomplete() ) {
+            throw exception::eval_error( GetSourceLocation(), "Forall ASTNode incomplete!" );
+        }
+
+        ScopedNewScope new_scope( rContext );
+        ValueObject res;
+
+        // get the sequence
+        auto seq_val = mChildren[1]->Eval( rContext );
+        if( not seq_val.GetTypeInfo()->IsSame<IntegerSequence>() && not seq_val.GetTypeInfo()->IsSame<Tuple>() ) {
+            throw exception::eval_error( GetSourceLocation(), "Forall ASTNode can actually only iterate over an IntegerSequence/Tuple!" );
+        }
+
+        // special case: empty tuple
+        if( seq_val.GetTypeInfo()->IsSame<Tuple>() && seq_val.GetValue<Tuple>().Size() == 0 ) {
+            // nothing to do
+            return res;
+        }
+
+        auto  seq = seq_val.GetTypeInfo()->IsSame<Tuple>()
+                  ? IntegerSequence( 0LL, static_cast<Integer>(seq_val.GetValue<Tuple>().Size() - 1), 1LL )
+                  : seq_val.GetValue<IntegerSequence>();
+        seq.Reset();
+
+        // create the variable for the current value
+        auto cur = rContext.AddValueObject( mChildren[0]->GetDetail(), ValueObject( 0LL, ValueConfig( ValueShared, ValueMutable ) ), mChildren[0]->GetSourceLocation() );
+
+        while( true ) {
+            try {
+                // TODO: Assign overload for pure Integer would be nice :-)
+                cur.AssignValue( ValueObject( seq.Current(), ValueConfig(ValueUnshared, ValueMutable)));
+                res = mChildren[2]->Eval( rContext );
+                if( not seq.Next() ) {
+                    break;
+                }
+            } catch( control::Loop_To_Head const &rLoop ) {
+                if( rLoop.GetName() != GetDetail() ) {
+                    throw;
+                }
+                if( not seq.Next() ) {
+                    break;
+                }
+                continue;
+            } catch( control::Stop_Loop const &rStop ) {
+                if( rStop.GetName() != GetDetail() ) {
+                    throw;
+                }
+                res = rStop.GetResult();
+                break;
+            }
+        }
+
+        return res;
+    }
+};
+
+
 
 /// returns the next param of current param list from the context
 class ASTNode_FromParamList : public ASTNode

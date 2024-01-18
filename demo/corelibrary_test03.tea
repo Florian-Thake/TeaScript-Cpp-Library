@@ -26,7 +26,31 @@ if( version_major < 1 and version_minor < 10 ) {
 } else if( not is_defined _core_config or _core_config mod 16 < 8 /* LevelFull */ ) {
     return "Tests must always run with CoreLibrary LevelFull."
 }
+
 // --- pre check done...
+
+// helper function for new (optional feature) color printing (starting from 0.12)
+func maybe_cprint( color, text )
+{
+    if( is_defined cprint ) {
+        cprint( color, text )
+    } else {
+        print( text )
+    }
+}
+
+func print_failure( text )
+{
+    // red color, because cannot use make_rgb()
+    maybe_cprint( 255*256*256, text )
+}
+
+func print_success( text )
+{
+    // green color, because cannot use make_rgb()
+    maybe_cprint( 255*256, text )
+}
+
 
 // --- UnitTest function definitions 
 
@@ -34,6 +58,7 @@ func TEST_EQ( val, expected, msg )
 {
     def res := val == expected
     if( not res ) {
+        print_failure( "\nFAILED:\n" )
         fail_with_message( "expected %(expected) but was %(val). " % msg, _exit_failure )
     }
 }
@@ -169,7 +194,7 @@ print( "named ... " )
     TEST_EQ( _tuple_named_val( tup, "🚀 🍀 ☠ 🔥" )(), 1337, "_tuple_named_val( tup, \"🚀 🍀 ☠ 🔥\" )() failed!" )
 }
 
-println( "ok." )
+print_success( "ok.\n" )
 
 print( "testing tuple remove ... " )
 
@@ -282,7 +307,7 @@ print( "insert ... " )
     TEST_EQ( _tuple_index_of( tup, "age" ), 2 , "_tuple_index_of( tup, \"age\" ) failed!" )
 }
 
-println( "ok." )
+print_success( "ok.\n" )
 
 print( "testing tuple same types ... " )
 
@@ -397,7 +422,7 @@ print( "index swap (bubble sort) ... " )
     TEST_EQ( tup.9, 9 , "tup.9 failed!" )
 }
 
-println( "ok." )
+print_success( "ok.\n" )
 
 
 print( "testing stack support ... " )
@@ -423,7 +448,7 @@ print( "testing stack support ... " )
 }
 
 
-println( "ok." )
+print_success( "ok.\n" )
 
 
 if( version_major >= 1 or version_minor >= 11 )
@@ -439,14 +464,14 @@ if( version_major >= 1 or version_minor >= 11 )
     undef tup."🚀 🍀 ☠ 🔥"
     TEST_FALSE( is_defined tup."🚀 🍀 ☠ 🔥", "undef tup.\"🚀 🍀 ☠ 🔥\" failed!" )
 
-    println( "ok." )
+    print_success( "ok.\n" )
 }
 
 
-println( "\n=== TEST PASSED ===" )
+print_success( "=== TEST PASSED ===\n" )
 
 println( "\nFinally testing tuple print." )
-println( "\nTHIS MUST BE VERIFIED MANUALLY!!!\n" )
+maybe_cprint( 256*256*255+255, "\nTHIS MUST BE VERIFIED MANUALLY!!!\n\n" )
 
 {
     def tup := _tuple_create()   // empty tuple

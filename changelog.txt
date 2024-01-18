@@ -1,0 +1,414 @@
+CHANGELOG OF TEASCRIPT
+=======================
+This changelog is for the TasScript Host Application as well as the TeaScript C++ Library.
+
+NOTE: The dates are not the release dates, but a last commit date.
+
+
+================
+Version 0.12.0, Tue Jan 16 14:42:09 2024
+================
+    VERSION: 0.12.0 - Colored Output, Format String, Forall Loop, Sequences, interactive debugging.
+    
+    TEST: forall test, const param check, v12 example, improvements.
+    TEST: added v0.12 tests to core_test01 + checking optional features + ...
+    - ... added colorful output to all core tests if available.
+    DIST: added changelog.txt based on git commit messages.
+    VALUEOBJ: made Sequence + TypeInfo printable / String convertible.
+    VALUE: Visit function for obtaining the inner value. (+ demo test code)
+    FIX: invoking function right after subscript operator.
+    FIX: fixed trunc with real f64 _trunc supporting full range of f64.
+    CORELIB: moved floor,ceil,trunc,sqrt to LevelFull
+    FIX: ValueObject::GetAsInteger(): throws wrong exception if String cannot be converted.
+    CORELIB: added features tuple and moved most file-io to LevelFull
+    - features tuple with .color, .format, .toml
+      reflecting if feature was available during compile
+    - added inc/dec functions for LevelUtil.
+    - moved read/writetextfile, file_copy, path_delete, etc. to LevelFull.
+    TESTSCRIPTS: added format_string.tea
+    DIST: Copyright year 2024
+    HOST/DEMO: colorized support of old conhost.exe (windows).
+    TEASCRIPT: added forall loop and Sequences.
+    - forall loop with 'in' keyword iterating ...
+    - ... over valid indices of a given tuple as well as ...
+    - ... over integer sequences with build with _seq()
+    - introduced Sequence and IntegerSequence classes
+    - introduced _seq function (for creating an IntegerSequence)
+    - bunch of colorful test scripts using forall loop.
+    ENGINE: added new protected constructor for prevent bootstrapping.
+    CLEAN: Removed deprecated variant of Context::Bootstrap().
+    TEASCRIPT: !!! _BREAKING_ !!! copy assigned function parameters are now const by default.
+    - only shared assigned parameters are still mutable by default.
+    - added Dialect.hpp and class for defining a TeaScript dialect.
+    - the unmodified default values are forming the TeaScript standard language.
+    - moved the old dialect defines from Context and ParsingState to Dialect.
+    - added temporary interface in Engine for activate old behavior (for transition)
+    - added temporary parameter --old-mutable-parameters to the Host Application for
+      activate old behavior when executing standalone scripts (for transition).
+    - changed Unittest for testing both behaviors.
+    CORELIB: added format() for string formatting as via {fmt}.
+    DEPRECATED: made eval and Int() deprecated, 
+    - added Num()/Integer()
+    CORELIB: added colored print as cprint/cprinln.
+    PRINT: colorized pretty print.
+    PRINT: Made libfmt preferred over std23 (most features).
+    FIX: double to string conversion lose precision after the 6th position.
+    - using fmt::to_string if available, otherwise std::format
+    - fixed parsing of 123.456e-12  (dot and e same time)
+    - fixed parsing optional + sign for exponent 1e+4
+    HOST: new commands for manually load,parse,exec,show file
+    - HOST: added :load=file, :show/:parse n lines, :exec n statements
+    - HOST: :goto line,col command
+    - HOST: show AST of a parsed statement (of loaded file)
+    - HOST: some colorized output.
+    3RDPARTY: updated to fmt 10.1.1
+
+================
+Version 0.11.0,   Thu Dec 7 10:20:52 2023
+================
+    VERSION: 0.11.0 - TOML Support, Subscript Operator, Raw String Literals.
+
+    FIX: debug operator: name for tuple elements.
+    FIX: Start call was applied for incomplete Dot Ops.
+    HOST: added config=|reset= for CoreLibrary config, bug fixes.
+    DEMO: added TOML test code, better readable script code.
+    VALUEOBJECT: implemented forwarding subscript operator [].
+    FIX/ENGINE: Don't use terminating 0 of a char[] as string content.
+    TUPLE: Implemented [] operator in class Collection.
+    TEASCRIPT: experimental activation of 'is Const'.
+    TEASCRIPT: added (optionally) TOML Support (read into Tuple) via toml++
+    CLEANUP: removed crt secure warning suppress from header.
+    PARSER: added ##minimum_version required option.
+    TEASCRIPT: added Raw String support.
+    CLEANUP: merged ASTNode ParamSpec with ParamList.
+    TUPLE: added subscript operator [] for access by index and key.
+    TUPLE: added dot access with strings, streamlined dot op code.
+    FIX: compatibility with newer VS2022 versions.
+    HOST: changed license to AGPL-3.0
+    HOST: added optional GNU Readline support (Linux).
+
+================
+Version 0.10.0    Thu Mar 9 20:01:47 2023
+================
+    VERSION: 0.10.0 - Tuples/Named Tuples, Passthrough Type, CoreLib config, license.
+
+    TEASCRIPT LIB: changed license to AGPLv3.
+    FIX: prevent endless recursion if tuple build cyclic references
+    DEMO: added double linked list and tuple demo scripts!
+    CORELIB: path_delete, file_copy/_newer
+    CORELIB: added change_cwd, create_dir, path_exists, readdirfirst/next, last_modified
+    - readdirfirst/next returns a Tuple for the direntry and a handle
+      to the directory iterator which will be used in follow up call.
+    - added experimental variant of LibrartFunction1 template.
+      It can optionally add the Context as first argument to the call.
+      Needed for can build a Tuple (needs TypeSystem/Info).
+    TEASCRIPT: added passthrough data + demo code for it.
+    PARSER: experimental interface for partial evaluation.
+    CORELIB: added fine grained loading level and feature opt-out configuration.
+    - split hardcoded core lib TeaScript code in several parts.
+    - convenience functions for build the core lib config.
+    - new Engine constructors with Core Lib config.
+    TEASCRIPT: Tuple, Named Tuple, Dot Operator support.    
+    - can create tuple via parenthesis
+    - ... via Uniform definition syntax
+    - tuples can have named elements
+    - tuple elements can be removed, inserted, changed and swapped.
+    - tuple element index to name and name to index.
+    - added Collection class providing stable storage order and access by index or key
+    - huge collection of tuple support functions.
+    - Tuples can be used as dictionaries, lists, stacks.
+    - printing of Tuples.
+    - dot operator for access by index or name.
+    - tuples are const correct
+    - single elements of tuples can be defined const.
+    - Unittest for Collection and Tuples.
+
+================
+Version 0.9.0,    Mon Jan 30 12:43:36 2023
+================
+    VERSION: 0.9.0 - Linux g++/clang port, C++ Highlevel API, enhanced Parser
+
+    DIST: added Known_Issues.txt
+    ENGINE: added method for toggle debug mode.
+    PARSER: Precedence with deep lifting is always enabled.
+    ASTNODE: made many methods noexcept.
+    LINUX: compile with -O2 as default.
+    LINUX: fixed all warnings for Wall (clang and gcc).
+    WARNINGS: raised to W4 on Windows and fixed all warnings.
+    VALUEOBJECT: GetAsInteger() supersedes GetAsLongLong().
+    - use I64/F64/Integer/Decimal rather then long long/double
+    TEASCRIPT: added Engine class with public user level API and great way for callback functions
+    - added demo project teascript_demo for show Engine API.
+    - user callbacks can be invoked as normal TeaScript functions.
+    PARSER: Support direct parsing -/+ sign for integer/decimal constants
+    - unary -/+ Operator only created in front of a constant if there is whitespace in between.
+    PARSER: Full Line-By-Line parsing supported.
+    - new Symbol() makes Operator, Expression, Block,... obsolete!
+    - new implementation of ParseStatements() and Comment().
+    - added ParsePartial()/ParsePartialEnd() for line-by-line parsing.
+    - streamlined old (block/file) Parse() to use the 2 new methods.
+    - added line offset to Content for partial parsing.
+    - detect incomplete ASTNodes during parse time now (throw parse_error instead of eval_error).
+    LINUX: fixed impl of CoreLibrary::GetLocalTimeInsSecs()
+    LINUX: clang compile and run with libstdc++ and libc++
+    LINUX: compile and run on Ubuntu 22.04 g++11
+    HOST: added -T|--time option for time measurement.
+    IMPROVED: changed unordered_map to map in TypeSystem (performance).
+    TEST: added bench_fib.tea with 3 alternatives of fib code.
+
+================
+Version 0.8.0 (first public release!), Thu Dec 8 11:20:03 2022 
+================
+    VERSION: 0.8.0 - SourceLocation, pretty print, Unicode, Core Lib Ext2, Host modes, ...
+
+    BUGFIX: if( def a := 4, true ) { a } not evals!
+    CORELIB: added build date time.
+    TEASCRIPT: allow top-level return statement.
+    BUGFIX: not not random(0,1) is eval error! (deep lifting startcall)
+    TEST: added file io test, extended double test.
+    UNITTEST: added corelib test 02.
+    CORELIB: extended Core Library with abs, round, ceil, floor, pow AND ...
+    - added PI
+    - added _f64toi64, trunc
+    CORELIB: added _strtonumex using Parser and yield i64|f64|Bool, added _sqrt/sqrt, to_f64/i64    
+    CORELIB: added clock[_utc], _timestamp, timetostr, sleep, random, rolldice, ...
+    CORELIB: added cwd and readtextfile for UTF-8 text processing.    
+    CORELIB: added tempdir, file_[size|exists], writetextfile.
+    CORELIB: added strreplace[pos|first|last], _strglyphs.
+    HOST: full Unicode support from shell input / CoreLibrary ReadLine.
+    - internally read new data from ReadConsoleW as UTF-16 and convert to UTF-8.
+    HOST: Finally have full Uincode support for command line/script arguments!
+    - use wmain on Windows and convert UTF-16 to UTF-8
+    - can test with argout_test.tea (and proper font in Console!)
+    TEASCRIPT: Proper handling of UTF-8 strings from within the script.
+    - shorten utf8 strings correctly for debug prints.
+    - count utf8 glyphs for the string length.
+    HOST: support current ANSI/OEM code page for keyboard input / params.
+    HOST: optionally run interactive shell after exec. added version and help params.    
+    - HOST: proper convert program arguments for script to utf-8 string (Windows mess!)
+    - HOST: added program argument parser and Config struct.
+    - HOST: help text for all valid modes/program arguments.
+    - HOST: print version command.
+    HOST: added silent mode.
+    HOST: extract source line on eval_error when exec script.
+    TEASCRIPT: changed std::runtime_error to exception::runtime_error.
+    EXAMPLES: added fib.tea for calc fibonacci.
+    PARSER: optimized SkipWhiteSpaceFast by remove bad conditional jump.
+    ASTNODE: added SourceLocation to every node type.
+    HOST: pretty print of parsing error :-)
+    PARSER: added distinct lhs_missing exception.
+    EXAMPLES: added helloworld.tea (as public domain)
+
+================
+Version 0.7.0 (unreleased, Release Prototype), Tue Oct 25 15:42:06 2022
+================
+    VERSION: 0.7.0 - Default parameters, TypeSystem, shared assign, const, double, ...
+    
+    HOST: portable distribution (Windows)    
+    3RDPARTY: updated libfmt to 9.1.0
+    TEST: Added a huge bunch of UnitTests for the last added features...
+    TEASCRIPT: added passing parameters via shared assign.
+    - brilliant solution for passing parameter as shared. We specify the assignment operator explicit!
+      Then, if we omit the default value/expression a dummy is added to signal that pass a parameter
+      is mandatory. With this we easily have shared assign for function parameters with and without
+      default value/expression.
+    - also can specify optionally const to parameter definition.
+    - added swap function to CoreLibrary which is now possible via shared assign.
+    TEASCRIPT: added typeof and typename unary operators.
+    TEASCRIPT: added Types as Values, added is operator    
+    - TypeInfos now have a name and can be set as value in ValueObject.
+    - CoreLibrary creates variables for all basic types.
+    - fake concept 'Number' for check if type is arithmetic (should probably being made clean later)
+    IMPROVE: return statement will move the value instead of copy it.
+    PARSER: stop at the first NUL encountered.
+    IMPROVE: added error handling to _strtonum (return Bool(false))
+    TEASCRIPT: Added TypeSystem and const variables!    
+    - ValueObject now has a mpType member.
+    - Types are stored in TypeSystem class
+    - Allow ValueObject becomes NaV without losing original Type.
+    TEASCRIPT: added double as type and ArithmeticHelper functions for be able to support more types!
+    TEASPCRIPT: added shared assign which will share the value between both operands.
+    - share assign operator is @=
+    - test if 2 variables are shared with @@
+    - get (internal) share_count with @? (unary op)
+    - refactored assign and def, now all is streamlined clean in assign operator.
+    TEASCRIPT: added default parameter for functions and improved parameter handling
+    - ParamList is now provided per Context in current scope.
+    - added FromParamList[_Or] which consumes one value from current param list in scope.
+
+
+================
+Version 0.6.0 (unreleased), Tue Oct 4 13:29:25 2022
+================
+    VERSION: 0.6.0 - Functions, Lambdas, CoreLibrary and Strings + In-String-Eval
+    
+    UNITTEST: added tests for strings, funcs, eval (and comma)
+    UNITTEST: added UnitTest for Core Library written in TeaScript.
+    HOST: added --printAST for print AST only.
+    SHELL: added ls vars, help and quit command
+    - :ls vars will list all variables in global scope.
+    - :help will show help message with all commands.
+    - :q, :quit will exit the shell.
+    TEASCRIPT: added initial CoreLibrary + exit the script from any place.
+    - CoreLibrary with 2 phases: BuildInternals and Bootstrap.
+    - BuildInternals will add all underscore variables and functions.
+    - the whole Bootstrap will add the rest of the Core Lib (also written in TeaScript)
+    - have print to stdout/stderr, exit, min/max/clamp, number/string conversion and a minimal string support lib.
+    - variables for version, etc.
+    - can exit the script with exit code from any point by calling _exit(code)
+    - CORELIB: added eval, eval_file and readline
+    ASTNODE/PARSER: added Return Statement
+    TEASCRIPT: added function def, function call and lambdas!
+    - func def with func name( paramspec ) {}
+    - or def name := func ( paramspec ) {}
+    - the latter is also a lambda
+    - added ASTNode_ParamSpec and ASTNode_ParamList, where the first creates new vars in the context,
+      and the latter evals a list of statements to the parameter list.
+    - added ASTNode_Func and ASTNode_CallFunc, where the first is a func definition and will create a Func Object on Eval
+      and the latter will get the Func object from the context and call it.
+    - added parsing of comma , for build a list of statements.
+    TEASCRIPT/PARSER: added String as value type and in-string evaluation.    
+    - string literals are normal used with enclosing double quotes "
+    - escape sequence for tab, cr, nl, \, ", %
+    - string concatenation operator is %
+    - auto to string for string concat.
+    - auto to number for arithmetic works as expected.
+    - in-string eval is done with %(expr) (including inner strings without extra quoting!)
+    UTIL: added TEASCRIPT_PRINT macro in new header Print.hpp
+
+================
+Version 0.5.0 (unreleased), Wed Sep 7 16:09:35 2022
+================
+    VERSION: 0.5.0 - repeat loop with labels and with clause.
+    - repeat can have optional label as simple string for be addressable.
+    - stop and loop can have optional label as simple string for address the repeat loop
+    - optional with clause followed by a statement for stop to return a value from the loop.
+    - repeat loops can be assigned.
+    - UnitTest for repeat loop.
+    - added gcd.tea script for compute the gcd with a repeat loop.
+    ASTNODE/PARSER: added first version of repeat loop with stop and loop statement.
+
+================
+Version 0.4.0 (unreleased), Mon Aug 1 13:12:51 2022
+================
+    VERSION: 0.4.0 - If statements, assigning of if statements, blocks with scope, ...
+    - UnitTest for if statements
+    - added (temporarily?) debug operator which prints the name and value of identifier.
+    TEASCRIPT: added if, else (and else if)
+    TEASCRIPT/PARSERSTATE/ASTNODE: added first version of blocks with scope.
+    TEASCRIPT: added comparison operators (relational and equality)    
+    - eq, ne, gt, lt, ge and le are available as well.
+    - using C++20 spaceship operator <=> for implement the comparison.
+    - UnitTest for test comparison operators
+    PARSER/AST: added the modulo operator 'mod'.
+
+================
+Version 0.3.0 (unreleased), Wed Jun 1 16:07:33 2022
+================
+    VERSION: 0.3.0 - def and undef variables, check with is_defined, assign, script arguments
+    
+    This milestone release contains
+    - defining variables with keyword 'def'
+    - undefine variables with keyword 'undef' (returns true if a variable existed and was undefined.)
+    - check if a variable is defined with keyword 'is_defined'
+    - assign new values to existing variables.
+    - also the script can access the script arguments as global variables with arg1 ... argN
+    - number of passed arguments can be queried with argN global variable.
+    - with all of that a logical branching is already possible but unnatural (see example script).
+
+    CONTENT: added [] operator for faster accessing character at offset position
+    TEASCRIPT: passing command arguments to the script.
+    TEASCRIPT/PARSER: added is_defined operator for variables.
+    - this is valid code: is_defined a or (def a := 1)
+    TEASCRIPT: define und undefine variables, assign and use them!    
+    - added Context with Scopes for store, find and set values of variables.
+    - ASTNode_Assign as binary operator for assign values to variables.
+    - ASTNode_Var_Def_Undef for define and undefine variables (currently as unary operator).
+    - Operator Precedence: deep lifting of inserted ASTNodes for complex operator and precedence combinations!
+    - Unittest for variables.
+    VALUE: ValueObject can now have either a shared or a unshared value!
+
+================
+Version 0.2.0 (unreleased), Tue May 24 22:22:03 2022
+================
+    VERSION: 0.2.0 - boolean constants, logical operators, operator precedence, mul/div, ...
+    - added boolean true / false constants
+    - added logical operators and, or (binary) and not (unary)
+    - added real Unary_Operator ASTNode.
+    - added integer mul and div.
+    - operator precedence (and binds stronger as or, mul/div stronger as plus/minus)
+    - added ASTNode_Identifier skeleton
+    - convert to long long for arithmetic and to bool for logical operators.
+    - throw division by zero when rhs is 0 for integer div.
+    - Unittest for eval arithmetic and logical expressions.
+
+================
+Version 0.1.0 (unreleased), Mon May 23 16:05:03 2022
+================
+    VERSION: 0.1.0 - binary (+ simulated unary) Operators +/- for Integers and ...
+    ... creating subexpressions with parentheses (grouping).
+    ATSNODE: added IsDummy() for avoid casting + convenience IsIncomplete()
+    PARSER: added (Sub-/Nested-)Expression parsing
+    - added ASTNode_Expression for sub expressions.
+    - added debug mode for print the AST to interactive shell (use :debug)
+    TEASCRIPT/PARSER: added binary operator + and - for Integers (and simulate unary +/- as well)    
+    - actually an iterative approach is chosen for parsing (instead of a recursive one).
+    - ASTNode_Binary_Operator for + and - (applied to a lhs and rhs node)
+    - Parser will fake an unary +/- by building a Binary Operator with a 0 as lhs value
+
+================
+Version 0.0.1 (unreleased), Fri May 13 12:23:58 2022
+================
+    VERSION: 0.0.1 - Parsing and evaluate integer constants (+ add versioning at all)
+    
+    - added version.h with version information.
+    - note: this is the first and (probably) also the last .h file (instead of .hpp)
+      which can be included also in plain C source code. The Version C MACROS can be used.
+      This enables a future Wrapper C API (if needed/wanted).
+    PARSER: fixed more than one integer constants can occur at same line
+
+
+================
+Unreleased, Milestone 2 (without version number), Thu May 12 23:17:14 2022
+================
+    MILESTONE 2: Have working Int parser for a Constant AST Node!    
+    - added ASTNode_File for the node for a complete file / eval call.
+    - added ASTNode_Child_Capable for all ASTNode which may have (generic) children.
+
+================
+Unreleased, Milestone 1 (without version number),  Thu May 12 12:30:26 2022
+================
+    PARSER/TEASCRIPT: MILESTONE 1: Eval of returned AST from Parser in all modes.
+    - Parser returns No-Op AST now if no error occurred.
+    - TeaScript prints the value of the ValueObject returned from the AST eval if it is printable.
+    AST: first interface and implementation of the AST. Starting with No-Op and Constant.
+    VALUE: added first version of class ValueObject, representing all values in TeaScript.
+    PARSER: added parsing_error exception with current position.
+    UNITTEST: added Unittest based on Boost Test
+    
+
+================
+Unreleased, first documented version (without version number), Fri Apr 29 21:41:18 2022
+================    
+    Initial commit of TeaScript.
+    
+    Includes the TeaScript command line program (the script host) which comes with an interactive shell to parse (and later eval)
+    TeaScript code as well as the functionality to pass script files or a TeasScript code string via command line parameter.
+    The intend is to parse and execute generic TeaScript code, either interactive or more likely by running a script file.
+    The interactive shell supports multi line inputs (via backslash at end of line).
+    The TeaScript engine (the parsing and eval mechanism) will be developed as an include only library.
+    The engine will be designed to run inside a C++ environment and shall be able to interact with the host environment
+    in both directions (from host to script (e.g. make classes, variables, functions available) and
+    from script to host (e.g. get return values back to C++ code, throw catchable std exceptions, etc. )).
+    The Parser recognizes already hash lines, single line comments and multi line comments and is able to handle
+    whitespace and EOLs as well.
+    The Content class for keep track of the parsable input content has a lot of handy operators for moving the current
+    parsing position, get the content and query and calculate extra information like line and column position as well as
+    remaining and processed characters information.
+    The Content class can be used with strings, static string literals and also for string_views and archaic raw pointers.
+    This commit also includes some handy debug_print functions as well as the skeletons for class State and ASTNode.
+    Future features of the TeaScript language and its engine might be (but are not limited to):
+    support functions with pre-condition and post-condition code blocks, interactive script files, parallel keyword/code blocks,
+    easy network / HTTP ReST support, easy and/or advance file io and multithreading support, batch jobs,
+    image/memory processing abstraction, ...
+

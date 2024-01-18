@@ -1,6 +1,6 @@
 Except where otherwise noted all files included are copyrighted by Florian Thake.
 
-Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
+Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
 
 
 The TeaScript C++ Library as well as the TeaScript Host Application

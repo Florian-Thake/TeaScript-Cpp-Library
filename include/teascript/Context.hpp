@@ -15,6 +15,7 @@
 #include "Exception.hpp"
 #include "Print.hpp"
 #include "Util.hpp"
+#include "Dialect.hpp"
 
 #include <vector>
 #include <unordered_map>
@@ -24,18 +25,11 @@
 #include <memory>
 
 
-// IMPORTANT: The option to have a TeaScript dialect where unknown identifiers will get automatically defined is actually not official supported and untested.
-#define TEASCRIPT_DEFAULT_AUTO_DEFINE_UNKNOWN_IDENTIFIERS    false
-// if true: undef an unknown identifier is allowed and will not produce an eval error (default: true)
-#define TEASCRIPT_UNDEFINE_UNKNOWN_IDENTIFIERS_ALLOWED       true
-// IMPORTANT: The option to have a TeaScript dialect where declaration without assignment is allowed is actually unsupported and not functional.
-#define TEASCRIPT_DECLARE_IDENTIFIERS_WITHOUT_ASSIGN_ALLOWED false
-
 
 namespace teascript {
 
 /// The context for TeaScript script/code execution.
-/// \note This class and especially the class layout/data members are subject of heavy changes.
+/// \warning This class and especially the class layout and all(!) data members are subject of heavy changes and are _not_ stable!
 class Context
 {
 public:
@@ -111,15 +105,9 @@ private:
     }
 
 public:
+    Dialect  dialect; // TeaScipt language behavior. (default is TeaScript standard language)  NOTE: The existence/public existence may change in future!
 
-    // IMPORTANT: The option to have a TeaScript dialect where unknown identifiers will get automatically defined is actually not official supported and untested.
-    bool auto_define_unknown_identifiers       = TEASCRIPT_DEFAULT_AUTO_DEFINE_UNKNOWN_IDENTIFIERS;
-    // if true: undef an unknown identifier is allowed and will not produce an eval error (default: true)
-    bool undefine_unknown_idenitifiers_allowed = TEASCRIPT_UNDEFINE_UNKNOWN_IDENTIFIERS_ALLOWED;
-    // IMPORTANT: The option to have a TeaScript dialect where declaration without assignment is allowed is actually unsupported and not functional.
-    bool declare_identifiers_without_assign_allowed = TEASCRIPT_DECLARE_IDENTIFIERS_WITHOUT_ASSIGN_ALLOWED;
-
-    bool is_debug = false; // from and for parser. TODO: cover parameters_are_default_const and ASTNodeFactory (integrate Parser in Context??)
+    bool is_debug = false; // from and for parser. TODO: ASTNodeFactory (integrate Parser in Context?? no, better try to keep Parser and Context unrelated!!)
 
     Context() = default;
     Context( Context && ) = default;

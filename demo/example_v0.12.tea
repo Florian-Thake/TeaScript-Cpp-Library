@@ -1,0 +1,47 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake, <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MIT
+ * see included file MIT_LICENSE.txt
+ */
+
+
+
+// This script demonstrates some new features of version 0.12 in a compact way.
+ 
+// NOTE: this script must run in a TeaScript host with libfmt support (the pre-compiled hosts have this).
+
+
+##minimum_version 0.12
+// fallback for versions older than 0.11 which don't support ##minimum_version.
+// they will produce a parse error when raw string literals are used...
+// cover this case here first and try to produce a readable error.
+if( _version_major < 1 and _version_minor < 12 ) {
+    // return from 'main' exists since 0.8.0 which was the first public release...
+    return """Version is too old. Need 0.12.0 as minimum."""
+}
+
+// quick pre-check of correct setup / environment
+if( not features.color or not features.format ) {
+    // if the features are unavailable in general the compilation was without libfmt.
+    return "cprint/format is not available. You must compile with a proper set include path for libfmt."
+} else if( not is_defined cprint or not is_defined format ) {
+    // otherwise most likely the CoreLibrary is not loaded with level >= LevelUtil.
+    return "cprint/format is not available. Load the CoreLibrary with level >= LevelUtil."
+}
+
+
+
+
+const green  := make_rgb( 0, 255, 0 )
+// all prime numbers up to 500
+const primes := (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97,
+                 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199,
+                 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281, 283, 293,
+                 307, 311, 313, 317, 331, 337, 347, 349, 353, 359, 367, 373, 379, 383, 389, 397,
+                 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499 )
+
+forall( idx in primes ) {
+    cprintln( green, format( "{:03}: {}", idx + 1, primes[ idx ] ) )
+}
+

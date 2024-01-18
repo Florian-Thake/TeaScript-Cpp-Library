@@ -127,6 +127,11 @@ class Parser
         return util::make_srcloc( mState->GetFilePtr(), rHere, mState->is_debug );
     }
 
+    inline SourceLocation MakeSrcLoc( Content const &rStart, Content const &rEnd ) const
+    {
+        return util::make_srcloc( mState->GetFilePtr(), rStart, rEnd, mState->is_debug );
+    }
+
     // checks for a valid parsing end or throws otherwise.
     void CheckPartialEnd() const
     {
@@ -159,6 +164,15 @@ public:
     void SetDebug( bool const enabled ) noexcept
     {
         mState->is_debug = enabled;
+    }
+
+    /// Sets a TeaScript language dialect object for this parser.
+    /// \note this should be done before parsing. Also, there might be other objects (e.g. the Context) which must use the same dialect.
+    /// \warning: A non default dialect will create an inofficial and unsupported dialect of the language. Read also in Dialect.hpp.
+    /// \warning EXPERIMENTAL: This is an experimental interface which may change often or be removed entirely!
+    void OverwriteDialect( Dialect const dialect ) noexcept
+    {
+        mState->dialect = dialect;
     }
 
     /// Parses one complete code block / script file in once. It must be at least one complete toplevel block/statement/entity.
@@ -288,7 +302,7 @@ public:
                     unsigned int major = 0, minor = 0, patch = 0, reserved = 0;
 #if defined(_MSC_VER)
                     auto const scanned = sscanf_s( &(*rHere), "%u.%u.%u.%u", &major, &minor, &patch, &reserved );
-#else // FIXME: check on linux!
+#else
                     auto const scanned = sscanf( &(*rHere), "%u.%u.%u.%u", &major, &minor, &patch, &reserved );
 #endif
                     if( scanned < 1 || scanned > 3 ) {
@@ -434,9 +448,23 @@ public:
         return true;
     }
 
+    /// Parses and integer (long long default) only.
+    bool Integer( Content &rHere )
+    {
+        return Num( rHere, true );
+    }
 
     /// Parses an integer (long long default) or decimal (double)
+    /// DEPRECATED: Please use Num() (or Integer()) instead.
+    [[deprecated( "Please, use Num() (or Integer()) instead." )]]
     bool Int( Content &rHere )
+    {
+        return Num( rHere, false );
+    }
+
+
+    /// Parses an integer (long long default) or decimal (double)
+    bool Num( Content &rHere, bool integers_only = false )
     {
         bool skip = false;
         unsigned char const  first = static_cast<unsigned char>(*rHere);
@@ -453,13 +481,22 @@ public:
         while( rHere.HasMore() && std::isdigit( static_cast<unsigned char>(*rHere) ) ) ++rHere;
 
         // floating point number?
-        if( rHere == '.' || rHere == 'e' ) {
-            if( rHere == 'e' && rHere[1] == '-' ) {
+        if( not integers_only && (rHere == '.' || rHere == 'e') ) {
+            //NOTE: Must support . _and_ e same time, e.g. 123.456e-12
+            if( rHere == '.' ) {
                 ++rHere;
+                while( rHere.HasMore() && std::isdigit( static_cast<unsigned char>(*rHere) ) ) ++rHere;
             }
-            ++rHere;
-            //FIXME: 123.456e-12 not supported (decimal point _and_ e)
-            while( rHere.HasMore() && std::isdigit( static_cast<unsigned char>(*rHere) ) ) ++rHere;
+            if( rHere == 'e' ) {
+                if( rHere[1] == '-' || rHere[1] == '+' ) {
+                    ++rHere;
+                }
+                ++rHere;
+                while( rHere.HasMore() && std::isdigit( static_cast<unsigned char>(*rHere) ) ) ++rHere;
+            }
+
+            //TODO: check if rHere is a letter, which would be invalid?!?! (but be aware of later desired f/f64, etc)
+
             double val = -1.;
 #if !_LIBCPP_VERSION // libc++14 fails here            
             auto const  res = std::from_chars( &(*start), (&(*rHere)), val );
@@ -474,10 +511,12 @@ public:
             val = std::stod( copy ); // may throw ...
 #endif
 
-            mState->AddASTNode( std::make_shared<ASTNode_Constant>( val, util::make_srcloc( mState->GetFilePtr(), start ) ) );
+            mState->AddASTNode( std::make_shared<ASTNode_Constant>( val, util::make_srcloc( mState->GetFilePtr(), start, rHere ) ) );
 
             return true;
         }
+
+        //TODO: check if rHere is a letter, which would be invalid?!?!  (but be aware of later desired u/i/u64/i64, etc)
 
         long long val = -1;
         auto const  res = std::from_chars( &(*start), (&(*rHere)), val, 10 );
@@ -488,7 +527,7 @@ public:
             return false;
         }
 
-        mState->AddASTNode( std::make_shared<ASTNode_Constant>( val, util::make_srcloc( mState->GetFilePtr(), start ) ) );
+        mState->AddASTNode( std::make_shared<ASTNode_Constant>( val, util::make_srcloc( mState->GetFilePtr(), start, rHere ) ) );
 
         return true;
     }
@@ -626,7 +665,7 @@ public:
             mState->AddASTNode( std::make_shared<ASTNode_Unary_Operator>( std::string( id ), MakeSrcLoc( start ) ) );
             return IDResultOperator;
         } else if( id == "is" ) { // is type operator
-            mState->AddASTNode( std::make_shared<ASTNode_Is_Type>( MakeSrcLoc( start ) ) );
+            mState->AddASTNode( std::make_shared<ASTNode_Is_Type>( MakeSrcLoc( start, rHere ) ) );
             return IDResultOperator;
         }
 
@@ -635,7 +674,7 @@ public:
             util::throw_parsing_error( start, mState->GetFilePtr(), "Keyword not allowed as identifier!" );
         }
      
-        mState->AddASTNode( std::make_shared<ASTNode_Identifier>( id, MakeSrcLoc( start ) ) );
+        mState->AddASTNode( std::make_shared<ASTNode_Identifier>( id, MakeSrcLoc( start, rHere ) ) );
 
         return IDResultID;
     }
@@ -779,19 +818,19 @@ public:
     {
         Content const start = rHere;
         if( CheckWordAndMove( "def", rHere ) ) {
-            mState->AddASTNode( std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::Def, MakeSrcLoc( start ) ) );
+            mState->AddASTNode( std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::Def, MakeSrcLoc( start, rHere ) ) );
             return true;
         } else if( CheckWordAndMove( "const", rHere ) ) {
-            mState->AddASTNode( std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::Const, MakeSrcLoc( start ) ) );
+            mState->AddASTNode( std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::Const, MakeSrcLoc( start, rHere ) ) );
             return true;
         } else if( CheckWordAndMove( "undef", rHere ) ) {
-            mState->AddASTNode( std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::Undef, MakeSrcLoc( start ) ) );
+            mState->AddASTNode( std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::Undef, MakeSrcLoc( start, rHere ) ) );
             return true;
         } else if( CheckWordAndMove( "is_defined", rHere ) ) {
-            mState->AddASTNode( std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::IsDef, MakeSrcLoc( start ) ) );
+            mState->AddASTNode( std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::IsDef, MakeSrcLoc( start, rHere ) ) );
             return true;
         } else if( CheckWordAndMove( "debug", rHere ) ) {
-            mState->AddASTNode( std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::Debug, MakeSrcLoc( start ) ) );
+            mState->AddASTNode( std::make_shared<ASTNode_Var_Def_Undef>( ASTNode_Var_Def_Undef::eType::Debug, MakeSrcLoc( start, rHere ) ) );
             return true;
         }
         return false;
@@ -801,10 +840,10 @@ public:
     {
         Content const start = rHere;
         if( CheckWordAndMove( "typename", rHere ) ) {
-            mState->AddASTNode( std::make_shared<ASTNode_Typeof_Typename>( true, MakeSrcLoc( start ) ) );
+            mState->AddASTNode( std::make_shared<ASTNode_Typeof_Typename>( true, MakeSrcLoc( start, rHere ) ) );
             return true;
         } else if( CheckWordAndMove( "typeof", rHere ) ) {
-            mState->AddASTNode( std::make_shared<ASTNode_Typeof_Typename>( false, MakeSrcLoc( start ) ) );
+            mState->AddASTNode( std::make_shared<ASTNode_Typeof_Typename>( false, MakeSrcLoc( start, rHere ) ) );
             return true;
         }
         return false;
@@ -896,6 +935,29 @@ public:
         return false;
     }
 
+    bool Forall( Content &rHere )
+    {
+        if( CheckWordAndMove( "forall", rHere ) ) {
+            Content const start = rHere;
+            SkipWhitespace( rHere );
+            std::string_view sv;
+            std::string label = "";
+            if( SimpleString( sv, rHere ) ) {
+                label = sv;
+            }
+            mState->StartForall( label, MakeSrcLoc( start ) );
+            return true;
+        } else if( CheckWord( "in", rHere ) ) {  // special handling of 'in' keyqord inside forall condition.
+            if( mState->IsInForallCondition() ) {
+                // create a dummy for allow a third ast node without complaining...
+                mState->AddASTNode( std::make_shared<ASTNode_Dummy>( "in", "in", MakeSrcLoc(rHere)));
+                rHere += 2;
+                return true;
+            }
+        }
+        return false;
+    }
+
     bool Func( Content &rHere )
     {
         if( CheckWordAndMove( "func", rHere ) ) {
@@ -982,7 +1044,7 @@ public:
                         }
                         break;
                     case eSymFound::CloseExpr:
-                        if( mState->IsInIf() || mState->IsInFunc() ) {
+                        if( mState->IsInIf() || mState->IsInFunc() || mState->IsInForall() ) {
                             next_line_required.Unset();
                         } else {
                             next_line_required.Set( rHere );
@@ -1040,6 +1102,12 @@ public:
                     if( next_line_required.HasViolation( rHere ) ) {
                         util::throw_parsing_error( rHere, mState->GetFilePtr(), "More than one statement/expression per line! '\\n' (line feed) missing!" );
                     }
+                } else if( Forall( rHere ) ) {
+                    if( mState->IsInForallCondition() ) {
+                        next_line_required.Unset();
+                    } else if( next_line_required.HasViolation( rHere ) ) {
+                        util::throw_parsing_error( rHere, mState->GetFilePtr(), "More than one statement/expression per line! '\\n' (line feed) missing!" );
+                    }
                 } else if( eFound const found_if = If_Else( rHere ) ) {
                     if( found_if == FoundIf && next_line_required.HasViolation( rHere ) ) {
                         util::throw_parsing_error( rHere, mState->GetFilePtr(), "More than one statement/expression per line! '\\n' (line feed) missing!" );
@@ -1062,7 +1130,7 @@ public:
                         util::throw_parsing_error( rHere, mState->GetFilePtr(), "More than one statement/expression per line! '\\n' (line feed) missing!" );
                     }
                     next_line_required.Set( rHere );
-                } else if( Int( rHere ) ) {
+                } else if( Num( rHere ) ) {
                     if( next_line_required.HasViolation( rHere ) ) {
                         util::throw_parsing_error( rHere, mState->GetFilePtr(), "More than one statement/expression per line! '\\n' (line feed) missing!" );
                     }

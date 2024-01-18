@@ -2,22 +2,12 @@ TeaScript Known Issues
 ======================
 
 Beside feature incompleteness there are the following known issues which will be fixed in a later (pre-)release.
+NOTE: The numbers stay same, solved items will (usually) be removed in the next release from this list.
 
-1.) [PLATFORM: any]
-    Floating point literals using decimal point and the e for exponent the same time cannot be parsed actually.
-    E.g, this will not work: 123.456e-10 but this will 123.456 and this also 123456e-13
-    
+1.) [PLATFORM: any] Solved in 0.12 (floating point literals can use decimal point and exponent the same time, e.g.: 123.456e-10 )
 
-2.) [PLATFORM: any]
-    Floating Point to/as string representation will use always 6 decimal digits. 
-    A to-string conversion followed by a from-string conversion will lose precision after the 5th decimal digit.
-    def a := 123456e-13
-    will be displayed as
-    0.000000
-    but 
-    a * 100000000
-    will be calculated correct to
-    1.23456
+
+2.) [PLATFORM: any] Solved in 0.12 (floating point to string conversion now uses default conversion via std::format/fmt::to_string)
     
     
 3.) [PLATFORM: any]
@@ -25,20 +15,17 @@ Beside feature incompleteness there are the following known issues which will be
     For convert f64 to i64 you must use the function _f64toi64 (or to_i64).
     For convert i64 to f64 you can either use to_f64 or simply add 0.0 for f64 promotion.
     
-    
-4.) [PLATFORM: any] : Solved! (Tuples are implemented now.)
-    
 
 5.) [PLATFORM: Windows]
-    Echo'ed input of Unicode might be broken on Windows for the case if the Unicode glyph is 
+    Echo'ed(!) input of Unicode might be broken on Windows for the case if the Unicode glyph is 
     assembled as a surrogate pair in it's UTF-16 representation. This is a bug (or missing feature)
-    inside the WIN32 API. 
+    inside the WIN32 API. See https://developercommunity.visualstudio.com/t/Bug-in-WIN32-API-ReadConsoleW-for-UTF-16/10252965
     Echo'ed input is present when
     - typing commands / code in the interactive shell. (TeaScript Host Application only)
     - request user input via readline() function.      (TeaScript Library and Host Application)
     
     Nevertheless, the read in data is correctly stored in it's UTF-8 representation and can be used without problems,
-    e.g. printing the read data later on the screen will be no problem.
+    e.g. printing the read data later on the screen will be correct.
     
     Hint: Ensure you are using "Windows Terminal" together with either PowerShell or Command Prompt to experience
     the best possible Unicode support on Windows.
@@ -61,8 +48,7 @@ Beside feature incompleteness there are the following known issues which will be
     
 8.) [PLATFORM: Linux]
     CoreLibrary function clock_utc() will return UTC time _without_ leap seconds.
-    
-9.) [PLATFORM: Linux] : Solved! (GNU readline library is now used for the REPL including a history and nice editing.)
+
     
 10.) [PLATFORM: any]
      Accessing nested tuples via index must be surrounded with parenthesis like this:
@@ -70,4 +56,6 @@ Beside feature incompleteness there are the following known issues which will be
      note: tup.0.1 is parsed to ID: tup, dot-op, f64( 0.1 ) which results only in index 0 of tup.
      WORKAROUND: since 0.11.0 Subscript Operator is implemented, use tup[0].1 or tup[0][1]  as a workaround.
 
-11.) [PLATFORM: any] : Solved! (fixed debug operator showing correct tuple names, e.g. for debug tup.inner.name )
+
+12.) [PLATFORM: any] Solved in 0.12 (trunc does not work with the full range of f64 (but only with the range of i64))
+

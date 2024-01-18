@@ -18,7 +18,7 @@ Dependencies:
 
 None - for fully C++20 supporting compilers / C++ standard libraries.
 
-Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 9.1.0)
+Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 10.1.1 and 9.1.0)
 Libfmt can be downloaded here https://fmt.dev/latest/index.html
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 
@@ -31,6 +31,9 @@ TOML Support - for the integrated TOML Support you need the toml++ Library.
 You can find the toml++ library here: https://github.com/marzer/tomlplusplus (tested with 3.4.0)
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 See include/teascript/TomlSupport.hpp for some more details.
+
+Color and Format String Support - for colorful output and the format string feature you need the libfmt library.
+See Libfmt section above.
 
 
 For building the demo app:

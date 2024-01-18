@@ -14,10 +14,15 @@
 #include "Context.hpp"
 #include "Type.hpp"
 #include "TupleUtil.hpp"
+#include "IntegerSequence.hpp"
 #include "TomlSupport.hpp"
 #include "Print.hpp"
 #include "Parser.hpp"
 #include "version.h"
+
+#if TEASCRIPT_FMTFORMAT
+# include "fmt/args.h"
+#endif
 
 #include <filesystem>
 #include <fstream>
@@ -124,7 +129,7 @@ public:
 
     virtual ~LibraryFunction0() {}
 
-    ValueObject Call( Context &/*rContext*/, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
+    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
     {
         if( 0u != rParams.size() ) {
             throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 0)!" );
@@ -132,7 +137,8 @@ public:
         if constexpr( std::is_same_v<RES, ValueObject> ) {
             return mpFunc();
         } else if constexpr( not std::is_same_v<RES, void> ) {
-            return ValueObject( mpFunc() ); //TODO pass TypeSystem?
+            auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
+            return ValueObject( mpFunc(), cfg );
         } else {
             mpFunc();
             return {};
@@ -164,7 +170,8 @@ public:
             if constexpr( std::is_same_v<RES, ValueObject> ) {
                 return mpFunc( util::get_value<T1>( rParams[0] ) );
             } else if constexpr( not std::is_same_v<RES, void> ) {
-                return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ) ) ); //TODO pass TypeSystem?
+                auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
+                return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ) ), cfg );
             } else {
                 mpFunc( util::get_value<T1>( rParams[0] ) );
                 return {};
@@ -173,7 +180,8 @@ public:
             if constexpr( std::is_same_v<RES, ValueObject> ) {
                 return mpFunc( rContext, util::get_value<T1>( rParams[0] ) );
             } else if constexpr( not std::is_same_v<RES, void> ) {
-                return ValueObject( rContext, mpFunc( util::get_value<T1>( rParams[0] ) ) ); //TODO pass TypeSystem?
+                auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
+                return ValueObject( rContext, mpFunc( util::get_value<T1>( rParams[0] ) ), cfg );
             } else {
                 mpFunc( rContext, util::get_value<T1>( rParams[0] ) );
                 return {};
@@ -195,7 +203,7 @@ public:
 
     virtual ~LibraryFunction2() {}
 
-    ValueObject Call( Context &/*rContext*/, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
+    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
     {
         if( 2u != rParams.size() ) {
             throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 2)!" );
@@ -203,7 +211,8 @@ public:
         if constexpr( std::is_same_v<RES, ValueObject> ) {
             return mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>(rParams[1]) );
         } else if constexpr( not std::is_same_v<RES, void> ) {
-            return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ) ) ); //TODO pass TypeSystem?
+            auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
+            return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ) ), cfg );
         } else {
             mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ) );
             return {};
@@ -224,7 +233,7 @@ public:
 
     virtual ~LibraryFunction3() {}
 
-    ValueObject Call( Context &/*rContext*/, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
+    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
     {
         if( 3u != rParams.size() ) {
             throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 3)!" );
@@ -232,7 +241,8 @@ public:
         if constexpr( std::is_same_v<RES, ValueObject> ) {
             return mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>(rParams[2]) );
         } else if constexpr( not std::is_same_v<RES, void> ) {
-            return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ) ) ); //TODO pass TypeSystem?
+            auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
+            return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ) ), cfg );
         } else {
             mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ) );
             return {};
@@ -253,7 +263,7 @@ public:
 
     virtual ~LibraryFunction4() {}
 
-    ValueObject Call( Context &/*rContext*/, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
+    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
     {
         if( 4u != rParams.size() ) {
             throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 4)!" );
@@ -261,7 +271,8 @@ public:
         if constexpr( std::is_same_v<RES, ValueObject> ) {
             return mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>(rParams[3]) );
         } else if constexpr( not std::is_same_v<RES, void> ) {
-            return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ) ) ); //TODO pass TypeSystem?
+            auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
+            return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ) ), cfg );
         } else {
             mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ) );
             return {};
@@ -325,6 +336,7 @@ public:
         }
 
         Parser p; //FIXME: for later versions: must use correct state with correct factory.
+        p.OverwriteDialect( rContext.dialect ); // use eventually modified dialect.
         p.SetDebug( rContext.is_debug );
         try {
             return p.Parse( content, filename )->Eval( rContext );
@@ -347,8 +359,8 @@ public:
 
     ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &/*rLoc*/ ) override
     {
-        Collection<ValueObject>  tuple;
-        
+        Tuple  tuple;
+
         if( rParams.size() > 1 ) {
             tuple.Reserve( rParams.size() );
         }
@@ -357,6 +369,48 @@ public:
         }
 
         return ValueObject( std::move( tuple ), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} );
+    }
+};
+
+
+class FormatStringFunc : public FunctionBase
+{
+public:
+    FormatStringFunc() = default;
+    virtual ~FormatStringFunc() {}
+
+    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
+    {
+#if TEASCRIPT_FMTFORMAT
+        if( rParams.size() < 1 || not rParams[0].GetTypeInfo()->IsSame<std::string>() ) {
+            throw exception::eval_error( rLoc, "FormatStringFunc Call: Need first parameter as the format string!" );
+        }
+        std::string const & format_str = rParams[0].GetValue<std::string>();
+        fmt::dynamic_format_arg_store<fmt::format_context>  store;
+        // skip first, which is the format string.
+        for( size_t idx = 1; idx < rParams.size(); ++idx ) {
+            // TODO: change to visitor
+            if( rParams[idx].GetTypeInfo()->IsSame<Bool>() ) {
+                store.push_back( rParams[idx].GetValue<Bool>() );
+            } else if( rParams[idx].GetTypeInfo()->IsSame<I64>() ) {
+                store.push_back( rParams[idx].GetValue<I64>() );
+            } else if( rParams[idx].GetTypeInfo()->IsSame<F64>() ) {
+                store.push_back( rParams[idx].GetValue<F64>() );
+            } else if( rParams[idx].GetTypeInfo()->IsSame<String>() ) {
+                store.push_back( rParams[idx].GetValue<String>() );
+            } else { // try as a String
+                store.push_back( rParams[idx].GetAsString() );
+            }
+        }
+
+        std::string res = fmt::vformat( format_str, store );
+
+        return ValueObject( std::move( res ), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} );
+#else
+        (void)rContext;
+        (void)rParams;
+        throw exception::runtime_error( rLoc, "FormatStringFunc Call: You must use libfmt to make this working!" );
+#endif
     }
 };
 
@@ -388,6 +442,17 @@ public:
         TEASCRIPT_ERROR( "{}", rStr );
     }
 
+    // colored printing is only possible when libfmt is used.
+#if TEASCRIPT_FMTFORMAT
+    static void PrintColored( long long const rgb, ValueObject const &rStr )
+    {
+        if( rgb < 0 || rgb > 0xFF'FF'FF ) {
+            throw std::invalid_argument( "PrintColored: rgb < 0 || rgb > 0xFF'FF'FF" );
+        }
+        fmt::print( fmt::fg( static_cast<fmt::color>(static_cast<unsigned int>(rgb)) ), "{}", rStr.GetAsString() );
+    }
+#endif
+
     static std::string ReadLine()
     {
         std::string line;
@@ -411,7 +476,12 @@ public:
 
     static double Sqrt( double const d )
     {
-        return sqrt( d );
+        return std::sqrt( d );
+    }
+
+    static double Trunc( double const d )
+    {
+        return std::trunc( d );
     }
 
     static ValueObject StrToNum( std::string  const &rStr )
@@ -431,7 +501,7 @@ public:
             Content content( rStr );
             Parser::SkipWhitespace( content );
             Parser  p;
-            if( p.Int( content ) ) {
+            if( p.Num( content ) ) {
                 auto ast = p.GetLastToplevelASTNode();
                 if( ast.get() != nullptr ) {
                     Context dummy;
@@ -773,78 +843,78 @@ public:
     }
 
 
-    static long long TupleSize( Collection<ValueObject> const & rTuple )
+    static long long TupleSize( Tuple const & rTuple )
     {
         return static_cast<long long>(rTuple.Size());
     }
 
-    static ValueObject TupleValue( Collection<ValueObject> const &rTuple, long long const idx )
+    static ValueObject TupleValue( Tuple const &rTuple, long long const idx )
     {
         return rTuple.GetValueByIdx( static_cast<std::size_t>(idx) );
     }
 
-    static ValueObject TupleNamedValue( Collection<ValueObject> const &rTuple, std::string const &rName )
+    static ValueObject TupleNamedValue( Tuple const &rTuple, std::string const &rName )
     {
         return rTuple.GetValueByKey( rName );
     }
 
-    static void TupleSetValue( Collection<ValueObject> &rTuple, long long const idx, ValueObject &rVal )
+    static void TupleSetValue( Tuple &rTuple, long long const idx, ValueObject &rVal )
     {
         rTuple.GetValueByIdx( static_cast<std::size_t>(idx) ).AssignValue( rVal.MakeShared() );
     }
 
-    static void TupleSetNamedValue( Collection<ValueObject> &rTuple, std::string const &rName, ValueObject &rVal )
+    static void TupleSetNamedValue( Tuple &rTuple, std::string const &rName, ValueObject &rVal )
     {
         rTuple.GetValueByKey( rName ).AssignValue( rVal.MakeShared() );
     }
 
-    static void TupleAppend( Collection<ValueObject> &rTuple, ValueObject &rVal )
+    static void TupleAppend( Tuple &rTuple, ValueObject &rVal )
     {
         rTuple.AppendValue( rVal.MakeShared() );
     }
 
-    static bool TupleNamedAppend( Collection<ValueObject> &rTuple, std::string const &rName, ValueObject &rVal )
+    static bool TupleNamedAppend( Tuple &rTuple, std::string const &rName, ValueObject &rVal )
     {
         return rTuple.AppendKeyValue( rName, rVal.MakeShared() );
     }
 
-    static void TupleInsert( Collection<ValueObject> &rTuple, long long const idx, ValueObject &rVal )
+    static void TupleInsert( Tuple &rTuple, long long const idx, ValueObject &rVal )
     {
         rTuple.InsertValue( static_cast<std::size_t>(idx), rVal.MakeShared() );
     }
 
-    static void TupleNamedInsert( Collection<ValueObject> &rTuple, long long const idx, std::string const &rName, ValueObject &rVal )
+    static void TupleNamedInsert( Tuple &rTuple, long long const idx, std::string const &rName, ValueObject &rVal )
     {
         rTuple.InsertKeyValue( static_cast<std::size_t>(idx), rName, rVal.MakeShared() );
     }
 
-    static bool TupleRemove( Collection<ValueObject>  &rTuple, long long const idx )
+    static bool TupleRemove( Tuple  &rTuple, long long const idx )
     {
         return rTuple.RemoveValueByIdx( static_cast<std::size_t>(idx) );
     }
 
-    static bool TupleNamedRemove( Collection<ValueObject> &rTuple, std::string const &rName )
+    static bool TupleNamedRemove( Tuple &rTuple, std::string const &rName )
     {
         return rTuple.RemoveValueByKey( rName );
     }
 
-    static long long TupleIndexOf( Collection<ValueObject> const &rTuple, std::string const &rName )
+    static long long TupleIndexOf( Tuple const &rTuple, std::string const &rName )
     {
         auto const idx = rTuple.IndexOfKey( rName );
         return idx > static_cast<size_t>(std::numeric_limits<long long>::max()) ? -1LL : static_cast<long long>(idx);
     }
 
-    static std::string TupleNameOf( Collection<ValueObject> const &rTuple, long long const idx )
+    static std::string TupleNameOf( Tuple const &rTuple, long long const idx )
     {
         return rTuple.KeyOfIndex( static_cast<size_t>(idx) );
     }
 
-    static void TupleSwapValues( Collection<ValueObject> &rTuple, long long const idx1, long long const idx2 )
+    static void TupleSwapValues( Tuple &rTuple, long long const idx1, long long const idx2 )
     {
         rTuple.SwapByIdx( static_cast<std::size_t>(idx1), static_cast<std::size_t>(idx2) );
     }
 
-    static bool TupleSameTypes( Collection<ValueObject> const &rTuple1, Collection<ValueObject> const &rTuple2 )
+    static bool TupleSameTypes( Tuple const &rTuple1, Tuple const &rTuple2 )
     {
         return tuple::is_same_structure( rTuple1, rTuple2 );
     }
@@ -852,11 +922,16 @@ public:
     static void TuplePrint( ValueObject &rTuple, std::string const &rRootName, long long max_nesting )
     {
         tuple::foreach_named_element( rRootName, rTuple, true, [=]( std::string const &name, ValueObject &rVal, int level ) -> bool {
-            std::string const val_str = rVal.GetTypeInfo()->GetName() == "Tuple" ? "<Tuple>" : rVal.HasPrintableValue() ? rVal.PrintValue() : "<" + rVal.GetTypeInfo()->GetName() + ">";
+            std::string const val_str = rVal.GetTypeInfo()->IsSame<Tuple>() ? "<Tuple>" : rVal.HasPrintableValue() ? rVal.PrintValue() : "<" + rVal.GetTypeInfo()->GetName() + ">";
             std::string const text = name + ": " + val_str + "\n";
             PrintStdOut( text );
             return level < max_nesting;
         } );
+    }
+
+    static IntegerSequence MakeSequence( long long start, long long end, long long step )
+    {
+        return IntegerSequence( start, end, step );
     }
 
     static ValueObject ReadDirFirst( Context &rContext, std::string const &rPath )
@@ -979,6 +1054,21 @@ protected:
             res.push_back( std::make_pair( "__teascript_copyright", ValueObject( std::string(TEASCRIPT_COPYRIGHT), cfg ) ) );
         }
 
+        // feature tuple (decided to have this always for make it easier to test in scripts)
+        // NOTE: The feature tuple only reflects if the library was built with the features available.
+        //       It does not show if the functions of the features are loaded or not. This depends
+        //       on the loading level, the set opt out bits and also on user code (e.g., undef a function).
+        {
+            Tuple  feat;
+            feat.Reserve( 3 );
+            feat.AppendKeyValue( "format", ValueObject( (TEASCRIPT_FMTFORMAT == 1), cfg ) );
+            feat.AppendKeyValue( "color", ValueObject( (TEASCRIPT_FMTFORMAT == 1), cfg ) );
+            feat.AppendKeyValue( "toml", ValueObject( (TEASCRIPT_TOMLSUPPORT == 1), cfg ) );
+            //TODO: feat.AppendKeyValue( "json", ValueObject( (TEASCRIPT_JSONSUPPORT == 1), cfg ) );
+            ValueObject val{std::move( feat ), cfg_mutable};
+            res.push_back( std::make_pair( "features", std::move( val ) ) ); // missing _ is intended for now.
+        }
+
         // Add the basic Types
         {
             res.push_back( std::make_pair( "TypeInfo", ValueObject( TypeTypeInfo, cfg ) ) );
@@ -987,10 +1077,11 @@ protected:
             res.push_back( std::make_pair( "i64", ValueObject( TypeLongLong, cfg ) ) );
             res.push_back( std::make_pair( "f64", ValueObject( TypeDouble, cfg ) ) );
             res.push_back( std::make_pair( "String", ValueObject( TypeString, cfg ) ) );
-            res.push_back( std::make_pair( "Number", ValueObject( MakeTypeInfo<Number>("Number"), cfg))); //TEST TEST TEST - Fake concept for 'Number'
+            res.push_back( std::make_pair( "Number", ValueObject( MakeTypeInfo<Number>("Number"), cfg))); // Fake concept for 'Number'
             res.push_back( std::make_pair( "Function", ValueObject( MakeTypeInfo<FunctionPtr>("Function"), cfg)));
-            res.push_back( std::make_pair( "Tuple", ValueObject( MakeTypeInfo<Collection<ValueObject>>( "Tuple" ), cfg ) ) );
-            res.push_back( std::make_pair( "Const", ValueObject( MakeTypeInfo<Const>( "Const" ), cfg ) ) ); //EXPERIMENTAL: TEST TEST TEST - Fake concept for 'const'
+            res.push_back( std::make_pair( "Tuple", ValueObject( MakeTypeInfo<Tuple>( "Tuple" ), cfg ) ) );
+            res.push_back( std::make_pair( "Const", ValueObject( MakeTypeInfo<Const>( "Const" ), cfg ) ) ); // Fake concept for 'const'
+            //TODO: res.push_back( std::make_pair( "Sequence", ValueObject( TypeIntegerSequence, cfg ) ) );
         }
 
 
@@ -1052,6 +1143,16 @@ protected:
             res.push_back( std::make_pair( "_exit", std::move( val ) ) );
         }
 
+
+        // sequence
+
+        // _seq : Sequence ( start: I64, end: I64, step: I64 ) --> creates an integer sequence from start to end with step step.
+        {
+            auto func = std::make_shared< LibraryFunction3< decltype(MakeSequence), long long, long long, long long, IntegerSequence> >( &MakeSequence );
+            ValueObject val{std::move( func ), cfg};
+            res.push_back( std::make_pair( "_seq", std::move( val ) ) );
+        }
+
         if( core_level >= config::LevelCore ) {
             // _strtonum : i64|Bool (String) --> converts a String to i64. this works only with real String objects. alternative for '+str'.
             {
@@ -1067,16 +1168,39 @@ protected:
                 res.push_back( std::make_pair( "_strtonumex", std::move( val ) ) );
             }
 
-             // _numtostr : String (i64) --> converts a i64 to String. this works only with real i64 objects. alternative for 'num % ""'
+            // _numtostr : String (i64) --> converts a i64 to String. this works only with real i64 objects. alternative for 'num % ""'
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(NumToStr), long long, std::string > >( &NumToStr );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_numtostr", std::move( val ) ) );
             }
+
+#if TEASCRIPT_FMTFORMAT
+            // format : String ( format: String, ... ) --> formats the string with libfmt the same way as known from C++.
+            {
+                auto func = std::make_shared< FormatStringFunc >();
+                ValueObject val{std::move( func ), cfg_mutable};
+                res.push_back( std::make_pair( "format", std::move( val ) ) ); // missing _ is intended for now.
+            }
+#endif
         }
 
         
         if( core_level >= config::LevelUtil ) {
+#if TEASCRIPT_FMTFORMAT
+            if( not (opt_out & config::NoStdOut) ) {
+                // cprint : void (i64, String)  --> prints the text in the given rgb color (only available with libfmt)
+                auto func = std::make_shared< LibraryFunction2< decltype(PrintColored), long long, ValueObject > >( &PrintColored );
+                ValueObject val{std::move( func ), cfg_mutable};
+                res.push_back( std::make_pair( "cprint", std::move( val ) ) ); // missing _ is intended for now.
+
+                Parser p;
+                // cprintln : void (i64, String)  --> same as cprint but adds a new line to the end.
+                auto func_node_val = p.Parse( "func ( rgb, s ) { cprint( rgb, s % \"\\n\" ) }", "Core" )->Eval( rTmpContext );
+                res.push_back( std::make_pair( "cprintln", std::move( func_node_val ) ) ); // missing _ is intended for now.
+            }
+#endif
+
              // _print_version : void ( void ) --> prints TeaScript version to stdout
             if( not (opt_out & config::NoStdOut) ) {
                 auto func = std::make_shared< LibraryFunction0< decltype(PrintVersion) > >( &PrintVersion );
@@ -1090,11 +1214,18 @@ protected:
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_sqrt", std::move( val ) ) );
             }
+
+            // _trunc : f64 (f64) --> rounds the given Number towards zero as f64. e.g. 1.9 will yield 1.0, -2.9 will yield -2.0.
+            {
+                auto func = std::make_shared< LibraryFunction1< decltype(Trunc), double, double > >( &Trunc );
+                ValueObject val{std::move( func ), cfg};
+                res.push_back( std::make_pair( "_trunc", std::move( val ) ) );
+            }
         }
 
         // evaluate and load
 
-        // eval : Any (String) --> parses and evaluates the String as TeaScript code and returns its result.
+        // _eval : Any (String) --> parses and evaluates the String as TeaScript code and returns its result.
         if( not (opt_out & config::NoEval) ) {
             auto func = std::make_shared< EvalFunc >( false );
             ValueObject val{std::move( func ), cfg};
@@ -1102,7 +1233,7 @@ protected:
         }
 
         // eval_file : Any (String) --> parses and evaluates the content of the file and returns its result. All defined functions and variables in the top level scope will stay available.
-        if( not (opt_out & config::NoEvalFile) ) {
+        if( core_level >= config::LevelCore && not (opt_out & config::NoEvalFile) ) {
             auto func = std::make_shared< EvalFunc >( true );
             ValueObject val{std::move( func ), cfg_mutable};
             res.push_back( std::make_pair( "eval_file", std::move( val ) ) ); // missing _ is intended for now.
@@ -1120,14 +1251,14 @@ protected:
 
         // _tuple_size : i64 ( Tuple ) --> returns the element count of the Tuple
         {
-            auto func = std::make_shared< LibraryFunction1< decltype(TupleSize), Collection<ValueObject>, long long > >( &TupleSize );
+            auto func = std::make_shared< LibraryFunction1< decltype(TupleSize), Tuple, long long > >( &TupleSize );
             ValueObject val{std::move( func ), cfg};
             res.push_back( std::make_pair( "_tuple_size", std::move( val ) ) );
         }
 
         // _tuple_same_types : Bool ( Tuple, Tuple ) --> checks whether the 2 tuples have the same types in exactly the same order (and with same names).
         {
-            auto func = std::make_shared< LibraryFunction2< decltype(TupleSameTypes), Collection<ValueObject>, Collection<ValueObject>, bool > >( &TupleSameTypes );
+            auto func = std::make_shared< LibraryFunction2< decltype(TupleSameTypes), Tuple, Tuple, bool > >( &TupleSameTypes );
             ValueObject val{std::move( func ), cfg};
             res.push_back( std::make_pair( "_tuple_same_types", std::move( val ) ) );
         }
@@ -1135,91 +1266,91 @@ protected:
         if( core_level >= config::LevelCore ) {
             // _tuple_val : Any ( Tuple, i64 ) --> returns the value at given index.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleValue), Collection<ValueObject>, long long, ValueObject > >( &TupleValue );
+                auto func = std::make_shared< LibraryFunction2< decltype(TupleValue), Tuple, long long, ValueObject > >( &TupleValue );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_val", std::move( val ) ) );
             }
 
             // _tuple_named_val : Any ( Tuple, String ) --> returns the value with given name (or throws)
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleNamedValue), Collection<ValueObject>, std::string, ValueObject > >( &TupleNamedValue );
+                auto func = std::make_shared< LibraryFunction2< decltype(TupleNamedValue), Tuple, std::string, ValueObject > >( &TupleNamedValue );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_named_val", std::move( val ) ) );
             }
 
             // _tuple_set : void ( Tuple, i64, Any ) --> sets the value at given index or throws if index not exist.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(TupleSetValue), Collection<ValueObject>, long long, ValueObject > >( &TupleSetValue );
+                auto func = std::make_shared< LibraryFunction3< decltype(TupleSetValue), Tuple, long long, ValueObject > >( &TupleSetValue );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_set", std::move( val ) ) );
             }
 
             // _tuple_named_set : void ( Tuple, String, Any ) --> set the value with given name (or throws)
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(TupleSetNamedValue), Collection<ValueObject>, std::string, ValueObject > >( &TupleSetNamedValue );
+                auto func = std::make_shared< LibraryFunction3< decltype(TupleSetNamedValue), Tuple, std::string, ValueObject > >( &TupleSetNamedValue );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_named_set", std::move( val ) ) );
             }
 
             // _tuple_append : void ( Tuple, Any ) --> appends new value to the end as new element
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleAppend), Collection<ValueObject>, ValueObject > >( &TupleAppend );
+                auto func = std::make_shared< LibraryFunction2< decltype(TupleAppend), Tuple, ValueObject > >( &TupleAppend );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_append", std::move( val ) ) );
             }
 
             // _tuple_named_append : Bool ( Tuple, String, Any ) --> appends new value with given name to the end as new element if the name not exist yet.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(TupleNamedAppend), Collection<ValueObject>, std::string, ValueObject, bool > >( &TupleNamedAppend );
+                auto func = std::make_shared< LibraryFunction3< decltype(TupleNamedAppend), Tuple, std::string, ValueObject, bool > >( &TupleNamedAppend );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_named_append", std::move( val ) ) );
             }
 
             // _tuple_insert : void ( Tuple, i64, Any ) --> inserts new value at given index
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(TupleInsert), Collection<ValueObject>, long long, ValueObject > >( &TupleInsert );
+                auto func = std::make_shared< LibraryFunction3< decltype(TupleInsert), Tuple, long long, ValueObject > >( &TupleInsert );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_insert", std::move( val ) ) );
             }
 
             // _tuple_named_insert : void ( Tuple, i64, String, Any ) --> inserts a value with given name at given index
             {
-                auto func = std::make_shared< LibraryFunction4< decltype(TupleNamedInsert), Collection<ValueObject>, long long, std::string, ValueObject > >( &TupleNamedInsert );
+                auto func = std::make_shared< LibraryFunction4< decltype(TupleNamedInsert), Tuple, long long, std::string, ValueObject > >( &TupleNamedInsert );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_named_insert", std::move( val ) ) );
             }
 
             // _tuple_remove : Bool ( Tuple, i64 ) --> removes element at given index, returns whether an element has been removed.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleRemove), Collection<ValueObject>, long long, bool > >( &TupleRemove );
+                auto func = std::make_shared< LibraryFunction2< decltype(TupleRemove), Tuple, long long, bool > >( &TupleRemove );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_remove", std::move( val ) ) );
             }
 
             // _tuple_named_remove : Bool ( Tuple, String ) --> removes element with given name, returns whether an element has been removed.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleNamedRemove), Collection<ValueObject>, std::string, bool > >( &TupleNamedRemove );
+                auto func = std::make_shared< LibraryFunction2< decltype(TupleNamedRemove), Tuple, std::string, bool > >( &TupleNamedRemove );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_named_remove", std::move( val ) ) );
             }
 
             // _tuple_index_of : i64 ( Tuple, String ) --> returns the index of the element with given name or -1
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleIndexOf), Collection<ValueObject>, std::string, long long > >( &TupleIndexOf );
+                auto func = std::make_shared< LibraryFunction2< decltype(TupleIndexOf), Tuple, std::string, long long > >( &TupleIndexOf );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_index_of", std::move( val ) ) );
             }
 
             // _tuple_name_of : String ( Tuple, i64 ) --> returns the name of the element with given idx (or throws)
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleNameOf), Collection<ValueObject>, long long, std::string > >( &TupleNameOf );
+                auto func = std::make_shared< LibraryFunction2< decltype(TupleNameOf), Tuple, long long, std::string > >( &TupleNameOf );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_name_of", std::move( val ) ) );
             }
 
             // _tuple_swap : void ( Tuple, i64, i64 ) --> swaps elements of given indices
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(TupleSwapValues), Collection<ValueObject>, long long, long long > >( &TupleSwapValues );
+                auto func = std::make_shared< LibraryFunction3< decltype(TupleSwapValues), Tuple, long long, long long > >( &TupleSwapValues );
                 ValueObject val{std::move( func ), cfg};
                 res.push_back( std::make_pair( "_tuple_swap", std::move( val ) ) );
             }
@@ -1395,7 +1526,7 @@ protected:
             }
         }
 
-        if( core_level >= config::LevelUtil && not (opt_out & (config::NoFileRead|config::NoFileWrite)) )
+        if( core_level >= config::LevelFull && not (opt_out & (config::NoFileRead|config::NoFileWrite)) )
         {
             // file_copy : Bool ( file: String, dest_dir: String, overwrite: Bool ) 
             // --> copies file to dest_dir if not exist or overwrite is true
@@ -1415,7 +1546,7 @@ protected:
         }
 
         // readtextfile : String|Bool ( String ) --> reads the content of an UTF-8 text file and returns it in a String. An optional BOM is removed.
-        if( core_level >= config::LevelUtil && not (opt_out & config::NoFileRead) )
+        if( core_level >= config::LevelFull && not (opt_out & config::NoFileRead) )
         {
             auto func = std::make_shared< LibraryFunction1< decltype(ReadTextFile), std::string, ValueObject > >( &ReadTextFile );
             ValueObject val{std::move( func ), cfg_mutable};
@@ -1423,7 +1554,7 @@ protected:
         }
 
 
-        if( core_level >= config::LevelUtil && not (opt_out & config::NoFileWrite) )
+        if( core_level >= config::LevelFull && not (opt_out & config::NoFileWrite) )
         {
             // create_dir : Bool ( String, Bool ) --> creates directories for path in String. Bool == true means recursively
             {
@@ -1441,7 +1572,7 @@ protected:
             }
         }
 
-        if( core_level >= config::LevelUtil && not (opt_out & config::NoFileDelete) ) 
+        if( core_level >= config::LevelFull && not (opt_out & config::NoFileDelete) ) 
         {
             // path_delete : Bool ( String ) --> deletes(!) file or (empty) directory
             {
@@ -1457,18 +1588,6 @@ public:
     CoreLibrary() = default;
     virtual ~CoreLibrary() {}
 
-    /// Will bootstrap the standard Core Lib into the Context. if internals_only is true, a minimal version will be loaded (with the underscore names defined only).
-    /// DEPRECATED: Please, use new overload with eConfig parameter instead.
-    /// IMPORTANT: Any previous data in rContext will be lost / overwritten.
-    [[deprecated("Please, use new overload with eConfig param.")]] 
-    virtual void Bootstrap( Context &rContext, bool internals_only = false )
-    {
-        if( internals_only ) {
-            Bootstrap( rContext, config::LevelUtil ); // this will load more as before, but ConfigLevelCore would load too less.
-        } else {
-            Bootstrap( rContext, config::LevelFull );
-        }
-    }
 
     /// Will bootstrap the standard Core Lib into the Context. \param config specifies what will be loaded.
     /// IMPORTANT: Any previous data in rContext will be lost / overwritten.
@@ -1479,7 +1598,8 @@ public:
             TypeSystem  sys;
             sys.RegisterType<FunctionPtr>("Function");
             sys.RegisterType<std::vector<ValueObject>>("ValueObjectVector");
-            sys.RegisterType<Collection<ValueObject>>( "Tuple" );
+            sys.RegisterType<Tuple>( "Tuple" );
+            sys.RegisterType<IntegerSequence>( "IntegerSequence" ); // TODO: Remove once a static instance exists.
 
             Context tmp{ std::move( sys ), true };
             tmp.is_debug = rContext.is_debug; // take over from possible old instance.
@@ -1597,36 +1717,6 @@ func abs( n )
     if( n < 0 ) { -n } else { n }
 }
 
-// rounds the given Number towards zero as f64. e.g. 1.9 will yield 1.0, -2.9 will yield -2.0.
-func trunc( n )
-{
-    0.0 + _f64toi64( n + 0.0 ) // FIXME: must use real f64 trunc!
-}
-
-// rounds down the given Number to next smaller integer as f64. e.g. 1.9 will yield 1.0, -2.1 will yield -3.0
-func floor( n )
-{
-    const num := (n + 0.0)
-    const trunced := trunc( num )
-    if( trunced == num or num > 0.0 ) { // integer already or positive (then trunced is correct)
-        trunced
-    } else { // < 0.0 and not trunced
-        trunced - 1.0
-    }
-}
-
-// rounds up the given Number to next greater integer as f64. e.g. 1.1 will yield 2.0, -1.9 will yield -1.0
-func ceil( n )
-{
-    const num := (n + 0.0)
-    const trunced := trunc( num )
-    if( trunced == num or num < 0.0 ) { // integer already or negative (then trunced is correct)
-        trunced
-    } else { // > 0.0 and not trunced
-        trunced + 1.0
-    }
-}
-
 // rounds up or down the given Number to nearest integer as f64. e.g. 1.1 will yield 1.0, 1.6 as well as 1.5 will yield 2.0
 func round( n )
 {
@@ -1634,9 +1724,23 @@ func round( n )
     0.0 + _f64toi64( num + if( num < 0 ) { -0.5 } else { 0.5 } )
 }
 
-func sqrt( val )
+// make_rgb : i64 (r: i64, g: i64, b: i64) --> makes a 32 bit rgb color (garbage in, garbage out)
+// (same level as cprint)
+func make_rgb( r, g, b )
 {
-    _sqrt( to_f64( to_number( val ) ) )
+    r * 256 * 256 + g * 256 + b
+}
+
+// increments by given step
+func inc( n @=, step := 1 )
+{
+    n := n + step
+}
+
+// decrements by given step
+func dec( n @=, step := 1 )
+{
+    n := n - step
 }
 )_SCRIPT_";
 
@@ -1673,6 +1777,7 @@ func fail_with_message( error_str, error_code := _exit_failure )
 
         static constexpr char core_lib_eval[] = R"_SCRIPT_(
 // parses and evaluates expr (will do to string conversion), returns result of expr
+// WARNING: This function is now DEPRECATED and will be removed in the next release! Use _eval() instead.
 // NOTE: This function opens a new scope, so all new defined variables and functions will be undefined again after the call. Use _eval instead to keep definitions.
 func eval( expr )
 {
@@ -1702,7 +1807,6 @@ func readtomlfile( file )
 #endif
 
         static constexpr char core_lib_teascript[] = R"_SCRIPT_(
-
 // checks whether the tuple contains the given name or index
 func tuple_contains( tup @=, idx_or_name )
 {
@@ -1712,7 +1816,6 @@ func tuple_contains( tup @=, idx_or_name )
         _tuple_size( tup ) > idx_or_name
     }
 }
-
 
 // pushes value to end of stack / tuple
 func stack_push( stack @=, val @= )
@@ -1732,7 +1835,6 @@ func stack_pop( stack @= )
         void
     }
 }
-
 
 func strreplacefirst( str @=, what, new, offset := 0 )
 {
@@ -1809,6 +1911,43 @@ func pow( n, exp )
     res
 }
 
+// convenience for call _sqrt with other types than f64
+func sqrt( val )
+{
+    _sqrt( val + 0.0 )
+}
+
+// convenience for call _trunc with other types than f64
+func trunc( n )
+{
+    _trunc( n + 0.0 )
+}
+
+// rounds down the given Number to next smaller integer as f64. e.g. 1.9 will yield 1.0, -2.1 will yield -3.0
+func floor( n )
+{
+    const num := (n + 0.0)
+    const trunced := _trunc( num )
+    if( trunced == num or num > 0.0 ) { // integer already or positive (then trunced is correct)
+        trunced
+    } else { // < 0.0 and not trunced
+        trunced - 1.0
+    }
+}
+
+// rounds up the given Number to next greater integer as f64. e.g. 1.1 will yield 2.0, -1.9 will yield -1.0
+func ceil( n )
+{
+    const num := (n + 0.0)
+    const trunced := _trunc( num )
+    if( trunced == num or num < 0.0 ) { // integer already or negative (then trunced is correct)
+        trunced
+    } else { // > 0.0 and not trunced
+        trunced + 1.0
+    }
+}
+
+
 // computes the hour, minute, second and (optionally) millisecond part of given time in seconds (e.g. from clock())
 // note: hours can be greater than 23/24, it will not be cut at day boundary!
 func timevals( t, HH @=, MM @=, S @=, ms @= 0 )
@@ -1866,17 +2005,17 @@ func rolldice( eyes := 6 )
         if( not (config & config::NoEval) ) {
             p.Parse( core_lib_eval, "Core" )->Eval( rContext );
         }
-        if( (config::NoFileWrite | config::NoFileRead | config::NoFileDelete) !=
-            (config & (config::NoFileWrite | config::NoFileRead | config::NoFileDelete)) ) {
-            p.Parse( core_lib_file, "Core" )->Eval( rContext );
-        }
-#if TEASCRIPT_TOMLSUPPORT
-        if( not (config & config::NoFileRead) ) {
-            p.Parse( core_lib_toml, "Core" )->Eval( rContext );
-        }
-#endif
 
         if( (config & config::LevelMask) >= config::LevelFull ) {
+            if( (config::NoFileWrite | config::NoFileRead | config::NoFileDelete) !=
+                (config & (config::NoFileWrite | config::NoFileRead | config::NoFileDelete)) ) {
+                p.Parse( core_lib_file, "Core" )->Eval( rContext );
+            }
+#if TEASCRIPT_TOMLSUPPORT
+            if( not (config & config::NoFileRead) ) {
+                p.Parse( core_lib_toml, "Core" )->Eval( rContext );
+            }
+#endif
             p.Parse( core_lib_teascript, "Core" )->Eval( rContext );
         }
     }

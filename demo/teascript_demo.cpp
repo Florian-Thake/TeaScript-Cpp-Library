@@ -74,48 +74,6 @@
 #endif
 
 
-// helper function for Windows to convert a string from ANSI/OEM code page to UTF-8 encoded string. Does nothing on Non-Windows platforms.
-// NOTE: This function does only half of the job. It makes the full set of the current ANSI/OEM code page available as UTF-8 instead of ASCII only.
-//       For full unicode support different techniques are required. These are used in the TeaScript Host Application.
-//       The TeaScript Host Application can be downloaded for free here: https://tea-age.solutions/downloads/
-std::string build_string_from_commandline( char *arg, bool is_from_getline )
-{
-#if defined( _WIN32 )
-    // first convert from ANSI/OEM code page to UTF-16, then from UTF-16 to UTF-8
-    // interestingly only CP_ACP converts correctly when the string comes from argv, 
-    // but if from std::getline (console API) must use CP_OEMCP.
-    UINT const  codepage = is_from_getline ? CP_OEMCP : CP_ACP;
-    int const  len = static_cast<int>(strlen( arg ));
-    int res = MultiByteToWideChar( codepage, 0, arg, len, 0x0, 0 );
-    if( res <= 0 ) {
-        throw std::invalid_argument( "Cannot convert parameter to UTF-8. Please check proper encoding!" );
-    }
-    std::wstring utf16;
-    utf16.resize( static_cast<size_t>(res) );
-    res = MultiByteToWideChar( codepage, 0, arg, len, utf16.data(), (int)utf16.size() );
-    if( res <= 0 ) {
-        throw std::invalid_argument( "Cannot convert parameter to UTF-8. Please check proper encoding!" );
-    }
-
-    // now convert to UTF-8
-    res = WideCharToMultiByte( CP_UTF8, 0, utf16.data(), (int)utf16.size(), 0x0, 0, 0x0, 0x0 );
-    if( res <= 0 ) {
-        throw std::invalid_argument( "Cannot convert parameter to UTF-8. Please check proper encoding!" );
-    }
-    std::string  utf8;
-    utf8.resize( static_cast<size_t>(res) );
-    res = WideCharToMultiByte( CP_UTF8, 0, utf16.data(), (int)utf16.size(), utf8.data(), (int)utf8.size(), 0x0, 0x0 );
-    if( res <= 0 ) {
-        throw std::invalid_argument( "Cannot convert parameter to UTF-8. Please check proper encoding!" );
-    }
-    return utf8;
-#else
-    (void)teascript::util::debug_print_currentline; // silence unused function warning.
-    (void)is_from_getline; // silence unused parameter warning.
-    return std::string( arg );
-#endif
-}
-
 
 // This test code will add some variables (mutable and const) to the script context
 // and then execute script code, which will use them.
@@ -305,10 +263,12 @@ else {
     PartialEvalEngine  engine;
     teascript::ValueObject res;
     for( size_t idx = 0; idx < chunks.size(); ++idx ) {
-        engine.GetParser().ParsePartial( chunks[idx] );
-        auto node = engine.GetParser().GetPartialParsedASTNodes();
-        std::cout << "chunk " << (idx + 1) << " has " << node->ChildCount() << " node(s)." << std::endl;
         try {
+            engine.GetParser().ParsePartial( chunks[idx] );
+            auto node = engine.GetParser().GetPartialParsedASTNodes();
+
+            std::cout << "chunk " << (idx + 1) << " has " << node->ChildCount() << " node(s)." << std::endl;
+
             res = node->Eval( engine.GetContext() );
             if( idx == chunks.size() - 1 ) { // the last chunk, check for left overs
                 node = engine.GetParser().GetFinalPartialParsedASTNodes();
@@ -522,6 +482,65 @@ color = "gray"
 }
 
 
+// overloaded idiom for variant visitor. inherit from each 'functor/lambda' so that the derived class contains an operator( T ) for each type which shall be dispatchable.
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+#if defined( __clang__ ) // clang needs a little help...
+template<class... Ts> overloaded( Ts... ) -> overloaded<Ts...>;
+#endif
+
+
+/// This testcode demonstrates the obtaining of a script result via a visitor by using also the well known overloaded idiom.
+/// The TeaScript code creates a tuple with random amount of elements whereby each element is created by functor from 
+/// a set of given functors. Each functor is create a different type. At the end one random element will be choosen
+/// as the script result. Thus, it is unknown at parsing/compile time which type will be returned by the script.
+/// A visitor can help to dispatch the result.
+/// NOTE: The TeaScript part also nicely shows the usage of the forall loop as well as usage of functors.
+void test_code8()
+{
+    // create the TeaScript default engine.
+    teascript::Engine  engine;
+
+    auto res = engine.ExecuteCode( R"_SCRIPT_(
+def functors   := _tuple_create()     // container for the functors
+def functors.0 := func ( n ) { n }    // first functor just returns what it gets....
+def functors.1 := func ( n ) { if( n > 0 ) { n + 1.0/n } else { 0.0 } }    // second functor creates a Decimal...
+def functors.2 := func ( n ) { n % "" }    // third functor creates a string...
+def functors.3 := func ( n ) { (n, n*n) }  // fourth functor creates a tuple...
+
+const VARIANTS := _tuple_size( functors )
+const NUM      := random( 10,100 )    // choose randomly the number of result elements.
+def   tup      := _tuple_create()     // empty tuple for store the result elements.
+
+// iterate from 1 to NUM (inclusive) with step 1
+forall( n in _seq( 1, NUM, 1 ) ) {
+    // create a new result element by invoking the functor for the current iteration
+    _tuple_append( tup, functors[ n mod VARIANTS ]( n ) )
+}
+
+// now finally select one element as return value....
+
+return tup[ random( 0, NUM-1) ]
+
+)_SCRIPT_" );
+
+    std::cout << "the result is:" << std::endl;
+
+    // NOTE: Visit can also return a value if the lambdas return one (must be always the same type).
+    res.Visit( overloaded{
+            []( auto ) -> void { std::cout << "<unhandled type>" << std::endl; },
+            []( std::any &a ) {
+                if( auto const *p_tuple = std::any_cast<teascript::Tuple>(&a); p_tuple != nullptr ) {
+                    std::cout << "Tuple: (" << p_tuple->GetValueByIdx(0) << ", " << p_tuple->GetValueByIdx(1) << ")" << std::endl;
+                } else std::cout << "<unhandled type>" << std::endl; },
+            []( teascript::NotAValue ) { std::cout << "<not a value>" << std::endl; },
+            []( teascript::Bool  ) { std::cout << "<Bool>" << std::endl;; },
+            []( teascript::Integer const i ) { std::cout << "Integer: " << i << std::endl; },
+            []( teascript::Decimal const d ) { std::cout << "Decimal: " << d << std::endl; },
+            []( teascript::String const &rStr ) { std::cout << "String: " << rStr << std::endl; } }
+     );
+}
+
+
 // Executes a TeaScript file and returns its result. 
 // This function has a very basic feature set. The TeaScript Host Application has more capabilities.
 // Beside other features it also comes with an interactive shell, REPL, debug options and time measurement.
@@ -549,7 +568,11 @@ int exec_script_file( std::vector<std::string> &args )
             std::cout << "result: " << res.PrintValue() << std::endl;
         }
     } catch( teascript::exception::runtime_error const &ex ) {
+#if TEASCRIPT_FMTFORMAT
+        teascript::util::pretty_print_colored( ex );
+#else
         teascript::util::pretty_print( ex );
+#endif
         return EXIT_FAILURE;
     } catch( std::exception const &ex ) {
         std::cout << "Exception: " << ex.what() << std::endl;
@@ -557,6 +580,11 @@ int exec_script_file( std::vector<std::string> &args )
     }
     return EXIT_SUCCESS;
 }
+
+
+// forward declaration, see below...
+std::string build_string_from_commandline( char *arg, bool is_from_getline );
+
 
 
 int main( int argc, char **argv )
@@ -573,6 +601,21 @@ int main( int argc, char **argv )
         return EXIT_FAILURE;
     }
 
+    // check for correct console mode for be able to do colorized output (old conhost.exe needs this)
+#if defined(_WIN32) && TEASCRIPT_FMTFORMAT
+    DWORD mode = 0;
+    if( not ::GetConsoleMode( ::GetStdHandle( STD_OUTPUT_HANDLE ), &mode ) ) {
+        std::cerr << "Warning: Console mode could not be detected. Colorized output might produce garbage on screen." << std::endl;
+    } else if( not (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) ) {
+        if( not ::SetConsoleMode( ::GetStdHandle( STD_OUTPUT_HANDLE ), mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT ) ) {
+            std::cerr << "\nERROR! Colorized output could not be activated for your console!\n"
+                      << "Colorized output may produce garbage on the screen.\n"
+                      << "Please, use a modern Console Host (e.g., Windows Terminal).\n" << std::endl;
+        }
+    }
+#endif
+
+
     if( argc == 2 && args[1] == "-1" ) {
         test_code1();
     } else if( argc == 2 && args[1] == "-2" ) {
@@ -587,6 +630,8 @@ int main( int argc, char **argv )
         test_code6();
     } else if( argc == 2 && args[1] == "-7" ) {
         test_code7();
+    } else if( argc == 2 && args[1] == "-8" ) {
+        test_code8();
     } else if( argc >= 2 ) {
         return exec_script_file( args );
     } else {
@@ -601,5 +646,52 @@ int main( int argc, char **argv )
     }
     
     return EXIT_SUCCESS;
+}
+
+
+
+// helper function for Windows to convert a string from ANSI/OEM code page to UTF-8 encoded string. Does nothing on Non-Windows platforms.
+// NOTE: This function does only half of the job. It makes the full set of the current ANSI/OEM code page available as UTF-8 instead of ASCII only.
+//       For full unicode support different techniques are required. These are used in the TeaScript Host Application.
+//       The TeaScript Host Application can be downloaded for free here: https://tea-age.solutions/downloads/
+std::string build_string_from_commandline( char *arg, bool is_from_getline )
+{
+#if defined( _WIN32 )
+    // first convert from ANSI/OEM code page to UTF-16, then from UTF-16 to UTF-8
+    // interestingly only CP_ACP converts correctly when the string comes from argv, 
+    // but if from std::getline (console API) must use CP_OEMCP.
+    UINT const  codepage = is_from_getline ? CP_OEMCP : CP_ACP;
+    int const  len = static_cast<int>(strlen( arg ));
+    int res = MultiByteToWideChar( codepage, 0, arg, len, 0x0, 0 );
+    if( res <= 0 ) {
+        throw std::invalid_argument( "Cannot convert parameter to UTF-8. Please check proper encoding!" );
+    }
+    std::wstring utf16;
+    utf16.resize( static_cast<size_t>(res) );
+    res = MultiByteToWideChar( codepage, 0, arg, len, utf16.data(), (int)utf16.size() );
+    if( res <= 0 ) {
+        throw std::invalid_argument( "Cannot convert parameter to UTF-8. Please check proper encoding!" );
+    }
+
+    // now convert to UTF-8
+    res = WideCharToMultiByte( CP_UTF8, 0, utf16.data(), (int)utf16.size(), 0x0, 0, 0x0, 0x0 );
+    if( res <= 0 ) {
+        throw std::invalid_argument( "Cannot convert parameter to UTF-8. Please check proper encoding!" );
+    }
+    std::string  utf8;
+    utf8.resize( static_cast<size_t>(res) );
+    res = WideCharToMultiByte( CP_UTF8, 0, utf16.data(), (int)utf16.size(), utf8.data(), (int)utf8.size(), 0x0, 0x0 );
+    if( res <= 0 ) {
+        throw std::invalid_argument( "Cannot convert parameter to UTF-8. Please check proper encoding!" );
+    }
+    return utf8;
+#else
+    (void)teascript::util::debug_print_currentline; // silence unused function warning.
+# if TEASCRIPT_FMTFORMAT
+    ( void )teascript::util::debug_print_currentline_colored; // silence unused function warning.
+# endif
+    (void)is_from_getline; // silence unused parameter warning.
+    return std::string( arg );
+#endif
 }
 

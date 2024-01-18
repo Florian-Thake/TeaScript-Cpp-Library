@@ -17,6 +17,10 @@
 #include "Print.hpp"
 #include "SourceLocation.hpp"
 
+#if TEASCRIPT_FMTFORMAT
+# include "fmt/color.h"
+#endif
+
 
 namespace teascript {
 
@@ -60,13 +64,30 @@ std::string_view extract_current_line( teascript::Content const &r ) noexcept
     return {&(*start), end.Processed() - start.Processed()};
 }
 
-void debug_print_currentline( teascript::Content const &r )
+void debug_print_currentline( teascript::Content const &r, bool const with_marked_pos = false )
 {
     Content const c( r ); // dont interact with the object used outside to reduce chance of any unwanted side effects!
     auto    const line = extract_current_line( r );
 
-    TEASCRIPT_PRINT( "(line:{}/col:{})   current line: {}\n", c.CurrentLine(), c.CurrentColumn(), line );
+    TEASCRIPT_PRINT( "(line:{:4}/col:{:3}): {}\n", c.CurrentLine(), c.CurrentColumn(), line );
+    if( with_marked_pos ) {
+        TEASCRIPT_PRINT( "{0:>{1}}\n", "^^^^^", r.CurrentColumn() + 21LL + 4LL );
+    }
 }
+
+// colored variant is only possible when libfmt is used.
+#if TEASCRIPT_FMTFORMAT
+void debug_print_currentline_colored( teascript::Content const &r, bool const with_marked_pos = false )
+{
+    Content const c( r ); // dont interact with the object used outside to reduce chance of any unwanted side effects!
+    auto    const line = extract_current_line( r );
+
+    fmt::print( fmt::fg( fmt::color::wheat ), "(line:{:4}/col:{:3}): {}\n", c.CurrentLine(), c.CurrentColumn(), fmt::styled( line, fmt::fg( fmt::color::white_smoke ) ) );
+    if( with_marked_pos ) {
+        fmt::print( fmt::fg( fmt::color::violet ), "{0:>{1}}\n", "^^^^^", r.CurrentColumn() + 21LL + 4LL );
+    }
+}
+#endif
 
 
 [[noreturn]] void throw_parsing_error( Content const &c, std::shared_ptr<std::string> const &rFile, std::string const &rText )
@@ -75,15 +96,23 @@ void debug_print_currentline( teascript::Content const &r )
 }
 
 
-SourceLocation make_srcloc( std::shared_ptr<std::string> const & rFile, Content const &c, bool const extract_line = false )
+SourceLocation make_srcloc( std::shared_ptr<std::string> const &rFile, Content const &c, bool const extract_line = false )
 {
     auto loc = SourceLocation( c.CurrentLine(), c.CurrentColumn() );
     loc.SetFile( rFile );
     if( extract_line ) {
-        loc.SetSource( std::string( extract_current_line( c )) );
+        loc.SetSource( std::string( extract_current_line( c ) ) );
     }
     return loc;
 }
+
+SourceLocation make_srcloc( std::shared_ptr<std::string> const &rFile, Content const &start, Content const &end, bool const extract_line = false )
+{
+    auto loc = make_srcloc( rFile, start, extract_line );
+    loc.SetEnd( end.CurrentLine(), end.CurrentColumn() );
+    return loc;
+}
+
 
 void pretty_print( teascript::exception::runtime_error const &ex, std::string const src_overwrite = {} )
 {
@@ -102,6 +131,34 @@ void pretty_print( teascript::exception::runtime_error const &ex, std::string co
         TEASCRIPT_PRINT( "{}\n", ex.ErrorStr_or_What() );
     }
 }
+
+
+// colored variant is only possible when libfmt is used.
+#if TEASCRIPT_FMTFORMAT
+void pretty_print_colored( teascript::exception::runtime_error const &ex, std::string const src_overwrite = {} )
+{
+    if( not ex.IsSourceLocSet() ) {
+        fmt::print( "{} error in file \"{}\": {}\n", ex.GetGategory(), fmt::styled( ex.GetFileStr(), fmt::fg( fmt::color::white_smoke ) ), fmt::styled( ex.ErrorStr_or_What(), fmt::fg( fmt::color::tomato ) ) );
+    } else {
+        fmt::print( "{} error in file \"{}\"\nin line {}, column {}:\n", ex.GetGategory(), fmt::styled( ex.GetFileStr(), fmt::fg( fmt::color::white_smoke ) ), 
+                    fmt::styled( ex.GetLine(), fmt::fg( fmt::color::wheat ) ), fmt::styled( ex.GetColumn(), fmt::fg( fmt::color::wheat ) ) );
+        if( not ex.GetContextStr().empty() || not src_overwrite.empty() ) {
+            std::string const &src = src_overwrite.empty() ? ex.GetContextStr() : src_overwrite;
+            // try to mark the "marked" position
+            if( ex.GetSourceLocation().GetStartLine() == ex.GetSourceLocation().GetEndLine() && ex.GetSourceLocation().GetEndColumn() > ex.GetSourceLocation().GetStartColumn() ) {
+                fmt::print( fmt::fg( fmt::color::white_smoke ), "{}", src.substr( 0, ex.GetSourceLocation().GetStartColumn() - 1 ) );
+                fmt::print( fmt::fg( fmt::color::violet ), "{}", src.substr( ex.GetSourceLocation().GetStartColumn() - 1, ex.GetSourceLocation().GetEndColumn() - ex.GetSourceLocation().GetStartColumn() + 1 ) );
+                fmt::print( fmt::fg( fmt::color::white_smoke ), "{}\n", static_cast<size_t>(ex.GetSourceLocation().GetEndColumn()) >= src.size() ? "" : src.substr( ex.GetSourceLocation().GetEndColumn() ) );
+            } else {
+                fmt::print( fmt::fg( fmt::color::white_smoke ), "{}\n", src );
+            }
+            fmt::print( fmt::fg( fmt::color::violet ), "{0:>{1}}\n", "^^^^^", ex.GetColumn() + 4LL );
+        }
+        fmt::print( fmt::fg( fmt::color::tomato ), "{}\n", ex.ErrorStr_or_What() );
+    }
+}
+#endif
+
 
 void escape_in_string( std::string &rString, char const what, std::string const &with )
 {

@@ -1,0 +1,93 @@
+TeaScript Breaking Changes in the actual release
+=================================================
+
+    Default constness
+    -----------------
+    Default constness of function parameters changed from mutable (def) to const for copy assigned parameters.
+    E.g.: func sum( a, b ) { a + b } // a and b are const by default now!
+    
+    This does not effect parameters which are shared assigned.
+    E.g.: func swap( a @=, b @= ) { const tmp := a, a:= b, b := tmp }  // a and b are still mutable by default.
+    
+    As before you can always explicit set the constness/mutability.
+    E.g.: func test( const a_is_const @= , def b_is_mutable )
+    
+    This version has several ways to enable the old behavior:
+    
+    1.) For the Host Application launch your scripts with
+        --old-mutable-parameters
+        E.g.:
+        TeaScript.exe --old-mutable-parameters  my_script.tea arg1 arg2
+    
+    2.) For the C++ Library use the high level API of class Engine:
+        void ActivateDeprecatedDefaultMutableParameters() noexcept;
+        Please, read also the comments.
+        
+    3.) For C++ Library low level programming:
+        Overwrite the TeaScript language dialect in the Parser:
+        void OverwriteDialect( Dialect const dialect ) noexcept;
+        Please, read also the comments there and in teascript/Dialect.hpp
+        
+    4.) Compile the Library and/or Host Application with 
+        #define TEASCRIPT_DEFAULT_CONST_PARAMETERS  false
+        You can do this from inside Dialect.hpp or define it outside (e.g. your project settings/before include)
+        Please, read also the comments in teascript/Dialect.hpp
+        
+    Point 1 and 2 will be deprecated and removed in later versions!
+    Point 3 has experimental state for now. (means API is not promoted to official and might be changed/removed.)
+    All of the points creating a legacy TeaScript language dialect which is not the official standard language!
+    
+    
+    Visibility of Core Library functions
+    ------------------------------------
+    The following Core Library functions moved up to Level CoreReduced:
+    
+    The following Core Library functions moved up to Level Core:
+    
+    eval_file
+    
+    The following Core Library functions moved up to Level Util:
+    
+    The following Core Library functions moved up to Level Full:
+    
+    trunc               (check _trunc from LevelUtil)
+    ceil
+    floor
+    sqrt                (check _sqrt from LevelUtil)
+    file_copy
+    file_copy_newer
+    readtextfile
+    writetextfile
+    create_dir
+    path_delete
+    file_exists         (check path_exists and file_size from LevelUtil)
+    readtomlfile
+    
+    
+    
+    libfmt preferred over C++23
+    ---------------------------
+    If you compile in C++23 mode with the <print> header (for std::vprint_unicode()) 
+    but in your include path is a libfmt (#include "fmt/format.h") then
+    libfmt will be preferred over the C++23 variant (because more features).
+    You can disable libfmt with #define TEASCRIPT_DISABLE_FMTLIB         1
+    in teascript/Print.hpp
+
+
+
+TeaScript list of deprecated parts
+=================================================
+
+    The following deprecated parts have been finally removed from this release:
+    
+    virtual void CoreLibrary::Bootstrap( Context &, bool );
+    use the new one instead: virtual void Bootstrap( Context &rContext, config::eConfig const config )
+
+
+    The following parts are now deprecated and will be removed in some future release:
+    
+    func eval( sth_unspecified )  from TeaScript Core Library (use the not confusing _eval( code_string ) variant instead)
+    
+    bool Parser::Int( Content & )
+    use Integer( Content & ) or Num( Content &, bool ) instead.
+    

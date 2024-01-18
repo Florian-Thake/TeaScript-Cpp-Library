@@ -18,11 +18,11 @@
 
 #define TEASCRIPT_CONTACT    "contact@tea-age.solutions"
 
-#define TEASCRIPT_COPYRIGHT  "Copyright (C) 2023 Florian Thake <" TEASCRIPT_CONTACT ">."
+#define TEASCRIPT_COPYRIGHT  "Copyright (C) 2024 Florian Thake <" TEASCRIPT_CONTACT ">."
 
 
 #define TEASCRIPT_VERSION_MAJOR   0
-#define TEASCRIPT_VERSION_MINOR   11
+#define TEASCRIPT_VERSION_MINOR   12
 #define TEASCRIPT_VERSION_PATCH   0
 
 /* TODO: ? //#define TEASCRIPT_VERSION_RELEASE_KIND  alpha/beta/... */
