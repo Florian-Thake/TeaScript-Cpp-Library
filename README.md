@@ -3,21 +3,21 @@ This is a snapshot of the latest Release of the **TeaScript C++ Library** for em
 **Extend** your applications dynamically during runtime with TeaScript.<br>
 Once your application has **customization points** for TeaScript each installation/distribution can be extended/modified **without** expensive re-compile and deployment procedure with arbitrary and individual functionality.
 
-This Library can be used as **header only** library and is **dependency free** for fully C++20 supporting compilers / C++ standard libraries.
-
-Provided with this Library is a **demo app** for illustrating the C++ API usage and a basic way for execute TeaScript files.
-
 **TeaScript** is an embeddable and standalone **Multi-Paradigm script language** close to C++ syntax but easier to use.<br>
 More information about TeaScript is available here: https://tea-age.solutions/teascript/overview-and-highlights/
 
+This Library can be used as a **header only** library and is **dependency free** for fully C++20 supporting compilers / C++ standard libraries.
+
+Provided with this Library is a **demo app** for illustrating the C++ API usage and a basic way for execute TeaScript files.
+
 A Library bundle with more example scripts as well as a full featured **TeaScript Host Application** for execute **standalone** script files, 
-an interactive shell, a REPL, debugging options, time measurement and more can be downloaded for free here: <br>
+an interactive shell, a REPL, debugging options, time measurement and more can be downloaded for free here (including its source): <br>
 https://tea-age.solutions/downloads/
 
 # About TeaScript
-**What is new in TeaScript 0.12.0?** TeaScript 0.12 comes with Colored Output, Format String, Forall Loop, Sequences and interactive debugging.<br>
-<br>Get all infos in the news article:<br>
-https://tea-age.solutions/2024/01/18/release-of-teascript-0-12-0/ <br>
+**What is new in TeaScript 0.13.0?** TeaScript 0.13 comes with Buffer, U8, U64, bit ops, UTF-8 Iterator, hex integrals, MPL-2.0 license and more.<br>
+<br>Get all infos in the **latest news** article:<br>
+https://tea-age.solutions/2024/03/04/release-of-teascript-0-13-0/ <br>
 <br>
 Get a very nice overview with the most **impressive highlights** here:<br>
 https://tea-age.solutions/teascript/overview-and-highlights/ <br>
@@ -138,7 +138,7 @@ More examples are in the [teascript_demo.cpp](demo/teascript_demo.cpp) of this r
 
 # Example TeaScript Code
 
-(Better syntax highlighting on the TeaScript home page.)
+Better syntax highlighting is on the TeaScript home page or in Notepad++ with the provided [SyntaxHighlighting.xml](TeaScript_SyntaxHighlighting_Notepad%2B%2B.xml)
 
 ```cpp
 def    age  := 42     // mutable variable of type i64
@@ -198,12 +198,15 @@ call( squared, 3 )  // passing function as parameter. result: 9
 call( func (z) { z + z }, 3 ) // passing lambda as parameter. result: 6
 ```
 More impressive highlights on:<br>
-https://tea-age.solutions/teascript/overview-and-highlights/
+https://tea-age.solutions/teascript/overview-and-highlights/<br>
+and in the provided example files in the demo directory: [demo](demo/)
 
 
 # Supported compiler (tested with)
 
-Visual Studio 2022 (17.2 or newer) 
+Visual Studio 2022 (17.2 or newer)<br><br>
+Depending of the code size it might be required to add the /bigobj flag to the additional settings.<br>
+For details see on [StackOverflow](https://stackoverflow.com/questions/15110580/penalty-of-the-msvs-compiler-flag-bigobj)
 - Visual Studio 2019 also works (starting from 16.11.14)
 
 g++ 11.3
@@ -286,9 +289,23 @@ Third, usage of the high-level C++ API only. This API will stay backward compati
 The high-level API consists of the classes teascript::Engine / teascript::EngineBase, all public getters in teascript::ValueObject as well as everything in Exception.hpp / SourceLocation.hpp and version.h (except if otherwise noted).
 
 # License
-The TeaScript C++ Library is 100% Open Source and Free Software and licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 (AGPL-3.0): see LICENSE.TXT <br>
+TeaScript is 100% Open Source and Free Software and licensed under the Mozilla Public License 2.0.<br>
 
-If you cannot or don’t want use this specific open source license, you may ask for a different license.
+The Mozilla Public License can be read here https://www.mozilla.org/en-US/MPL/2.0/ <br>
+
+This license has the following advantages for TeaScript and for its users:<br>
+
+- it can be linked statically (if all conditions are fulfilled).
+- it is explicit compatible with AGPL, GPL and LGPL.
+- it is compatible with Apache, MIT, BSD, Boost licenses (and others).
+- Larger works (means Applications using TeaScript) can be distributed closed source (or under a compatible license) as long as the conditions are fulfilled.
+- For the upcoming module system it means that a new first- or third-party module for TeaScript may use any compatible license like MPL-2.0, (A)GPL, MIT, Apache and so on.
+<br>
+Many questions regarding the MPL are also answered in the official FAQ: https://www.mozilla.org/en-US/MPL/2.0/FAQ/<br>
+
+If you have further questions regarding the new license don’t hesitate to contact me.
+
+
 
 # Disclaimer
 This software is provided “as-is” without any express or implied warranty. In no event shall the author be held liable for any damages arising from the use of this software.
