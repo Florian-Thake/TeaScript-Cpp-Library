@@ -1,33 +1,59 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 #pragma once
 
 #include <string>
 #include <vector>
 #include <map>
+#include <unordered_map>
+#include <optional>
 #include <cassert>
 
 #include "Exception.hpp"
 
+// define this for disable using of Boost header only libraries.
+// NOTE: currently disabled by default due to performance penalty which needs to be investigated.
+#define TEASCRIPT_DISABLE_BOOST     1
+
+#if __has_include( "boost/unordered_map.hpp") && !defined( TEASCRIPT_DISABLE_BOOST )
+# define TEASCRIPT_USE_BOOST_CONTAINERS     1
+#else
+# define TEASCRIPT_USE_BOOST_CONTAINERS     0
+#endif
+
+#if TEASCRIPT_USE_BOOST_CONTAINERS
+# include "boost/unordered_map.hpp"
+# include "boost/container/map.hpp"
+#endif
 
 namespace teascript {
+
+
+namespace col_policy {
+enum class eOrder
+{
+    Ordered,
+    Unordered
+};
+} // namespace col_policy
+
 
 // TODO: Make this a replacement for ValueObject storage in Context ?
 /// Container class with stable storage order, implements LIFO and provides
 /// access by index as well as by a key (optionally). The complexity is comparable
 /// with std::vector but removing elements others than the last adds some 
 /// extra complexity on top if keys are used due to maintaining the access by key.
-template< typename V, typename K = std::string >
+template< typename V, typename K = std::string, col_policy::eOrder order = col_policy::eOrder::Ordered >
 class Collection
 {
+    static_assert( order == col_policy::eOrder::Ordered || order == col_policy::eOrder::Unordered, "Must be Ordered or Unordered!" );
+
 public:
     using ValueType = V;
     using KeyType = K;
@@ -36,7 +62,18 @@ public:
 
     using StorageType = std::vector< KeyValue >; // first in, last out
 
-    using LookupType = std::map< KeyType, std::size_t >; // for quick access.
+#if TEASCRIPT_USE_BOOST_CONTAINERS
+    using LookupType = std::conditional_t< order == col_policy::eOrder::Ordered,
+                                           boost::container::map< KeyType, std::size_t >,
+                                           boost::unordered_map<KeyType, std::size_t > >; // for quick access.
+#else
+    using LookupType = std::conditional_t< order == col_policy::eOrder::Ordered, 
+                                           std::map< KeyType, std::size_t >, 
+                                           std::unordered_map<KeyType, std::size_t > >; // for quick access.
+#endif
+
+    /// npos for indicating an invalid index
+    inline static constexpr std::size_t npos = static_cast<std::size_t>(-1);
 
 protected:
     StorageType  mStorage;
@@ -44,6 +81,11 @@ protected:
 
 public:
     Collection() = default;
+    Collection( Collection const & ) = default;
+    Collection &operator=( Collection const & ) = default;
+    Collection( Collection && ) = default;
+    Collection &operator=( Collection  && ) = default;
+
     ~Collection()
     {
         Clear();
@@ -111,8 +153,9 @@ public:
     {
         auto it = mLookup.find( rKey );
         if( it == mLookup.end() ) {
-            return static_cast<std::size_t>(-1); //npos
+            return npos;
         }
+        assert( ContainsIdx( it->second ) );
         return it->second;
     }
 
@@ -132,11 +175,10 @@ public:
 
     bool AppendKeyValue( KeyType const &rKey, ValueType const &rVal )
     {
-        if( mLookup.find( rKey ) != mLookup.end() ) {
+        if( not mLookup.emplace( rKey, mStorage.size() ).second ) {
             return false;
         }
         mStorage.emplace_back( rKey, rVal );
-        mLookup.emplace( std::make_pair( rKey, mStorage.size()-1u ) );
         return true;
     }
 
@@ -257,6 +299,27 @@ public:
         }
         assert( ContainsIdx( it->second ) );
         return RemoveValue( it->second, it );
+    }
+
+    /// This method might be useful when speed is preferred a lot over memory consumption.
+    /// The key \param rKey will be removed from lookup but the value in the storage will only be replaced by the given \param rVal.
+    /// With that the storage will stay stable and a lookup data update is not needed. But the storage never shrinks, only grows!
+    /// \return the original value or std::nullopt.
+    /// \note when iterating or access by index the placeholders are present/visible. The user of this class must handle it.
+    std::optional<ValueType> RemveValueByKeyWithPlaceholder( KeyType const rKey, ValueType const &rVal ) noexcept
+    {
+        auto it = mLookup.find( rKey );
+        if( it == mLookup.end() ) {
+            return std::nullopt;
+        }
+        assert( ContainsIdx( it->second ) );
+        auto val = mStorage[it->second].second;
+
+        mStorage[it->second].second = rVal;
+        mStorage[it->second].first = KeyType();
+        mLookup.erase( it );
+
+        return val;
     }
 
     void InsertValue( std::size_t const idx, ValueType const &rVal )

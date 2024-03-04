@@ -1,0 +1,96 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake, <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MIT
+ * see included file MIT_LICENSE.txt
+ */
+
+
+
+// This script demonstrates writing a Bitmap file to the current working directory or to the place specified in firt argument.
+// NOTE: This script only works on Little Endian machines (the _buf_* functions write in host byte order and BMP must be little endian.)
+ 
+
+
+##minimum_version 0.13
+// fallback for versions older than 0.11 which don't support ##minimum_version.
+// they will produce a parse error when raw string literals are used...
+// cover this case here first and try to produce a readable error.
+// This protects against every new syntax introduced in 0.11 and above!
+if( _version_major < 1 and _version_minor < 13 ) {
+    // return from 'main' exists since 0.8.0 which was the first public release...
+    return """Version is too old. Need 0.13.0 as minimum."""
+}
+
+
+// helper function for print text in color if color feature is available.
+func maybe_cprint( color, text )
+{
+    if( is_defined cprint ) {
+        cprint( color as i64, text )
+    } else {
+        print( text )
+    }
+}
+
+
+// use build-in make_rgb function if available or quickly create it.
+is_defined make_rgb or (func make_rgb( r, g, b ) { r bit_lsh 16 bit_or g bit_lsh 8 bit_or b })
+
+const green  := make_rgb( 0, 255, 0 ) as u64
+
+const width  := 1920
+const height := 1080
+
+is_defined arg1 or (def arg1 := cwd())
+if( _strat( arg1, _strlen(arg1) -1) != "/" ) {
+    arg1 := arg1 % "/"
+}
+const file := arg1 % "teascript_image.bmp"
+
+const fsize := 14 + 40 + (width * height * 4)
+
+def buf := _buf( fsize )
+buf_zero( buf )
+
+// NOTE: To the time of writing this note Teacript supports 3 integer types: I64 (default), U64 and U8.
+//       This is the reason why for all unsigned types greater U8 the U64 must be used.
+
+// Bitmap file header (14 bytes)
+_buf_set_string( buf, 0, "BM" )
+_buf_set_u32( buf, 2, fsize as u64 )      // file size in bytes
+_buf_set_u16( buf, 6, 0u64 )              // application defined, zero
+_buf_set_u16( buf, 8, 0u64 )              // application defined, zero
+_buf_set_u32( buf, 10, 54u64 )            // start of image data
+
+// Bitmap Info header (40 bytes)
+_buf_set_u32( buf, 14, 40u64 )            // header size in bytes
+_buf_set_i32( buf, 18, width )            // width in pixels (signed!)
+_buf_set_i32( buf, 22, height )           // height in pixels (signed!)
+_buf_set_u16( buf, 26, 1u64 )             // color planes (must be 1)
+_buf_set_u16( buf, 28, 32u64 )            // bits per pixel (rgba)
+_buf_set_u32( buf, 30, 0u64 )             // compression method (none)
+_buf_set_u32( buf, 34, 0u64 )             // image size (can be set to 0)
+_buf_set_i32( buf, 38, 0 )                // horizontal resolution, pixel per meter (ignored....)
+_buf_set_i32( buf, 42, 0 )                // vertical resolution, pixel per meter (ignored....)
+_buf_set_u32( buf, 46, 0u64 )             // color palette (0 == default)
+_buf_set_u32( buf, 50, 0u64 )             // important colors, ignored.
+
+// setting every single pixel is quite slow...
+//forall( pixel in _seq( 0, width*height - 1, 1) ) {
+//    _buf_set_u32( buf, 54 + (pixel * 4), green )
+//}
+
+// ... better fill it fast!
+const s := _timestamp()
+_buf_fill32( buf, 54, -1, green )
+const e := _timestamp()
+
+if( writefile( file, buf, true ) ) {
+    maybe_cprint( green, "image file written.\n" )
+    maybe_cprint( make_rgb( 190, 0, 214 ), "_buf_fill32() took %((e - s) * 1000.0) ms.\n" )
+} else {
+    maybe_cprint( make_rgb( 255, 0, 0 ), "failed to write image file!\n" )
+}
+
+void  // return nothing

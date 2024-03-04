@@ -1,12 +1,10 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 #pragma once
 
@@ -92,6 +90,7 @@ public:
 
     // these settings will be reset on clear calls.
     // these state infos are maintained and only be used by the outer level. It is just here to have everything collected in one state object.
+    bool disabled         = false;
     bool utf8_bom_removed = false;
     bool is_in_comment    = false;
     size_t is_in_rawstring = 0;    // >0 in rawstring. Is the amount of parsed starting ".
@@ -109,6 +108,7 @@ public:
     {
         ast_offset = 0;
         open_statement = false;
+        disabled = false;
         utf8_bom_removed = false;
         is_in_comment = false;
         is_in_rawstring = 0;

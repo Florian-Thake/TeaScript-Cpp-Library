@@ -3,18 +3,11 @@ TeaScript Known Issues
 
 Beside feature incompleteness there are the following known issues which will be fixed in a later (pre-)release.
 NOTE: The numbers stay same, solved items will (usually) be removed in the next release from this list.
+     
 
-1.) [PLATFORM: any] Solved in 0.12 (floating point literals can use decimal point and exponent the same time, e.g.: 123.456e-10 )
+3.) [PLATFORM: any] Solved in 0.13 (explicit cast to variuos number types is posible now with the as operator
+                                    e.g., n as i64 or x as f64 )
 
-
-2.) [PLATFORM: any] Solved in 0.12 (floating point to string conversion now uses default conversion via std::format/fmt::to_string)
-    
-    
-3.) [PLATFORM: any]
-    Actually, there are neither implicit number type conversions nor any cast operators.
-    For convert f64 to i64 you must use the function _f64toi64 (or to_i64).
-    For convert i64 to f64 you can either use to_f64 or simply add 0.0 for f64 promotion.
-    
 
 5.) [PLATFORM: Windows]
     Echo'ed(!) input of Unicode might be broken on Windows for the case if the Unicode glyph is 
@@ -57,5 +50,5 @@ NOTE: The numbers stay same, solved items will (usually) be removed in the next 
      WORKAROUND: since 0.11.0 Subscript Operator is implemented, use tup[0].1 or tup[0][1]  as a workaround.
 
 
-12.) [PLATFORM: any] Solved in 0.12 (trunc does not work with the full range of f64 (but only with the range of i64))
+13.) -
 

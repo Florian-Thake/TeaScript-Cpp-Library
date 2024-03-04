@@ -3,11 +3,13 @@ Except where otherwise noted all files included are copyrighted by Florian Thake
 Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
 
 
-The TeaScript C++ Library as well as the TeaScript Host Application
-are licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3
-See included LICENSE.TXT or <https://www.gnu.org/licenses/>.
-If you cannot or don't want use this AGPL license, 
-you may ask for a different license via the contact information below.
+The TeaScript C++ Library 
+is licensed under the Mozilla Public License 2.0
+See included LICENSE.TXT or <https://www.mozilla.org/en-US/MPL/2.0/>
+
+The TeaScript Host Application
+is licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3
+See included LICENSE_AGPL.TXT or <https://www.gnu.org/licenses/>.
 
 
 Some distribution packages (e.g. the TeaScript Host for Linux) might use other (A)GPL software.
@@ -26,7 +28,13 @@ All files marked with
 SPDX-License-Identifier: AGPL-3.0-only 
 are licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3
 
-See included LICENSE.TXT or <https://www.gnu.org/licenses/>.
+See included LICENSE_AGPL.TXT or <https://www.gnu.org/licenses/>.
+
+All files marked with 
+SPDX-License-Identifier: MPL-2.0
+are licensed under the Mozilla Public License 2.0
+
+See included LICENSE.TXT or <https://www.mozilla.org/en-US/MPL/2.0/>
 
 All files marked with 
 SPDX-License-Identifier: MIT

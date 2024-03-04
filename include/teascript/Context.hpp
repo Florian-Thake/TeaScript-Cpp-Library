@@ -1,12 +1,10 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 #pragma once
 
@@ -15,15 +13,26 @@
 #include "Exception.hpp"
 #include "Print.hpp"
 #include "Util.hpp"
+#include "UtilInternal.hpp"
 #include "Dialect.hpp"
 
 #include <vector>
-#include <unordered_map>
 #include <queue>
 #include <utility> // std::pair
 #include <string>
 #include <memory>
 
+
+#ifndef TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+# define TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE     1
+#endif
+
+
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+# include "Collection.hpp"
+#else
+# include <unordered_map>
+#endif
 
 
 namespace teascript {
@@ -35,14 +44,18 @@ class Context
 public:
     using ObjectType = ValueObject;
 
-    using KeyValue = std::pair< std::string, ObjectType >;
-
     //TODO [ITEM 96] Refactor the internal storage layout and lookup for variables and scopes.
 
-    using VariableStorage = std::vector< KeyValue >; // first in, last out
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+    using VariableCollection = Collection<ObjectType, std::string, col_policy::eOrder::Unordered >; // first in, last out and quick access.
 
-    //TEST TEST TEST using VariableLookup = std::map< std::string, ObjectType >; // for quick access.
-    using VariableLookup = std::unordered_map< std::string, ObjectType >; // for quick access.
+    // leftover, is still needed for 'bulk add'
+    using VariableStorage = VariableCollection::StorageType;
+#else
+    using KeyValue        = std::pair< std::string, ObjectType >;
+    using VariableStorage = std::vector< KeyValue >; // first in, last out
+    using VariableLookup  = std::unordered_map< std::string, ObjectType >; // for quick access.
+#endif
 
     using ParameterList = std::queue<ObjectType>;  // FIFO, for consuming parameters of function calls.
 
@@ -50,24 +63,34 @@ public:
     {
     public:
         Scope() = default;
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+        VariableCollection  mVariableCollection;
+#else
         VariableStorage  mVariableStorage;
         VariableLookup   mVariableLookup;
+#endif
 
         ParameterList    mCurrentParamList;
         SourceLocation   mCurrentLoc;
 
         void Cleanup()
         {
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+            //TODO: (future) Need to lookup registered Destructor functions and call them!
+            mVariableCollection.Clear();
+#endif
             {
                 ParameterList  empty;
                 mCurrentParamList.swap( empty );
             }
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+#else
             mVariableLookup.clear();
             //TODO: (future) Need to lookup registered Destructor functions and call them!
             while( !mVariableStorage.empty() ) {
                 mVariableStorage.pop_back();
             }
-            
+#endif      
         }
 
         ~Scope()
@@ -104,6 +127,26 @@ private:
         }
     }
 
+    // note: only for transition for have a private non deprecated variant which can be called without error.
+    //       this function is for INTERNAL only!
+    void BulkAdd_Impl( VariableStorage const &init )
+    {
+        if( mBootstrapped ) {
+            return;
+        }
+        for( auto const &kv : init ) {
+            if( kv.second.IsShared() ) {
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+                // NOTE: new AppendKeyValue should be same complexity as unconditional insert of the old code (only one lookup during emplace)
+                mGlobalScope.mVariableCollection.AppendKeyValue( kv.first, kv.second );
+#else
+                mGlobalScope.mVariableStorage.push_back( kv );
+                mGlobalScope.mVariableLookup.insert( kv );
+#endif
+            }
+        }
+    }
+
 public:
     Dialect  dialect; // TeaScipt language behavior. (default is TeaScript standard language)  NOTE: The existence/public existence may change in future!
 
@@ -112,7 +155,7 @@ public:
     Context() = default;
     Context( Context && ) = default;
     Context &operator=( Context && ) = default;
-    
+
 
     explicit Context( TypeSystem &&rMovedSys, bool const booting = false )
         : mBootstrapped( not booting )
@@ -120,12 +163,15 @@ public:
     {
     }
 
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+    [[deprecated( "Please, use a different constructor instead." )]]
+#endif
     Context( VariableStorage const &init, TypeSystem && rMovedSys, bool const booting = false )
         : mBootstrapped( not booting )
         , mTypeSystem( std::move(rMovedSys) )
 
     {
-        BulkAdd( init );
+        BulkAdd_Impl( init ); // must call not deprecated variant for avoid errors
     }
 
     ~Context()
@@ -140,17 +186,35 @@ public:
         mBootstrapped = true;
     }
 
-    void BulkAdd( VariableStorage const &init ) //TODO: Make private or obsolete
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+#if 0  // was for testing
+    void Reserve( std::size_t num )
     {
         if( mBootstrapped ) {
             return;
         }
-        for( auto const &kv : init ) {
-            if( kv.second.IsShared() ) {
-                mGlobalScope.mVariableStorage.push_back( kv );
-                mGlobalScope.mVariableLookup.insert( kv );
-            }
+        mGlobalScope.mVariableCollection.Reserve( num );
+    }
+#endif
+
+    /// moves the variable collection into the global scope, all prior vars will be lost.
+    /// only do something during bootstrapping, otherwise a no-op. 
+    void InjectVars( VariableCollection && col )
+    {
+        if( mBootstrapped ) {
+            return;
         }
+        mGlobalScope.mVariableCollection = std::move( col );
+    }
+#endif
+
+
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+    [[deprecated( "Please, use InjectVars() instead." )]]
+#endif
+    void BulkAdd( VariableStorage const &init )
+    {
+        BulkAdd_Impl( init );
     }
 
     void SetScriptArgs( std::vector<std::string> const &rArgs )
@@ -176,6 +240,26 @@ public:
 
     ObjectType FindValueObject( std::string const &rName, SourceLocation const &rLoc = {}, long long *pScopeLevel = nullptr ) const
     {
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+        // all internal names can only occur in the global scope!
+        if( not rName.starts_with( "_" ) ) {
+            for( auto it = mLocalScopes.rbegin(); it != mLocalScopes.rend(); ++it ) {
+                if( auto idx = it->mVariableCollection.IndexOfKey( rName ); idx != VariableCollection::npos ) {
+                    if( pScopeLevel ) {
+                        *pScopeLevel = std::distance( mLocalScopes.rbegin(), it ) + 1LL;
+                    }
+                    return it->mVariableCollection.GetValueByIdx_Unchecked( idx );
+                }
+            }
+        }
+
+        if( auto idx = mGlobalScope.mVariableCollection.IndexOfKey( rName ); idx != VariableCollection::npos ) {
+            if( pScopeLevel ) {
+                *pScopeLevel = static_cast<long long>(mLocalScopes.size()) + 1LL;
+            }
+            return mGlobalScope.mVariableCollection.GetValueByIdx_Unchecked( idx );
+        }
+#else
         for( auto it = mLocalScopes.rbegin(); it != mLocalScopes.rend(); ++it ) {
             if( auto map_it = it->mVariableLookup.find( rName ); map_it != it->mVariableLookup.end() ) {
                 if( pScopeLevel ) {
@@ -190,7 +274,7 @@ public:
             }
             return map_it->second;
         }
-
+#endif
         throw exception::unknown_identifier( rLoc, rName );
     }
 
@@ -199,6 +283,15 @@ public:
         CheckName( rName, rLoc );
         // only search in the most recent scope...
         Scope &scope = GetCurrentScope();
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+        if( rValue.IsShared() ) { //TODO: maybe this can be relaxed when the lookup does not safe a copy but an index to the storage or sth. similar (but shared assign is special then!)
+            if( not scope.mVariableCollection.AppendKeyValue( rName, rValue ) ) {
+                throw exception::redefinition_of_variable( rLoc, rName );
+            }
+            // new object is always last position.
+            return scope.mVariableCollection[scope.mVariableCollection.Size() - 1u];
+        }
+#else
         if( auto map_it = scope.mVariableLookup.find( rName ); map_it != scope.mVariableLookup.end() ) {
             throw exception::redefinition_of_variable( rLoc, rName );
         }
@@ -207,6 +300,7 @@ public:
             scope.mVariableLookup.insert( std::make_pair( rName, rValue ) );
             return scope.mVariableStorage.back().second;
         }
+#endif
         throw exception::runtime_error( rLoc, "Internal Error! ValueObject must be shared for add it!" );
     }
 
@@ -216,6 +310,12 @@ public:
         // for now only in the current scope.
         //TODO: check if outer scopes shall be considered as well!
         Scope &scope = GetCurrentScope();
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+        auto res = scope.mVariableCollection.RemveValueByKeyWithPlaceholder( rName, ValueObject() );
+        if( res.has_value() ) {
+            return res.value();
+        }
+#else
         if( scope.mVariableLookup.erase(rName) != 0 ) {
             auto it = std::find_if( scope.mVariableStorage.begin(), scope.mVariableStorage.end(), [&](auto const &e) {
                 return e.first == rName;
@@ -224,11 +324,33 @@ public:
             scope.mVariableStorage.erase( it );
             return res;
         }
+#endif
         throw exception::unknown_identifier( rLoc, rName );
     }
 
     ObjectType SetValue( std::string const &rName, ValueObject const &rValue, bool const shared, SourceLocation const &rLoc = {} )
     {
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+        for( auto it = mLocalScopes.rbegin(); it != mLocalScopes.rend(); ++it ) {
+            if( auto idx = it->mVariableCollection.IndexOfKey( rName ); idx != VariableCollection::npos ) {
+                if( shared && rValue.IsShared() ) {
+                    it->mVariableCollection.GetValueByIdx_Unchecked( idx ).SharedAssignValue( rValue, rLoc );
+                } else {
+                    it->mVariableCollection.GetValueByIdx_Unchecked( idx ).AssignValue( rValue, rLoc );
+                }
+                return it->mVariableCollection.GetValueByIdx_Unchecked( idx );
+            }
+        }
+
+        if( auto idx = mGlobalScope.mVariableCollection.IndexOfKey( rName ); idx != VariableCollection::npos ) {
+            if( shared && rValue.IsShared() ) {
+                mGlobalScope.mVariableCollection.GetValueByIdx_Unchecked( idx ).SharedAssignValue( rValue, rLoc );
+            } else {
+                mGlobalScope.mVariableCollection.GetValueByIdx_Unchecked( idx ).AssignValue( rValue, rLoc );
+            }
+            return mGlobalScope.mVariableCollection.GetValueByIdx_Unchecked( idx );
+        }
+#else
         for( auto it = mLocalScopes.rbegin(); it != mLocalScopes.rend(); ++it ) {
             if( auto map_it = it->mVariableLookup.find( rName ); map_it != it->mVariableLookup.end() ) {
                 if( shared && rValue.IsShared() ) {
@@ -255,6 +377,7 @@ public:
             }
             return map_it->second;
         }
+#endif
 
         throw exception::unknown_identifier( rLoc, rName );
     }
@@ -304,12 +427,24 @@ public:
         return GetCurrentScope().mCurrentLoc;
     }
 
-    void Dump()
+    void Dump( std::string_view  const search = {} )
     {
         // only global scope for now
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+        for( auto const &kv : mGlobalScope.mVariableCollection ) {
+            if( kv.first.empty() ) { // placeholder, skip it.
+                continue;
+            }
+#else
         for( auto const &kv : mGlobalScope.mVariableStorage ) {
+#endif
+            if( not search.empty() ) {
+                if( std::string::npos == kv.first.find( search ) ) {
+                    continue;
+                }
+            }
             if( FunctionPtr const *p_func = kv.second.GetValuePtr< FunctionPtr >(); p_func != nullptr ) {
-                TEASCRIPT_PRINT( "{} : <function>\n", kv.first ); // TODO: add parameter info!
+                TEASCRIPT_PRINT( "{}{} : <function>\n", kv.first, (*p_func)->ParameterInfoStr() );
             } else {
                 std::string valstr = kv.second.PrintValue();
                 if( kv.second.GetTypeInfo()->IsSame( TypeString ) ) {

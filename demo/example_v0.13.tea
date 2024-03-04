@@ -1,0 +1,108 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake, <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MIT
+ * see included file MIT_LICENSE.txt
+ */
+
+
+
+// This script demonstrates some new features of version 0.13 in a compact way.
+
+
+##minimum_version 0.13
+// fallback for versions older than 0.11 which don't support ##minimum_version.
+// they will produce a parse error when raw string literals are used...
+// cover this case here first and try to produce a readable error.
+// This protects against every new syntax introduced in 0.11 and above!
+if( _version_major < 1 and _version_minor < 13 ) {
+    // return from 'main' exists since 0.8.0 which was the first public release...
+    return """Version is too old. Need 0.13.0 as minimum."""
+}
+
+
+// Info: between each symbol is a single space. Also, the 3rd symbol uses 3 chars, the others need 4.
+const str := "🚀 🍀 ☠ 🔥"  // An UTF-8 string with some Unicode symbols.
+
+// iterate over each unicode glyph...
+println( "Iterating over Unicode UTF-8 string: \"%(str)\"" )
+
+def it := utf8_begin( str )
+
+forall( glyph in _seq( 1, _strglyphs( str ), 1 ) ) {
+    println( "%(glyph): %(it.cur)" )
+    it := utf8_next( it )
+}
+// alternative way: (disable above and enable below for try it...)
+##disable
+def glyph := 1
+repeat {
+    if( utf8_end( it ) ) { stop }
+    println( "%(glyph): %(it.cur)" )
+    it := utf8_next( it )
+}
+##enable
+
+println( "Now we split the string at space boundaries..." )
+const tup := strsplit( str, " " )
+println( "Splitted parts: %(tup)" )
+
+println( "Join it again..." )
+const new_str := strjoin( tup, _strfromascii( 0x7C ), true, true )
+println( "Joined: %(new_str)" )
+
+println( "Lets make a buffer..." )
+
+def buf := _buf( 32 )   // for this demo the buffer size must be dividable by 4
+println( "buf after created: %(buf)" )
+buf_zero(buf)
+println( "buf after zeroed: %(buf)" )
+
+// write in the size of the string first ...
+_buf_set_u64( buf, 0, _strlen(new_str) as u64 )
+// ... then the string
+_buf_set_string( buf, 8, new_str )
+
+println( "buf after strlen + new_str added:\n%(buf)" )
+
+println( "Lets fill the buf with some nice cloverleafs from the tuple: %(tup[1]) !" )
+
+// we first need the utf8 code point as integer, use the buf as temporary storage...
+_buf_set_string( buf, 0, tup[1] )
+const unicode := _buf_get_u32( buf, 0 )
+
+// fill the buf fast! (this only works for utf8 encoded with 4 chars (32 bit)!)
+// NOTE: A better usecase for _buf_fill32 is in write_image.tea where it is used to fill a 32 bit RGBA image buffer.
+_buf_fill32( buf, 0, -1, unicode )
+println( "buf filled with %(tup[1]):\n%(buf)" )
+
+const cloverleaf_str := _buf_get_string( buf, 0, _buf_size( buf ) )
+println( "The extracted cloverleaf string:\n" % cloverleaf_str )
+
+
+// Now at the end we are doing some unrelated bit operation stuff which is now also easily possible with TeaScript.
+
+// Thanks to the underlying C++20 backend we can do well defined signed integer shifts! :-)
+println( "We can left shift signed numbers..." )
+def signed := -1
+println( "left shift 1 of %(signed) is: " % (signed bit_lsh 1) )
+println( "left shift 2 of %(signed) is: " % (signed bit_lsh 2) )
+println( "left shift 3 of %(signed) is: " % (signed bit_lsh 3) )
+println( "left shift 4 of %(signed) is: " % (signed bit_lsh 4) )
+println( "left shift 5 of %(signed) is: " % (signed bit_lsh 5) )
+println( "left shift 6 of %(signed) is: " % (signed bit_lsh 6) )
+println( "left shift 7 of %(signed) is: " % (signed bit_lsh 7) )
+println( "left shift 8 of %(signed) is: " % (signed bit_lsh 8) )
+
+println( "... and right shift as well..." )
+signed := -84923838482830i64
+println( "right shift 1 of %(signed) is: " % (signed bit_rsh 1) )
+println( "right shift 2 of %(signed) is: " % (signed bit_rsh 2) )
+println( "right shift 3 of %(signed) is: " % (signed bit_rsh 3) )
+println( "right shift 4 of %(signed) is: " % (signed bit_rsh 4) )
+println( "right shift 5 of %(signed) is: " % (signed bit_rsh 5) )
+println( "right shift 6 of %(signed) is: " % (signed bit_rsh 6) )
+println( "right shift 7 of %(signed) is: " % (signed bit_rsh 7) )
+println( "right shift 8 of %(signed) is: " % (signed bit_rsh 8) )
+
+println( "casting -1 to u8 is: " % -1 as u8 )

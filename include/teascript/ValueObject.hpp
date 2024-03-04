@@ -1,12 +1,10 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 #pragma once
 
@@ -44,20 +42,14 @@ void deep_copy( Tuple &, Tuple const &, bool const );
 namespace exception {
 
 /// Exception thrown when a ValueObject could not be converted to some specific type.
-class bad_value_cast : public std::bad_any_cast
+class bad_value_cast : public runtime_error
 {
     std::string mText;
 public:
-    bad_value_cast() = default;
-    bad_value_cast( std::string const &rText ) 
-        : std::bad_any_cast()
-        , mText( rText )
+    bad_value_cast( SourceLocation const &rLoc = {} ) : runtime_error( rLoc, "Bad ValueObject cast" ) {}
+    bad_value_cast( std::string const &rText, SourceLocation const &rLoc = {} )
+        : runtime_error( rLoc, rText )
     {
-    }
-
-    char const * what() const noexcept override
-    {
-        return mText.empty() ? "Bad ValueObject cast" : mText.c_str();
     }
 };
 
@@ -126,23 +118,32 @@ public:
 /// \note only the public getters are considered stable.
 class ValueObject final
 {
+public:
     // reflects the index of std::variant
     enum eType : std::size_t
     {
         TypeNaV = 0,
         TypeBool,
-        TypeLongLong,
-        TypeDouble,
+        TypeU8,
+        TypeI64,
+        TypeLongLong = TypeI64, // alias, deprecated, use TypeI64
+        TypeU64,
+        TypeF64,
+        TypeDouble   = TypeF64, // alias, deprecated, use TypeF64
         TypeString,
+        TypeTuple,
+        TypeBuffer,
         TypeAny,
 
         TypeLast = TypeAny,
         TypeFirst = TypeNaV
     };
 
+private:
+
     //TODO [ITEM 98]: Think of a better storage layout. sizeof 64 would be great! Maybe we can get rid of the nested variant and also store any always as shared_ptr?
     // sizeof BareTypes == 72 (std::any == 64 + 8 for std::variant)
-    using BareTypes = std::variant< NotAValue, Bool, I64, F64, String, std::any >;
+    using BareTypes = std::variant< NotAValue, Bool, U8, I64, U64, F64, String, Tuple, Buffer, std::any >;
     // sizeof ValueVariant == 80 (BarTypes == 72 + 8 for std::variant)
     using ValueVariant = std::variant< BareTypes, std::shared_ptr<BareTypes> >;
 
@@ -175,12 +176,20 @@ class ValueObject final
         // NOTE: This constexpr cascade is because GCC bug (see below)!
         if constexpr( std::is_same_v<T, bool> ) {
             return std::get_if<bool>( mpValue );
+        } else if constexpr( std::is_same_v<T, U8> ) {
+            return std::get_if<U8>( mpValue );
         } else if constexpr( std::is_same_v<T, I64> ) {
             return std::get_if<I64>( mpValue );
+        } else if constexpr( std::is_same_v<T, U64> ) {
+            return std::get_if<U64>( mpValue );
         } else if constexpr( std::is_same_v<T, F64> ) {
             return std::get_if<F64>( mpValue );
         } else if constexpr( std::is_same_v<T, std::string> ) {
             return std::get_if<std::string>( mpValue );
+        } else if constexpr( std::is_same_v<T, Tuple> ) {
+            return std::get_if<Tuple>( mpValue );
+        } else if constexpr( std::is_same_v<T, Buffer> ) {
+            return std::get_if<Buffer>( mpValue );
         } else {
             std::any *any = std::get_if<std::any>( mpValue );
             if( any ) {
@@ -249,6 +258,22 @@ class ValueObject final
         return res;
     }
 
+    static std::string print_buffer( Buffer const &rBuffer, size_t max_count )
+    {
+        std::string res = "[";
+        for( std::size_t i = 0; i < rBuffer.size() && i < max_count; ++i ) {
+            if( i > 0 ) {
+                res += ", ";
+            }
+            res += std::to_string( rBuffer[i] );
+        }
+        if( max_count < rBuffer.size() ) {
+            res += ",...";
+        }
+        res += "]";
+        return res;
+    }
+
     // internal (for now) number to string converter, especially for floating point types.
     template< ArithmeticNumber T>
     inline static std::string to_string( T const v )
@@ -263,7 +288,9 @@ class ValueObject final
         // append at least a .0 to signal it is a floating point value.
         if constexpr( std::is_floating_point_v<T> ) {
             if( not res.empty() && res.find( '.' ) == std::string::npos && res.find( 'e' ) == std::string::npos ) {
-                res += ".0";
+                if( std::isfinite( v ) ) {
+                    res += ".0";
+                }
             }
         }
         return res;
@@ -288,7 +315,6 @@ public:
 
     }
 
-    // TODO: Decide if explicit should be removed for ease of use ?
     inline
     explicit ValueObject( bool const b, ValueConfig const &cfg = {} )
         : mValue( create_helper( cfg.IsShared(), BareTypes( b ) ) )
@@ -299,8 +325,16 @@ public:
 
     }
 
-    // TODO: Make Constructor which takes ArithemticNumber as type!
-    // TODO: Decide if explicit should be removed for ease of use ?
+    inline
+    explicit ValueObject( U8 const u, ValueConfig const &cfg = {} )
+        : mValue( create_helper( cfg.IsShared(), BareTypes( u ) ) )
+        , mpValue( cfg.IsShared() ? std::get<1>( mValue ).get() : &std::get<0>( mValue ) )
+        , mpType( &teascript::TypeU8 )
+        , mProps( cfg.IsConst() )
+    {
+
+    }
+
     inline
     explicit ValueObject( I64 const i, ValueConfig const &cfg = {} )
         : mValue( create_helper( cfg.IsShared(), BareTypes( i ) ) )
@@ -311,8 +345,16 @@ public:
 
     }
 
-    // TODO: Make Constructor which takes ArithemticNumber as type!
-    // TODO: Decide if explicit should be removed for ease of use ?
+    inline
+    explicit ValueObject( U64 const u, ValueConfig const &cfg = {} )
+        : mValue( create_helper( cfg.IsShared(), BareTypes( u ) ) )
+        , mpValue( cfg.IsShared() ? std::get<1>( mValue ).get() : &std::get<0>( mValue ) )
+        , mpType( &teascript::TypeU64 )
+        , mProps( cfg.IsConst() )
+    {
+
+    }
+
     inline
     explicit ValueObject( F64 const d, ValueConfig const &cfg = {} )
         : mValue( create_helper( cfg.IsShared(), BareTypes( d ) ) )
@@ -323,7 +365,6 @@ public:
 
     }
 
-    // TODO: Decide if explicit should be removed for ease of use ?
     inline
     explicit ValueObject( std::string const &rStr, ValueConfig const &cfg = {} )
         : mValue( create_helper( cfg.IsShared(), BareTypes( rStr ) ) )
@@ -334,7 +375,6 @@ public:
 
     }
 
-    // TODO: Decide if explicit should be removed for ease of use ?
     inline
     explicit ValueObject( std::string &&rStr, ValueConfig const &cfg = {} )
         : mValue( create_helper( cfg.IsShared(), BareTypes( std::move( rStr ) ) ) )
@@ -346,17 +386,27 @@ public:
     }
 
     inline
+    explicit ValueObject( Buffer &&rBuffer, ValueConfig const &cfg = {} )
+        : mValue( create_helper( cfg.IsShared(), BareTypes( std::move( rBuffer ) ) ) )
+        , mpValue( cfg.IsShared() ? std::get<1>( mValue ).get() : &std::get<0>( mValue ) )
+        , mpType( &teascript::TypeBuffer )
+        , mProps( cfg.IsConst() )
+    {
+
+    }
+
+    inline
     explicit ValueObject( FunctionPtr &&rFunc, ValueConfig const &cfg )
         : mValue( create_helper( cfg.IsShared(), BareTypes(std::move(rFunc)) ) ) 
         , mpValue( std::get<1>( mValue ).get() )
         , mpType( cfg.mpTypeSystem != nullptr 
                   ? cfg.mpTypeSystem->Find<FunctionPtr>()
-                  : nullptr )
+                  : cfg.mpTypeInfo )
         , mProps( cfg.IsConst() )
     {
-        // not allow nullptr for this usage. also we don't want manually alloc a type here.
-        if( nullptr == mpType ) {
-            throw exception::runtime_error( "Usage Error! No TypeSystem for ValueObject FunctionPtr constructor!" );
+        // not allow nullptr and wrong type for this usage. also we don't want manually alloc a type here.
+        if( nullptr == mpType || not mpType->IsSame<FunctionPtr>() ) {
+            throw exception::runtime_error( "Usage Error! No TypeSystem or wrong TypeInfo for ValueObject FunctionPtr constructor!" );
         }
     }
 
@@ -366,12 +416,12 @@ public:
         , mpValue( std::get<1>( mValue ).get() )
         , mpType( cfg.mpTypeSystem != nullptr 
                   ? cfg.mpTypeSystem->Find< std::vector<ValueObject> >()
-                  : nullptr )
+                  : cfg.mpTypeInfo )
         , mProps( cfg.IsConst() )
     {
-        // not allow nullptr for this usage. also we don't want manually alloc a type here.
-        if( nullptr == mpType ) {
-            throw exception::runtime_error( "Usage Error! No TypeSystem for ValueObject vector<ValueObject> constructor!" );
+        // not allow nullptr and wrong type for this usage. also we don't want manually alloc a type here.
+        if( nullptr == mpType || not mpType->IsSame<std::vector<ValueObject>>() ) {
+            throw exception::runtime_error( "Usage Error! No TypeSystem or wron TypeInfo for ValueObject vector<ValueObject> constructor!" );
         }
     }
 
@@ -394,15 +444,10 @@ public:
     explicit ValueObject( IntegerSequence && seq, ValueConfig const &cfg )
         : mValue( create_helper( true, BareTypes( std::move( seq ) ) ) )
         , mpValue( std::get<1>( mValue ).get() )
-        , mpType( cfg.mpTypeSystem != nullptr
-                  ? cfg.mpTypeSystem->Find< IntegerSequence >()
-                  : cfg.mpTypeInfo )
+        , mpType( &TypeIntegerSequence )
         , mProps( cfg.IsConst() )
     {
-        // not allow nullptr and wrong type for this usage. also we don't want manually alloc a type here.
-        if( nullptr == mpType || not mpType->IsSame<IntegerSequence>() ) {
-            throw exception::runtime_error( "Usage Error! No TypeSystem or wrong TypeInfo for ValueObject IntegerSequence constructor!" );
-        }
+
     }
 
     inline
@@ -496,6 +541,18 @@ public:
         return *this;
     }
 
+    /// \returns the TypeInfo for the stored value.
+    inline TypeInfo const *GetTypeInfo() const noexcept
+    {
+        return mpType;
+    }
+
+    /// \retunrs the inner type of the variant. Can be used in a switch.
+    inline eType InternalType() const noexcept
+    {
+        return static_cast<eType>(mpValue->index());
+    }
+
     /// \warning INTERNAL interface
     inline uintptr_t GetInternalID() const noexcept
     {
@@ -506,6 +563,24 @@ public:
     inline bool IsShared() const noexcept
     {
         return mValue.index() == 1;
+    }
+
+    /// returns whether the given instance shares the same value as this instance.
+    bool IsSharedWith( ValueObject const &rOther ) const noexcept
+    {
+        if( IsShared() && rOther.IsShared() ) {
+            return mpValue == rOther.mpValue;
+        }
+        return this == &rOther;
+    }
+
+    /// \returns the count of the value is shared.
+    long long ShareCount() const noexcept
+    {
+        if( IsShared() ) {
+            return static_cast<long long>(std::get<1>( mValue ).use_count());
+        }
+        return 0LL; // not shared at all
     }
 
     /// Transforms this instance to use a reference counting mechanism for the stored value (if not already).
@@ -528,8 +603,10 @@ public:
     {
         // only if shared...
         if( mValue.index() == 1 ) {
-            // costruct a new shared again to avoid extra copies for classes without moves when calling MakeShared() as the next step!!
-            if( GetTypeInfo()->IsSame<Tuple>() ) {
+            if( ShareCount() < 2 ) { // TODO: THREAD!
+                // nothing to do if 'this' is the only one...
+            } // costruct a new shared again to avoid extra copies for classes without moves when calling MakeShared() as the next step!!
+            else if( GetTypeInfo()->IsSame<Tuple>() ) {
                 auto new_val = tuple::deep_copy( *this, keep_const );
                 mValue = new_val.mValue;
                 mpValue = std::get<1>( mValue ).get();
@@ -542,9 +619,10 @@ public:
                 mValue = std::move( copy );
                 mpValue = &std::get<0>( mValue );
             }
-            if( IsConst() && not keep_const ) {
-                mProps.MakeMutable();
-            }
+        }
+        // do this always!
+        if( IsConst() && not keep_const ) {
+            mProps.MakeMutable();
         }
         return *this;
     }
@@ -561,12 +639,6 @@ public:
         return not IsConst();
     }
 
-    /// \returns the TypeInfo for the stored value.
-    inline TypeInfo const *GetTypeInfo() const noexcept
-    {
-        return mpType;
-    }
-
     /// Makes this instance const for the stored value.
     /// \note Other instances to the same value may still change the value when they are mutable!
     ValueObject &MakeConst()
@@ -575,6 +647,98 @@ public:
             mProps.MakeConst();
         }
         return *this;
+    }
+
+    /// Convenience, assigns a Bool value. Types must match.
+    /// \note: explicit named with Bool because many types will convert to bool by accident, e.g., char *
+    /// \throw May throw exception::type_missmatch/const_assign
+    void AssignBoolValue( Bool const b, SourceLocation const &rLoc = {} )
+    {
+        if( not mpType->IsSame<Bool>() ) {
+            throw exception::type_mismatch( rLoc );
+        }
+        if( mProps.IsConst() ) {
+            throw exception::const_assign( rLoc );
+        }
+        *mpValue = b;
+    }
+
+    /// Convenience, assigns an Integer value. Types must match.
+    /// \throw May throw exception::type_missmatch/const_assign
+    void AssignValue( Integer const i, SourceLocation const &rLoc = {} )
+    {
+        if( not mpType->IsSame<Integer>() ) {
+            throw exception::type_mismatch( rLoc );
+        }
+        if( mProps.IsConst() ) {
+            throw exception::const_assign( rLoc );
+        }
+        *mpValue = i;
+    }
+
+    /// Convenience, assigns an U64 value. Types must match.
+    /// \throw May throw exception::type_missmatch/const_assign
+    void AssignValue( U64 const u, SourceLocation const &rLoc = {} )
+    {
+        if( not mpType->IsSame<U64>() ) {
+            throw exception::type_mismatch( rLoc );
+        }
+        if( mProps.IsConst() ) {
+            throw exception::const_assign( rLoc );
+        }
+        *mpValue = u;
+    }
+
+    /// Convenience, assigns an U8 value. Types must match.
+    /// \throw May throw exception::type_missmatch/const_assign
+    void AssignValue( U8 const u, SourceLocation const &rLoc = {} )
+    {
+        if( not mpType->IsSame<U8>() ) {
+            throw exception::type_mismatch( rLoc );
+        }
+        if( mProps.IsConst() ) {
+            throw exception::const_assign( rLoc );
+        }
+        *mpValue = u;
+    }
+
+    /// Convenience, assigns a Decimal value. Types must match.
+    /// \throw May throw exception::type_missmatch/const_assign
+    void AssignValue( Decimal const d, SourceLocation const &rLoc = {} )
+    {
+        if( not mpType->IsSame<Decimal>() ) {
+            throw exception::type_mismatch( rLoc );
+        }
+        if( mProps.IsConst() ) {
+            throw exception::const_assign( rLoc );
+        }
+        *mpValue = d;
+    }
+
+    /// Convenience, assigns a String value. Types must match.
+    /// \throw May throw exception::type_missmatch/const_assign
+    void AssignValue( String const &s, SourceLocation const &rLoc = {} )
+    {
+        if( not mpType->IsSame<String>() ) {
+            throw exception::type_mismatch( rLoc );
+        }
+        if( mProps.IsConst() ) {
+            throw exception::const_assign( rLoc );
+        }
+        *mpValue = s;
+    }
+
+    /// Convenience, assigns a String value. Types must match.
+    /// \throw May throw exception::type_missmatch/const_assign
+    void AssignValue( String  && s, SourceLocation const &rLoc = {} )
+    {
+        if( not mpType->IsSame<String>() ) {
+            throw exception::type_mismatch( rLoc );
+        }
+        if( mProps.IsConst() ) {
+            throw exception::const_assign( rLoc );
+        }
+        *mpValue = std::move(s);
     }
 
     /// Assigns a new value to this instance via copy. Types must match.
@@ -591,7 +755,6 @@ public:
             throw exception::const_assign( rLoc );
         }
         if( pT1->IsSame<Tuple>() && rOther.ShareCount() > 1 ) {
-            //throw exception::eval_error( "Assign Error! Tuples only support shared assign, use _tuple_copy() instead!" );
             auto new_val = tuple::deep_copy( rOther, false );
             *mpValue = std::move( *new_val.mpValue ); // cannot assign to *this since it might be shared
         } else {
@@ -620,25 +783,6 @@ public:
         mpValue = mValue.index() == 1 ? rOther.mpValue : &std::get<0>( mValue );
     }
 
-    /// returns whether the given instance shares the same value as this instance.
-    bool IsSharedWith( ValueObject const &rOther ) const noexcept
-    {
-        if( IsShared() && rOther.IsShared() ) {
-            return mpValue == rOther.mpValue;
-        }
-        return this == &rOther;
-    }
-
-    /// \returns the count of the value is shared.
-    long long ShareCount() const noexcept
-    {
-        if( IsShared() ) {
-            return static_cast<long long>(std::get<1>( mValue ).use_count());
-        }
-        return 0LL; // not shared at all
-    }
-
-
     /// \returns whether this instance holds a value or is NaV - Not A Value
     bool HasValue() const noexcept
     {
@@ -652,7 +796,7 @@ public:
         //return mValue.index() != TypeNaV && mValue.index() != TypeAny;
         //return mpValue->index() > TypeFirst && mpValue->index() < TypeLast;
         if( mpValue->index() == TypeAny ) {
-            return get_impl<Tuple>() != nullptr;
+            return get_impl<IntegerSequence>() != nullptr || get_impl<TypeInfo>() != nullptr;
         }
         return mpValue->index() > TypeFirst;
     }
@@ -703,15 +847,15 @@ public:
     {
         return std::visit( overloaded{
             []( auto ) -> bool { throw exception::bad_value_cast("ValueObject not convertible to bool!"); },
-            []( std::any &a ) {
-                if( auto const *p_tuple = std::any_cast<Tuple>(&a); p_tuple != nullptr ) {
-                    return p_tuple->Size() > 0u;
-                } else throw exception::bad_value_cast( "ValueObject not convertible to bool!" ); },
             []( NotAValue ) -> bool { throw exception::bad_value_cast( "ValueObject is NaV (Not A Value)!" ); },
             []( bool b ) { return b; },
+            []( U8 const u ) { return static_cast<bool>(u); },
             []( I64 const i ) { return static_cast<bool>(i); },
+            []( U64 const u ) { return static_cast<bool>(u); },
             []( F64 const d ) { return static_cast<bool>(d); },
-            []( std::string const &rStr ) { return !rStr.empty(); }
+            []( std::string const &rStr ) { return !rStr.empty(); },
+            []( Tuple const &rTuple ) { return rTuple.Size() > 0u; },
+            []( Buffer const &rBuffer ) { return not rBuffer.empty(); }
         }, *mpValue );
     }
 
@@ -722,7 +866,9 @@ public:
             []( auto ) -> Integer { throw exception::bad_value_cast( "ValueObject not convertible to Integer!" ); },
             []( NotAValue ) -> Integer { throw exception::bad_value_cast( "ValueObject is NaV (Not A Value)!" ); },
             []( bool const b ) { return static_cast<Integer>(b); },
+            []( U8 const u ) { return static_cast<Integer>(u); },
             []( I64 const i ) { return static_cast<Integer>(i); },
+            []( U64 const u ) { return u <= static_cast<U64>(std::numeric_limits<I64>::max()) ? static_cast<Integer>(u) : (throw exception::bad_value_cast( "ValueObject with u64 not convertible to Integer!" ), Integer{}); },
             []( F64 const d ) { return std::isfinite( d ) ? static_cast<Integer>(d) : (throw exception::bad_value_cast( "ValueObject with f64 not convertible to Integer!" ), Integer{}); },
             []( std::string const &rStr ) { try { return static_cast<Integer>(std::stoll( rStr )); } catch( ... ) { throw exception::bad_value_cast( "ValueObject with String not convertible to Integer!" ); } }
         }, *mpValue );
@@ -735,18 +881,20 @@ public:
         return std::visit( overloaded{
             []( auto ) -> std::string { throw exception::bad_value_cast( "ValueObject not convertible to string!" ); },
             []( std::any const &a ) {
-                if( auto const *p_tuple = std::any_cast<Tuple>(&a); p_tuple != nullptr ) {
-                    return print_tuple( *p_tuple );
-                } else if( auto const *p_seq = std::any_cast<IntegerSequence>(&a); p_seq != nullptr ) {
+                if( auto const *p_seq = std::any_cast<IntegerSequence>(&a); p_seq != nullptr ) {
                     return seq::print( *p_seq ); // TODO: check if a Sequence should really be convertible to String? Remove (PrintValue is sufficiend then).
                 } else if( auto const *p_type = std::any_cast<TypeInfo>(&a); p_type != nullptr ) {
                     return p_type->GetName();
                 } else throw exception::bad_value_cast( "ValueObject not convertible to string!" ); },
             []( NotAValue ) -> std::string { throw exception::bad_value_cast( "ValueObject is NaV (Not A Value)!" ); },
             []( bool const b ) { return std::string( b ? "true" : "false" ); },
+            []( U8 const u ) { return to_string( u ); },
             []( I64 const i ) { return to_string( i ); },
+            []( U64 const u ) { return to_string( u ); },
             []( F64 const d ) { return to_string( d ); },
-            []( std::string const &rStr ) { return rStr; }
+            []( std::string const &rStr ) { return rStr; },
+            []( Tuple const &rTuple ) { return print_tuple( rTuple ); },
+            []( Buffer const &rBuffer ) { return print_buffer( rBuffer, rBuffer.size() ); }
         }, *mpValue );
     }
 
@@ -757,18 +905,20 @@ public:
         return std::visit( overloaded{
             []( auto ) { return std::string("<not printable>"); },
             []( std::any const &a ) { 
-                if( auto const *p_tuple = std::any_cast<Tuple>(&a); p_tuple != nullptr ) {
-                    return print_tuple( *p_tuple );
-                } else if( auto const *p_seq = std::any_cast<IntegerSequence>(&a); p_seq != nullptr ) {
+                if( auto const *p_seq = std::any_cast<IntegerSequence>(&a); p_seq != nullptr ) {
                     return seq::print( *p_seq );
                 } else if( auto const *p_type = std::any_cast<TypeInfo>(&a); p_type != nullptr ) {
                     return p_type->GetName();
                 } else return std::string( "<not printable>" ); },
             []( NotAValue ) { return std::string( "NaV (Not A Value)" ); },
-            []( bool const b ) { return std::string( b ? "true" : "false"); },
+            []( bool const b ) { return std::string( b ? "true" : "false" ); },
+            []( U8 const u ) { return to_string( u ); },
             []( I64 const i ) { return to_string( i ); },
+            []( U64 const u ) { return to_string( u ); },
             []( F64 const d ) { return to_string( d ); },
-            []( std::string const &rStr ) { return "\"" + rStr + "\""; }
+            []( std::string const &rStr ) { return "\"" + rStr + "\""; },
+            []( Tuple const &rTuple ) { return print_tuple( rTuple ); },
+            []( Buffer const &rBuffer ) { return print_buffer( rBuffer, 100 ); }
         }, *mpValue );
     }
 
@@ -837,84 +987,95 @@ public:
         }
         throw exception::bad_value_cast( "Object is not subscriptable!" );
     }
-
-
-    /// Returns the order of the 2 ValueObjects. long long is preferred over bool. bool is preferred over string.
-    friend std::strong_ordering operator<=>( ValueObject const &lhs, ValueObject const &rhs )
-    {
-        //FIXME: use Number helper class for arithmetic conversions.
-        if( lhs.get_impl<F64>() != nullptr || rhs.get_impl<F64>() != nullptr ) {
-            F64 const *pd_lhs = lhs.get_impl<F64>();
-            F64 const *pd_rhs = rhs.get_impl<F64>();
-            F64 const d1 = pd_lhs != nullptr ? *pd_lhs : static_cast<F64>(lhs.GetAsInteger());
-            F64 const d2 = pd_rhs != nullptr ? *pd_rhs : static_cast<F64>(rhs.GetAsInteger());
-#if _MSC_VER || _LIBCPP_VERSION // libc++14 works here, libstdc++ of g++11 not.
-            return std::strong_order(d1, d2); //TODO: check this! we could bail out on e.g., NaN instead or change return value to partial_odering.
-#else
-            auto const c = d1 <=> d2;
-            if( c == std::partial_ordering::unordered ) {
-                throw exception::runtime_error( "Strong ordering of floating point not implemented on this platform!" );
-            } else if( c == std::partial_ordering::less ) {
-                return std::strong_ordering::less;
-            } else if( c == std::partial_ordering::equivalent ) {
-                return std::strong_ordering::equal;
-            } else {
-                return std::strong_ordering::greater;
-            }
-#endif
-        }
-
-        // bool, string and any will be converted to long long for comparison if any of the values is a long long
-        // NOTE: In C++ bool is also converted to long long when the bool is compared with a long long!
-        if( lhs.get_impl<I64>() != nullptr || rhs.get_impl<I64>() != nullptr ) {
-            return lhs.GetAsInteger() <=> rhs.GetAsInteger();
-        }
-        // otherwise string and any will be converted to bool if any of the values is a bool
-        if( lhs.get_impl<bool>() != nullptr || rhs.get_impl<bool>() != nullptr ) {
-            return lhs.GetAsBool() <=> rhs.GetAsBool();
-        }
-        
-        //FIXME: implement clean conversion rules!
-        if( lhs.get_impl<std::string>() != nullptr && (lhs.get_impl<std::string>() != nullptr || /*convertible*/ false) ) {
-#if !_LIBCPP_VERSION // libc++14 fails here
-            return lhs.GetAsString() <=> rhs.GetAsString();
-#else
-            auto const res = lhs.GetAsString().compare( rhs.GetAsString() );
-            return res < 0 ? std::strong_ordering::less : res > 0 ? std::strong_ordering::greater : std::strong_ordering::equal;
-#endif
-        }
-
-        if( lhs.get_impl<TypeInfo>() != nullptr && rhs.get_impl<TypeInfo>() != nullptr ) {
-#if !_LIBCPP_VERSION // libc++14 fails here
-            return lhs.GetValue<TypeInfo>().ToTypeIndex() <=> rhs.GetValue<TypeInfo>().ToTypeIndex();
-#else
-            auto const i1 = lhs.GetValue<TypeInfo>().ToTypeIndex();
-            auto const i2 = rhs.GetValue<TypeInfo>().ToTypeIndex();
-            return i1 < i2 ? std::strong_ordering::less : i2 < i1 ? std::strong_ordering::greater : std::strong_ordering::equal;
-#endif
-        }
-
-        if( lhs.GetTypeInfo()->IsSame<Tuple>() && rhs.GetTypeInfo()->IsSame<Tuple>() ) {
-            return tuple::compare_values( lhs.GetValue<Tuple>(), rhs.GetValue<Tuple>() );
-        }
-
-        //FIXME: Now need type info for check equal types or conversion
-        throw exception::bad_value_cast( "types do not match for comparison!" );
-    }
-
-    /// Returns whether the 2 ValueObjects are equal.
-    friend bool operator==( ValueObject const &lhs, ValueObject const &rhs )
-    {
-        auto const res = lhs <=> rhs;
-        return res == std::strong_ordering::equal || res == std::strong_ordering::equivalent;
-    }
-
-    /// Returns whether the 2 ValueObjects are unequal.
-    friend bool operator!=( ValueObject const &lhs, ValueObject const &rhs )
-    {
-        return !(lhs == rhs);
-    }
 };
+
+} // namespace teascript
+
+
+#include "Number.hpp"
+
+namespace teascript {
+
+
+/// Returns the order of the 2 ValueObjects. long long is preferred over bool. bool is preferred over string.
+inline std::strong_ordering operator<=>( teascript::ValueObject const &lhs, teascript::ValueObject const &rhs )
+{
+    using namespace teascript;
+
+    if( lhs.GetValuePtr<F64>() != nullptr || rhs.GetValuePtr<F64>() != nullptr ) {
+        F64 const *pd_lhs = lhs.GetValuePtr<F64>();
+        F64 const *pd_rhs = rhs.GetValuePtr<F64>();
+        F64 const d1 = pd_lhs != nullptr ? *pd_lhs : util::ArithmeticFactory::Convert<F64>( lhs ).GetValue<F64>();
+        //F64 const d1 = pd_lhs != nullptr ? *pd_lhs : static_cast<F64>( lhs.GetAsInteger() );
+        F64 const d2 = pd_rhs != nullptr ? *pd_rhs : util::ArithmeticFactory::Convert<F64>( rhs ).GetValue<F64>();
+        //F64 const d2 = pd_rhs != nullptr ? *pd_rhs : static_cast<F64>(rhs.GetAsInteger());
+#if _MSC_VER || _LIBCPP_VERSION // libc++14 works here, libstdc++ of g++11 not.
+        return std::strong_order( d1, d2 ); //TODO: check this! we could bail out on e.g., NaN instead or change return value to partial_odering.
+#else
+        auto const c = d1 <=> d2;
+        if( c == std::partial_ordering::unordered ) {
+            throw exception::runtime_error( "Strong ordering of floating point not implemented on this platform!" );
+        } else if( c == std::partial_ordering::less ) {
+            return std::strong_ordering::less;
+        } else if( c == std::partial_ordering::equivalent ) {
+            return std::strong_ordering::equal;
+        } else {
+            return std::strong_ordering::greater;
+        }
+#endif
+    }
+
+    // bool, string and any will be converted to long long for comparison if any of the values is a long long
+    // NOTE: In C++ bool is also converted to long long when the bool is compared with a long long!
+    if( lhs.GetTypeInfo()->IsArithmetic() || rhs.GetTypeInfo()->IsArithmetic() ) {
+        return util::ArithmeticFactory::Compare( lhs, rhs );
+    }
+
+    // otherwise string and any will be converted to bool if any of the values is a bool
+    if( lhs.GetValuePtr<bool>() != nullptr || rhs.GetValuePtr<bool>() != nullptr ) {
+        return lhs.GetAsBool() <=> rhs.GetAsBool();
+    }
+
+    //FIXME: implement clean conversion rules!
+    if( lhs.GetValuePtr<std::string>() != nullptr && (lhs.GetValuePtr<std::string>() != nullptr || /*convertible*/ false) ) {
+#if !_LIBCPP_VERSION // libc++14 fails here
+        return lhs.GetAsString() <=> rhs.GetAsString();
+#else
+        auto const res = lhs.GetAsString().compare( rhs.GetAsString() );
+        return res < 0 ? std::strong_ordering::less : res > 0 ? std::strong_ordering::greater : std::strong_ordering::equal;
+#endif
+    }
+
+    if( lhs.GetValuePtr<TypeInfo>() != nullptr && rhs.GetValuePtr<TypeInfo>() != nullptr ) {
+#if !_LIBCPP_VERSION // libc++14 fails here
+        return lhs.GetValue<TypeInfo>().ToTypeIndex() <=> rhs.GetValue<TypeInfo>().ToTypeIndex();
+#else
+        auto const i1 = lhs.GetValue<TypeInfo>().ToTypeIndex();
+        auto const i2 = rhs.GetValue<TypeInfo>().ToTypeIndex();
+        return i1 < i2 ? std::strong_ordering::less : i2 < i1 ? std::strong_ordering::greater : std::strong_ordering::equal;
+#endif
+    }
+
+    if( lhs.GetTypeInfo()->IsSame<Tuple>() && rhs.GetTypeInfo()->IsSame<Tuple>() ) {
+        return tuple::compare_values( lhs.GetValue<Tuple>(), rhs.GetValue<Tuple>() );
+    }
+
+    //FIXME: Now need type info for check equal types or conversion
+    throw exception::bad_value_cast( "types do not match for comparison!" );
+}
+
+/// Returns whether the 2 ValueObjects are equal.
+inline bool operator==( teascript::ValueObject const &lhs, teascript::ValueObject const &rhs )
+{
+    auto const res = lhs <=> rhs;
+    return res == std::strong_ordering::equal || res == std::strong_ordering::equivalent;
+}
+
+/// Returns whether the 2 ValueObjects are unequal.
+inline bool operator!=( teascript::ValueObject const &lhs, teascript::ValueObject const &rhs )
+{
+    return !(lhs == rhs);
+}
 
 } // namespace teascript
 

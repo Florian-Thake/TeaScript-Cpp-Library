@@ -1,18 +1,17 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 #pragma once
 
 #include <stdexcept>
 #include <string>
 #include <memory>
+#include <limits>
 
 #include "SourceLocation.hpp"
 
@@ -21,8 +20,8 @@
 /// parsing error (during parsing) and evaluation error (during evaluation).
 /// Both have the teascript::exception::runtime_error as a common base. Thus,
 /// both of them have an optionally SourceLoction available.
-/// There is one more exception teascript::exception::bad_value_cast, which has
-/// std::bad_any_cast as base.
+/// There is one more exception teascript::exception::bad_value_cast, which now
+/// has also runtime_error as a base.
 /// Another exception category is for control flow in the teascript::control::*
 /// Those exceptions are not meant for the user level, but might escape from
 /// the inner teascript library if either a user or library bug exists.
@@ -35,8 +34,8 @@ namespace exception {
 class runtime_error : public std::runtime_error
 {
 protected:
-    SourceLocation const  mLoc;
-    std::string    const  mErrorStr;
+    SourceLocation  mLoc;
+    std::string     mErrorStr;
 public:
     explicit runtime_error( std::string const &rText ) : std::runtime_error( rText ), mLoc(), mErrorStr() {}
 
@@ -76,6 +75,11 @@ public:
     inline SourceLocation const &GetSourceLocation() const noexcept
     {
         return mLoc;
+    }
+
+    inline void SetSourceLocation( SourceLocation const &rLoc )
+    {
+        mLoc = rLoc;
     }
 
     std::string const &GetFileStr() const noexcept
@@ -198,6 +202,7 @@ class type_mismatch : public eval_error
 {
 public:
     type_mismatch( SourceLocation const &rLoc = {} ) : eval_error( rLoc, "Type mismatch! Cannot assign different types! No conversion rules found!" ) {}
+    type_mismatch( std::string const &rText, SourceLocation const &rLoc = {} ) : eval_error( rLoc, "Type mismatch! " + rText ) {}
 };
 
 /// Exception thrown if a const value was attempted to change.
@@ -228,6 +233,19 @@ class modulo_with_floatingpoint : public eval_error
 {
 public:
     modulo_with_floatingpoint( SourceLocation const &rLoc = {} ) : eval_error( rLoc, "Modulo operator not available for floating point numbers!" ) {}
+};
+
+/// Exception thrown if an integer overflow occurs and was detected.
+class integer_overflow : public eval_error
+{
+public:
+    integer_overflow( SourceLocation const &rLoc = {} ) : eval_error( rLoc, "Integer overflow!" ) {}
+    template< typename T, std::integral U > requires( std::is_integral_v<T> || std::is_floating_point_v<T> )
+    integer_overflow( T val, U /*dummy*/, SourceLocation const &rLoc = {} ) : eval_error( rLoc, "Integer overflow with " + std::to_string( val ) + ", limits: "
+                                                                                          + std::to_string( std::numeric_limits<U>::min() ) + ", "
+                                                                                          + std::to_string( std::numeric_limits<U>::max() ) )
+    {
+    }
 };
 
 /// Exception thrown if an index was out of range.

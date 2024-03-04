@@ -1,0 +1,251 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText: Copyright (C) 2024 Florian Thake <contact@tea-age.solutions>. All rights reserved.
+ */
+ 
+// This is a follow up Unittest for the TeaScript Core Library written in TeaScript for versions >= 0.13
+// This test mainly focussing on the new string functions / improved utf8 behavior and partly for the new Buffer type and functions.
+
+// NOTE: assuming all C++ UnitTests and test01.tea + test02.tea passed 100%!
+
+// some pre-check of the environment. 
+##minimum_version 0.13
+// fallback for versions older than 0.11 which don't support ##minimum_version.
+// they will produce a parse error when raw string literals are used...
+// cover this case here first and try to produce a readable error.
+// This protects against every new syntax introduced in 0.11 and above!
+if( _version_major < 1 and _version_minor < 13 ) {
+    // return from 'main' exists since 0.8.0 which was the first public release...
+    return """Version is too old. Need 0.13.0 as minimum."""
+}
+
+if( not is_defined _core_config or (_core_config bit_and 0xf) < 8 /* LevelFull */ ) {
+    return "Tests must always run with CoreLibrary LevelFull."
+}
+
+// --- pre check done...
+
+// helper function for new (optional feature) color printing (starting from 0.12)
+func maybe_cprint( color, text )
+{
+    if( is_defined cprint ) {
+        cprint( color, text )
+    } else {
+        print( text )
+    }
+}
+
+// use build-in make_rgb function if available or quickly create it.
+is_defined make_rgb or (func make_rgb( r, g, b ) { r bit_lsh 16 bit_or g bit_lsh 8 bit_or b })
+
+
+func print_failure( text )
+{
+    // red color
+    maybe_cprint( make_rgb( 255, 0, 0 ), text )
+}
+
+func print_success( text )
+{
+    // green color
+    maybe_cprint( make_rgb( 0, 255, 0 ), text )
+}
+
+
+// --- UnitTest function definitions 
+
+func TEST_EQ( val, expected, msg )
+{
+    def res := val == expected
+    if( not res ) {
+        print_failure( "\nFAILED:\n" )
+        fail_with_message( "expected %(expected) but was %(val). " % msg, _exit_failure )
+    }
+}
+
+func TEST_TRUE( c, msg )
+{
+    // enforce a boolean!
+    TEST_EQ( not not c, true, msg )
+}
+
+func TEST_FALSE( c, msg )
+{
+    // enforce a boolean!
+    TEST_EQ( not not c, false, msg )
+}
+
+// --- Start the test
+
+_out( "Start testing TeaScript Core Library ...\n" )
+
+print( "testing strsplit ... " )
+
+{
+    def   str :=  "1;2;3;10;18;103"
+    const res :=  strsplit( str, ";" )
+    print( format( "\nres = {}\n", res)  )
+    TEST_TRUE( res as Bool, "tuple is empty!" )
+    TEST_EQ( _tuple_size( res ), 6, "tuple has not 6 elements! (size=%(_tuple_size(res)))" )
+    TEST_EQ( res[0], 1, "res[0] != 1" )
+    TEST_EQ( res[1], 2, "res[1] != 2" )
+    TEST_EQ( res[2], 3, "res[2] != 3" )
+    TEST_EQ( res[3], 10, "res[3] != 10" )
+    TEST_EQ( res[4], 18, "res[4] != 18" )
+    TEST_EQ( res[5], 103, "res[5] != 103" )
+    
+    str :=  ";1;2;;3;10;;;18;103;"
+    const res2 :=  strsplit( str, ";" )
+    print( format( "res2 = {}\n", res2)  )
+    TEST_TRUE( res2 as Bool, "tuple is empty!" )
+    TEST_EQ( _tuple_size( res2 ), 11, "tuple has not 11 elements! (size=%(_tuple_size(res)))" )
+    TEST_FALSE( res2[0], "Index 0 is not empty string" )
+    TEST_FALSE( res2[10], "Index 10 is not empty string" )
+    TEST_FALSE( res2[3], "Index 3 is not empty string" )
+    
+    const res3 :=  strsplit( str, ";", true )
+    print( format( "res3 = {}\n", res3)  )
+    TEST_TRUE( res3 as Bool, "tuple is empty!" )
+    TEST_EQ( _tuple_size( res3 ), 6, "tuple has not 6 elements! (size=%(_tuple_size(res3)))" )
+    TEST_EQ( res3[0], 1, "res3[0] != 1" )
+    TEST_EQ( res3[1], 2, "res3[1] != 2" )
+    TEST_EQ( res3[2], 3, "res3[2] != 3" )
+    TEST_EQ( res3[3], 10, "res3[3] != 10" )
+    TEST_EQ( res3[4], 18, "res3[4] != 18" )
+    TEST_EQ( res3[5], 103, "res3[5] != 103" )
+}
+
+print_success( "ok.\n" )
+
+print( "testing strjoin ... " )
+
+{
+    def tup := _tuple_create()
+    def tup.0 := 1
+    def tup.1 := 2
+    def tup.2 := 3
+    def tup.3 := true
+    def tup.4 := "Foo"
+    def tup.5 := 1.3
+    
+    const expected := "1=#=2=#=3=#=true=#=Foo=#=1.3"
+    const res := strjoin( tup, "=#=" )
+    println( "\nres = " % res )
+    TEST_EQ( res, expected, "strjoin failed!" )
+    
+    const expected2 := "^1^2^3^true^Foo^1.3^"
+    const res2 := strjoin( tup, _strfromascii( 0x5E ), true, true )
+    println( "res2 = " % res2 )
+    TEST_EQ( res2, expected2, "strjoin failed!" )
+}
+
+print_success( "ok.\n" )
+
+print( "testing _strglyphtobytepos ... " )
+
+{
+    const str := "🚀 🍀 ☠ 🔥"
+    // glyph starts at 0 as well!
+    TEST_EQ( _strglyphtobytepos( str, 2 ), 5, "_strglyphtobytepos failed!" )
+    TEST_EQ( _strglyphtobytepos( str, 3 ), 9, "_strglyphtobytepos failed!" )
+    TEST_EQ( _strglyphtobytepos( str, 4 ), 10, "_strglyphtobytepos failed!" )
+}
+
+print_success( "ok.\n" )
+
+
+print( "testing enhanced strtrim of utf-8 ... " )
+
+{
+    const str := "🚀🚀🚀 🍀 🚀🚀☠🚀☠☠🚀🚀"
+    
+    println( "\nbefore: %(str)" )
+    
+    const res := strtrim( str, "☠ 🚀" )
+    
+    println( "after: %(str)" )
+    
+    TEST_EQ( res, "🍀", "strtrim failed!" )
+}
+
+print_success( "ok.\n" )
+
+
+print( "testing utf-8 iterator ... " )
+
+{
+    // Info: between each symbol is a single space. Also, the 3rd symbol uses 3 chars, the others need 4.
+    const str := "🚀 🍀 ☠ 🔥"
+    
+    print( "iterating over %(str) ... " )
+    
+    def it := utf8_begin( str )
+    TEST_EQ( it.cur, "🚀", "wrong unicode glyph!" )
+    it := utf8_next( it )
+    TEST_FALSE( utf8_end( it ), "early reached end!" )
+    TEST_EQ( it.cur, " ", "wrong unicode glyph!" )
+    
+    it := utf8_next( it )
+    TEST_FALSE( utf8_end( it ), "early reached end!" )
+    TEST_EQ( it.cur, "🍀", "wrong unicode glyph!" )
+    it := utf8_next( it )
+    TEST_FALSE( utf8_end( it ), "early reached end!" )
+    TEST_EQ( it.cur, " ", "wrong unicode glyph!" )
+    
+    it := utf8_next( it )
+    TEST_FALSE( utf8_end( it ), "early reached end!" )
+    TEST_EQ( it.cur, "☠", "wrong unicode glyph!" )
+    it := utf8_next( it )
+    TEST_FALSE( utf8_end( it ), "early reached end!" )
+    TEST_EQ( it.cur, " ", "wrong unicode glyph!" )
+    
+    it := utf8_next( it )
+    TEST_TRUE( utf8_end( it ), "not reached end!" )
+    TEST_EQ( it.cur, "🔥", "wrong unicode glyph!" )
+    
+    // for the case utf_end is ignored or not called:
+    it := utf8_next( it )
+    TEST_TRUE( utf8_end( it ), "not reached end!" ) // still yields end!
+    TEST_EQ( it.cur, "", "not empty string" )       // now its one past the end == 0
+    it := utf8_next( it )
+    TEST_TRUE( utf8_end( it ), "not reached end!" ) // still yields end!
+    TEST_EQ( it.cur, "", "not empty string" )       // still one past the end == 0
+}
+
+print_success( "ok.\n" )
+
+print( "testing buffer set/get utf-8 string ... " )
+
+{
+    const str := "🚀 🍀 ☠ 🔥"
+    
+    // NOTE: The buffer utility functions are mainly tested on C++ Unittest level.
+    
+    def buf := _buf( 8 + _strlen(str) )
+    buf_zero( buf )
+    
+    // store the length first. (_strlen returns I64!)
+    TEST_TRUE( _buf_set_u64( buf, 0, _strlen(str) as u64 ), "_buf_set_u64 failed!" )
+    // then the string.
+    TEST_TRUE( _buf_set_string( buf, 8, str ), "_buf_set_string failed!" )
+    
+    println("buf = %(buf)" )
+    
+    const len := _buf_get_u64( buf, 0 )
+    TEST_EQ( len as i64, _strlen( str ), "_buf_get_u64 failed!" )
+    
+    const res := _buf_get_string( buf, 8, len )
+    
+    TEST_EQ( res, str, "_buf_get_string failed!" )
+    
+    // now we change the buffer content to an invalid utf-8 string
+    
+    // second char of 🍀
+    buf[8 + 6] := 65u8  // 'A' is not a follow char!
+    TEST_FALSE( _buf_get_string( buf, 8, len ), "utf-8 validation was wrong!" )
+}
+
+print_success( "ok.\n" )
+
+print_success( "=== TEST PASSED ===\n" )
+

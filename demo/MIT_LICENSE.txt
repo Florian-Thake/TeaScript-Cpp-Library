@@ -1,6 +1,9 @@
+The MIT license
+
+Copyright (C) 2024 Florian Thake, <contact |at| tea-age.solutions>
+
 The following license only applies for files which are marked with SPDX-License-Identifier: MIT
 
-Copyright (C) 2023 Florian Thake, <contact |at| tea-age.solutions>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated 
 documentation files (the "Software"), to deal in the Software without restriction, including without limitation 

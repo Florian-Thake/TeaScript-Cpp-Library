@@ -1,12 +1,10 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 #pragma once
 
@@ -48,7 +46,7 @@ public:
         mChildren.emplace_back( std::move( node ) );
     }
 
-    ValueObject Eval( Context &rContext ) override
+    void Check() const override
     {
         if( IsIncomplete() ) {
             throw exception::eval_error( GetSourceLocation(), "Func ASTNode incomplete! Some parts are missing!" );
@@ -57,6 +55,11 @@ public:
         if( mChildren.size() < 2 || (mChildren[0]->GetName() == "Id" && mChildren.size() < 3) ) {
             throw exception::eval_error( GetSourceLocation(), "Internal error! Parameter or Block for func def is missing!" );
         }
+    }
+
+    ValueObject Eval( Context &rContext ) const override
+    {
+        Check();
 
         auto  paramdef = mChildren[mChildren.size() - 2];
         auto  block = mChildren[mChildren.size() - 1];
@@ -105,7 +108,7 @@ public:
         mChildren.emplace_back( std::move( node ) );
     }
 
-    ValueObject Eval( Context &rContext ) override
+    void Check() const override
     {
         if( IsIncomplete() ) {
             throw exception::eval_error( GetSourceLocation(), "CallFunc ASTNode incomplete! Some parts are missing!" );
@@ -114,6 +117,11 @@ public:
         if( mChildren.size() < 2 ) {
             throw exception::eval_error( GetSourceLocation(), "Internal error! Id or Parameter List for func call is missing!" );
         }
+    }
+
+    ValueObject Eval( Context &rContext ) const override
+    {
+        Check();
 
         // get the ValueObject with the Func
         auto funcval = mChildren[0]->Eval( rContext );

@@ -1,12 +1,10 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 /* classical guards if someone uses very old C  ... and of course also only C90 comments ;-) */
 #ifndef TEASCRIPT_VERSION_HEADER_INC_GAURD
@@ -22,7 +20,7 @@
 
 
 #define TEASCRIPT_VERSION_MAJOR   0
-#define TEASCRIPT_VERSION_MINOR   12
+#define TEASCRIPT_VERSION_MINOR   13
 #define TEASCRIPT_VERSION_PATCH   0
 
 /* TODO: ? //#define TEASCRIPT_VERSION_RELEASE_KIND  alpha/beta/... */
@@ -30,7 +28,13 @@
 /* builds a version number as (unsigned) int. note: one byte left for e.g. alpha, beta or hotfix stuff, if needed. */
 #define TEASCRIPT_BUILD_VERSION_NUMBER( major, minor, patch )  (((major) << 24) + ((minor) << 16) + ((patch) << 8) )
 
+/* the current (combined) version number of TeaScript */
 #define TEASCRIPT_VERSION    TEASCRIPT_BUILD_VERSION_NUMBER( TEASCRIPT_VERSION_MAJOR, TEASCRIPT_VERSION_MINOR, TEASCRIPT_VERSION_PATCH )
+
+/* extracts the major, minor and patch part from a combined version number */
+#define TEASCRIPT_VERSION_EXTRACT_MAJOR( combined )  ((combined >> 24) & 0xFF)
+#define TEASCRIPT_VERSION_EXTRACT_MINOR( combined )  ((combined >> 16) & 0xFF)
+#define TEASCRIPT_VERSION_EXTRACT_PATCH( combined )  ((combined >>  8) & 0xFF)
 
 /* helper for version string */
 #define TEASCRIPT_STRINGIFY(x) TEASCRIPT_DO_STRINGIFY(x)

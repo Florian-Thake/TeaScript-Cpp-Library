@@ -16,6 +16,7 @@
 // fallback for versions older than 0.11 which don't support ##minimum_version.
 // they will produce a parse error when raw string literals are used...
 // cover this case here first and try to produce a readable error.
+// This protects against every new syntax introduced in 0.11 and above!
 if( _version_major < 1 and _version_minor < 12 ) {
     // return from 'main' exists since 0.8.0 which was the first public release...
     return """Version is too old. Need 0.12.0 as minimum."""

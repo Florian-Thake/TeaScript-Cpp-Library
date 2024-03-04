@@ -1,19 +1,17 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 #pragma once
 
 #include "Content.hpp"
 #include "ParsingState.hpp"
 #include "ASTNode.hpp"
-#include "Util.hpp"
+#include "UtilContent.hpp"
 #include "Exception.hpp"
 #include "version.h"
 #include <unordered_set>
@@ -159,6 +157,19 @@ public:
         mState->Clear();
     }
 
+    /// Enables normal parsing mode (parsing complete TeaScript syntax). default: enabled.
+    void SetEnabled() noexcept
+    {
+        mState->disabled = false;
+    }
+
+    /// Disables normal parsing mode.
+    /// Then only hash lines are parsed until parsing mode will be enabled again. All other lines are skipped.
+    void SetDisabled() noexcept
+    {
+        mState->disabled = true;
+    }
+
     /// enables or disables debug mode (default: off).
     /// \note enabled debug mode will preserve the source code for the ASTNodes. Thus, the parsing will take slightly longer and the ASTNodes use more memory.
     void SetDebug( bool const enabled ) noexcept
@@ -287,6 +298,22 @@ public:
         while( is_whitespace( static_cast<unsigned char>(*rHere) ) && rHere.HasMore() ) rHere.IncInLine_Unchecked();
     }
 
+    /// tries to scan a version number in the form major[.minor[.patch]] from the current position. \throws if nothing found or illformed.
+    /// \return the combined version number for easy compare.
+    unsigned int ScanVersionNumber( Content &rHere )
+    {
+        unsigned int major = 0, minor = 0, patch = 0, reserved = 0;
+#if defined(_MSC_VER)
+        auto const scanned = sscanf_s( &(*rHere), "%u.%u.%u.%u", &major, &minor, &patch, &reserved );
+#else
+        auto const scanned = sscanf( &(*rHere), "%u.%u.%u.%u", &major, &minor, &patch, &reserved );
+#endif
+        if( scanned < 1 || scanned > 3 ) {
+            util::throw_parsing_error( rHere, mState->GetFilePtr(), "Parser option: Invalid version specification! Must be \"major[.minor[.patch]]\"" );
+        }
+        return TEASCRIPT_BUILD_VERSION_NUMBER( major, minor, patch );
+    }
+
 
     bool HashLine( Content &rHere )
     {
@@ -299,19 +326,50 @@ public:
                 // minimum_version is directly checked here.
                 if( CheckWordAndMove( "minimum_version", rHere ) ) {
                     SkipWhitespace( rHere );
-                    unsigned int major = 0, minor = 0, patch = 0, reserved = 0;
-#if defined(_MSC_VER)
-                    auto const scanned = sscanf_s( &(*rHere), "%u.%u.%u.%u", &major, &minor, &patch, &reserved );
-#else
-                    auto const scanned = sscanf( &(*rHere), "%u.%u.%u.%u", &major, &minor, &patch, &reserved );
-#endif
-                    if( scanned < 1 || scanned > 3 ) {
-                        util::throw_parsing_error( rHere, mState->GetFilePtr(), "Parser option minimum_version: Invalid version specification! Must be \"major[.minor[.patch]]\"" );
-                    } else {
-                        unsigned int const combined = TEASCRIPT_BUILD_VERSION_NUMBER( major, minor, patch );
-                        if( teascript::version::combined_number() < combined ) {
-                            std::string const min_version = std::to_string( major ) + "." + std::to_string( minor ) + "." + std::to_string( patch );
-                            util::throw_parsing_error( rHere, mState->GetFilePtr(), "Minimum version requirement not met: Need at least version " + min_version );
+                    unsigned int const combined = ScanVersionNumber( rHere );
+                    if( teascript::version::combined_number() < combined ) {
+                        std::string const min_version = std::to_string( TEASCRIPT_VERSION_EXTRACT_MAJOR(combined) ) 
+                                                      + "." + std::to_string( TEASCRIPT_VERSION_EXTRACT_MINOR(combined) ) 
+                                                      + "." + std::to_string( TEASCRIPT_VERSION_EXTRACT_PATCH(combined) );
+                        util::throw_parsing_error( rHere, mState->GetFilePtr(), "Minimum version requirement not met: Need at least version " + min_version );
+                    }
+                } else if( CheckWordAndMove( "disable", rHere ) ) {
+                    SetDisabled();
+                } else if( CheckWordAndMove( "enable", rHere ) ) {
+                    SetEnabled();
+                } else if( CheckWord( "enable_if", rHere ) || CheckWord( "disable_if", rHere ) ) {
+                    bool const  enable_if = CheckWordAndMove( "enable_if", rHere );
+                    if( not enable_if ) {
+                        rHere.MoveInLine_Unchecked( static_cast<int>(strlen( "disable_if" )) );
+                    }
+
+                    SkipWhitespace( rHere );
+                    // version compare. In the form of 'version OP major[.minor[.patch]]'.
+                    // We interpret it as a boolean expression.
+                    if( CheckWordAndMove( "version", rHere ) ) {
+                        // we make sub parser for build the expression
+                        Parser p;
+                        p.SetDebug( mState->is_debug );
+                        // put our version hardcoded
+                        p.mState->AddASTNode( std::make_shared<ASTNode_Constant>( TEASCRIPT_VERSION ) );
+                        SkipWhitespace( rHere );
+                        // now we need an operator
+                        auto res = p.Symbol( rHere );
+                        if( res == eSymFound::Operator ) {
+                            SkipWhitespace( rHere );
+                            // extract given version number.
+                            auto const  v = ScanVersionNumber( rHere );
+                            p.mState->AddASTNode( std::make_shared<ASTNode_Constant>( static_cast<long long>( v ) ) );
+                            auto node = p.mState->GetLastToplevelASTNode();
+                            if( node.get() != nullptr ) {
+                                Context dummy;
+                                bool const cond = node->Eval( dummy ).GetAsBool();
+                                if( (cond && enable_if) || (not cond && not enable_if) ) {
+                                    SetEnabled();
+                                } else {
+                                    SetDisabled();
+                                }
+                            }
                         }
                     }
                 }
@@ -455,33 +513,36 @@ public:
     }
 
     /// Parses an integer (long long default) or decimal (double)
-    /// DEPRECATED: Please use Num() (or Integer()) instead.
-    [[deprecated( "Please, use Num() (or Integer()) instead." )]]
-    bool Int( Content &rHere )
-    {
-        return Num( rHere, false );
-    }
-
-
-    /// Parses an integer (long long default) or decimal (double)
     bool Num( Content &rHere, bool integers_only = false )
     {
-        bool skip = false;
+        bool sign = false;
         unsigned char const  first = static_cast<unsigned char>(*rHere);
         if( !std::isdigit( first ) ) {
             if( (first == '-' || first == '+') && std::isdigit( static_cast<unsigned char>(rHere[1]) ) ) {
-                skip = true;
+                sign = true;
             } else {
                 return false;
             }
         }
-        Content const start = first=='+' ? rHere + 1 : rHere; // skip unary +
-        if( skip ) ++rHere; // advance to digit
 
-        while( rHere.HasMore() && std::isdigit( static_cast<unsigned char>(*rHere) ) ) ++rHere;
+        Content const origin_pos = rHere;
+
+        Content  start = first == '+' ? rHere + 1 : rHere; // skip unary +
+        if( sign ) ++rHere; // advance to digit
+
+        bool hex = false;
+        if( rHere == '0' && rHere[1] == 'x' ) {
+            hex = true;
+            rHere += 2;
+            start = rHere; // 0x cannot be parsed by from_chars(), therefor we must also handle a - sign by our self in such a case.
+            while( rHere.HasMore() && std::isxdigit( static_cast<unsigned char>(*rHere) ) ) ++rHere;
+        } else {
+            while( rHere.HasMore() && std::isdigit( static_cast<unsigned char>(*rHere) ) ) ++rHere;
+        }
+
 
         // floating point number?
-        if( not integers_only && (rHere == '.' || rHere == 'e') ) {
+        if( not integers_only && not hex && (rHere == '.' || rHere == 'e' || CheckWord("f64", rHere )) ) {
             //NOTE: Must support . _and_ e same time, e.g. 123.456e-12
             if( rHere == '.' ) {
                 ++rHere;
@@ -495,39 +556,91 @@ public:
                 while( rHere.HasMore() && std::isdigit( static_cast<unsigned char>(*rHere) ) ) ++rHere;
             }
 
-            //TODO: check if rHere is a letter, which would be invalid?!?! (but be aware of later desired f/f64, etc)
+            Content const end = rHere;
+            if( std::isalpha( static_cast<unsigned char>(*rHere) ) ) {
+                if( not CheckWordAndMove( "f64", rHere ) ) {
+                    util::throw_parsing_error( rHere, mState->GetFilePtr(), "Invalid suffix for float. Must be f64." );
+                }
+            }
 
             double val = -1.;
 #if !_LIBCPP_VERSION // libc++14 fails here            
-            auto const  res = std::from_chars( &(*start), (&(*rHere)), val );
+            auto const  res = std::from_chars( &(*start), (&(*end)), val );
             if( std::errc::result_out_of_range == res.ec ) {
-                throw std::out_of_range( "Double constant too big!" );
+                util::throw_parsing_error( start, mState->GetFilePtr(), "Double constant too big!" );
             } else if( std::errc::invalid_argument == res.ec ) { // huh? safety...
-                rHere = start; // rollback
+                rHere = origin_pos; // rollback
                 return false;
             }
 #else
-            std::string const copy( &(*start), (&(*rHere)) );
+            std::string const copy( &(*start), (&(*end)) );
             val = std::stod( copy ); // may throw ...
 #endif
 
-            mState->AddASTNode( std::make_shared<ASTNode_Constant>( val, util::make_srcloc( mState->GetFilePtr(), start, rHere ) ) );
+            mState->AddASTNode( std::make_shared<ASTNode_Constant>( val, util::make_srcloc( mState->GetFilePtr(), origin_pos, rHere ) ) );
 
             return true;
         }
 
-        //TODO: check if rHere is a letter, which would be invalid?!?!  (but be aware of later desired u/i/u64/i64, etc)
 
-        long long val = -1;
-        auto const  res = std::from_chars( &(*start), (&(*rHere)), val, 10 );
-        if( std::errc::result_out_of_range == res.ec ) {
-            throw std::out_of_range( "Integer constant too big!" );
-        } else if( std::errc::invalid_argument == res.ec ) { // huh? safety...
-            rHere = start; // rollback
-            return false;
+        if( first == '-' ) {
+            // here we must handle the minus by our self for the hex case, e.g. for -0xff only ff can be passed to from_chars.
+            // but for streamlining the code we also do it for the not hex case.
+            if( not hex ) { start += 1; } // skip -
+            unsigned long long val = 0ULL;
+            auto const  res = std::from_chars( &(*start), (&(*rHere)), val, hex ? 16 : 10 );
+            if( std::errc::result_out_of_range == res.ec 
+                || static_cast<unsigned long long>(std::numeric_limits<long long>::max()) < val 
+                || 0ULL - std::numeric_limits<long long>::min() < val ) {
+                util::throw_parsing_error( start, mState->GetFilePtr(), "Integer constant too big!" );
+            } else if( std::errc::invalid_argument == res.ec ) { // huh? safety...
+                rHere = origin_pos; // rollback
+                return false;
+            }
+
+            if( std::isalpha( static_cast<unsigned char>(*rHere) ) ) {
+                if( not CheckWordAndMove( "i64", rHere ) ) {
+                    util::throw_parsing_error( rHere, mState->GetFilePtr(), "Invalid suffix for integer. Must be i64 for negative numbers." );
+                }
+            }
+
+            signed long long int const  sval = -static_cast<long long>(val);
+            mState->AddASTNode( std::make_shared<ASTNode_Constant>( sval, util::make_srcloc( mState->GetFilePtr(), origin_pos, rHere ) ) );
+        } else {
+            unsigned long long val = 0ULL;
+            auto const  res = std::from_chars( &(*start), (&(*rHere)), val, hex ? 16 : 10 );
+            if( std::errc::result_out_of_range == res.ec ) {
+                util::throw_parsing_error( start, mState->GetFilePtr(), "Integer constant too big!" );
+            } else if( std::errc::invalid_argument == res.ec ) { // huh? safety...
+                rHere = origin_pos; // rollback
+                return false;
+            }
+
+            ValueObject  v{val};
+
+            if( std::isalpha( static_cast<unsigned char>(*rHere) ) ) {
+                if( CheckWordAndMove( "i64", rHere ) ) {
+                    mState->AddASTNode( std::make_shared<ASTNode_Constant>( util::ArithmeticFactory::Convert<I64>(v), util::make_srcloc( mState->GetFilePtr(), origin_pos, rHere ) ) );
+                } else if( CheckWordAndMove( "u8", rHere ) ) {
+                    // Convert() will allow defined overflow for unsigned.
+                    // but for explicit u8 types we don't want this behavior!
+                    if( val > std::numeric_limits<U8>::max() ) {
+                        util::throw_parsing_error( start, mState->GetFilePtr(), "Integer constant too big!" );
+                    }
+                    mState->AddASTNode( std::make_shared<ASTNode_Constant>( util::ArithmeticFactory::Convert<U8>( v ), util::make_srcloc( mState->GetFilePtr(), origin_pos, rHere ) ) );
+                } else if( CheckWordAndMove( "u64", rHere ) ) {
+                    mState->AddASTNode( std::make_shared<ASTNode_Constant>( std::move(v), util::make_srcloc( mState->GetFilePtr(), origin_pos, rHere ) ) );
+                } else {
+                    util::throw_parsing_error( rHere, mState->GetFilePtr(), "Invalid suffix for integer. Must be u8, u64 or i64." );
+                }
+            } else {
+                //special case: 0x1.1 --> hexdouble not allowed! check for dot and throw.
+                if( hex && rHere == '.' ) {
+                    util::throw_parsing_error( rHere, mState->GetFilePtr(), "floating point numbers are not allowed in hexadecimal notation!" );
+                }
+                mState->AddASTNode( std::make_shared<ASTNode_Constant>( util::ArithmeticFactory::Convert<I64>( v ), util::make_srcloc( mState->GetFilePtr(), origin_pos, rHere ) ) );
+            }
         }
-
-        mState->AddASTNode( std::make_shared<ASTNode_Constant>( val, util::make_srcloc( mState->GetFilePtr(), start, rHere ) ) );
 
         return true;
     }
@@ -661,11 +774,17 @@ public:
                 || id == "lt"  || id == "le" || id == "gt" || id == "ge" || id == "ne" || id == "eq" ) { // comparison
             mState->AddASTNode( std::make_shared<ASTNode_Binary_Operator>( std::string( id ), MakeSrcLoc( start ) ) );
             return IDResultOperator;
-        } else if( id == "not" ) { // logical not
+        } else if( id == "not" || id == "bit_not" ) { // logical not / bit not
             mState->AddASTNode( std::make_shared<ASTNode_Unary_Operator>( std::string( id ), MakeSrcLoc( start ) ) );
+            return IDResultOperator;
+        } else if( id == "bit_and" || id == "bit_or" || id == "bit_xor" || id == "bit_lsh" || id == "bit_rsh" ) { // bit and|or|xor, lsh|rsh
+            mState->AddASTNode( std::make_shared<ASTNode_Bit_Operator>( std::string( id ), MakeSrcLoc( start ) ) );
             return IDResultOperator;
         } else if( id == "is" ) { // is type operator
             mState->AddASTNode( std::make_shared<ASTNode_Is_Type>( MakeSrcLoc( start, rHere ) ) );
+            return IDResultOperator;
+        } else if( id == "as" ) { // is type operator
+            mState->AddASTNode( std::make_shared<ASTNode_As_Type>( MakeSrcLoc( start, rHere ) ) );
             return IDResultOperator;
         }
 
@@ -1020,6 +1139,9 @@ public:
                 }
             } else if( HashLine( rHere ) ) {
 
+            } else if( mState->disabled ) {
+                // in disabled mode we only parse hash lines until enabled again.
+                SkipToNextLine( rHere );
             } else {
                 SkipWhitespace( rHere );
 

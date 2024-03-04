@@ -39,16 +39,20 @@ func maybe_cprint( color, text )
     }
 }
 
+// use build-in make_rgb function if available or quickly create it.
+is_defined make_rgb or (func make_rgb( r, g, b ) { r * 256 * 256 + g * 256 + b })
+
+
 func print_failure( text )
 {
-    // red color, because cannot use make_rgb()
-    maybe_cprint( 255*256*256, text )
+    // red color
+    maybe_cprint( make_rgb( 255, 0, 0 ), text )
 }
 
 func print_success( text )
 {
-    // green color, because cannot use make_rgb()
-    maybe_cprint( 255*256, text )
+    // green color
+    maybe_cprint( make_rgb( 0, 255, 0 ), text )
 }
 
 
@@ -445,6 +449,21 @@ print( "testing stack support ... " )
     if( stack ) {
         TEST_TRUE( false, "empty stack evals to true!" )
     }
+    
+    // Extended test. There was a bug fixed in 0.13 that functions which return a const object
+    // produces a const object even if def assign was used (a copy of an object is always mutable when using def!).
+    // We can check for 'is Const' since 0.11. NOTE: 0.11 and 0.12 will fail this test always!
+    if( version_major >= 1 or version_minor >= 11 ) {
+        stack_push( stack, 1 )
+        def xyz := stack_pop( stack ) // xyz shall be mutable!
+        if( xyz is Const ) {
+            if( version_major >= 1 or version_minor >= 13 ) {
+                TEST_FALSE( true, "stack_pop produced a const value for def assign!" )
+            } else {
+                maybe_cprint( make_rgb( 255, 0, 255 ), "WARNING: This version has a bug when return const values from functions!\n" )
+            }
+        }
+    }
 }
 
 
@@ -471,7 +490,7 @@ if( version_major >= 1 or version_minor >= 11 )
 print_success( "=== TEST PASSED ===\n" )
 
 println( "\nFinally testing tuple print." )
-maybe_cprint( 256*256*255+255, "\nTHIS MUST BE VERIFIED MANUALLY!!!\n\n" )
+maybe_cprint( make_rgb( 255, 0, 255 ), "\nTHIS MUST BE VERIFIED MANUALLY!!!\n\n" )
 
 {
     def tup := _tuple_create()   // empty tuple

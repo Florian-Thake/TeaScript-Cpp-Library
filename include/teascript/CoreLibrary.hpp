@@ -1,12 +1,10 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 #pragma once
 
@@ -30,6 +28,10 @@
 #include <chrono>
 #include <random>
 #include <thread>
+
+
+#define TEASCRIPT_STR_UTF8_FIX      1
+
 
 namespace teascript {
 
@@ -144,6 +146,11 @@ public:
             return {};
         }
     }
+
+    int ParamCount() const final
+    {
+        return 0;
+    }
 };
 
 
@@ -181,12 +188,17 @@ public:
                 return mpFunc( rContext, util::get_value<T1>( rParams[0] ) );
             } else if constexpr( not std::is_same_v<RES, void> ) {
                 auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
-                return ValueObject( rContext, mpFunc( util::get_value<T1>( rParams[0] ) ), cfg );
+                return ValueObject( mpFunc( rContext, util::get_value<T1>( rParams[0] ) ), cfg );
             } else {
                 mpFunc( rContext, util::get_value<T1>( rParams[0] ) );
                 return {};
             }
         }
+    }
+
+    int ParamCount() const final
+    {
+        return 1;
     }
 };
 
@@ -218,6 +230,11 @@ public:
             return {};
         }
     }
+
+    int ParamCount() const final
+    {
+        return 2;
+    }
 };
 
 template< typename F, typename T1, typename T2, typename T3, typename RES = void>
@@ -248,6 +265,11 @@ public:
             return {};
         }
     }
+
+    int ParamCount() const final
+    {
+        return 3;
+    }
 };
 
 template< typename F, typename T1, typename T2, typename T3, typename T4, typename RES = void>
@@ -277,6 +299,46 @@ public:
             mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ) );
             return {};
         }
+    }
+
+    int ParamCount() const final
+    {
+        return 4;
+    }
+};
+
+template< typename F, typename T1, typename T2, typename T3, typename T4, typename T5, typename RES = void>
+class LibraryFunction5 : public FunctionBase
+{
+    F *mpFunc;
+public:
+    LibraryFunction5( F *f )
+        : FunctionBase()
+        , mpFunc( f )
+    {
+    }
+
+    virtual ~LibraryFunction5() {}
+
+    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
+    {
+        if( 5u != rParams.size() ) {
+            throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 5)!" );
+        }
+        if constexpr( std::is_same_v<RES, ValueObject> ) {
+            return mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ), util::get_value<T5>( rParams[4] ) );
+        } else if constexpr( not std::is_same_v<RES, void> ) {
+            auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
+            return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ), util::get_value<T5>( rParams[4] ) ), cfg );
+        } else {
+            mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ), util::get_value<T5>( rParams[4] ) );
+            return {};
+        }
+    }
+
+    int ParamCount() const final
+    {
+        return 5;
     }
 };
 
@@ -348,6 +410,11 @@ public:
             //return {}; // TODO: unified and improved error handling. Return an eval_error? or just dont catch?
         }
     }
+
+    int ParamCount() const final
+    {
+        return 1;
+    }
 };
 
 /// creates a (unamed) tuple object with arbiratry amount of elements, e.g., accepts 0..N parameters.
@@ -389,16 +456,27 @@ public:
         fmt::dynamic_format_arg_store<fmt::format_context>  store;
         // skip first, which is the format string.
         for( size_t idx = 1; idx < rParams.size(); ++idx ) {
-            // TODO: change to visitor
-            if( rParams[idx].GetTypeInfo()->IsSame<Bool>() ) {
+            switch( rParams[idx].InternalType() ) {
+            case ValueObject::TypeBool:
                 store.push_back( rParams[idx].GetValue<Bool>() );
-            } else if( rParams[idx].GetTypeInfo()->IsSame<I64>() ) {
+                break;
+            case ValueObject::TypeI64:
                 store.push_back( rParams[idx].GetValue<I64>() );
-            } else if( rParams[idx].GetTypeInfo()->IsSame<F64>() ) {
+                break;
+            case ValueObject::TypeU64:
+                store.push_back( rParams[idx].GetValue<U64>() );
+                break;
+            case ValueObject::TypeU8:
+                store.push_back( rParams[idx].GetValue<U8>() );
+                break;
+            case ValueObject::TypeF64:
                 store.push_back( rParams[idx].GetValue<F64>() );
-            } else if( rParams[idx].GetTypeInfo()->IsSame<String>() ) {
+                break;
+            case ValueObject::TypeString:
                 store.push_back( rParams[idx].GetValue<String>() );
-            } else { // try as a String
+                break;
+            default:
+                // try as a String
                 store.push_back( rParams[idx].GetAsString() );
             }
         }
@@ -447,7 +525,7 @@ public:
     static void PrintColored( long long const rgb, ValueObject const &rStr )
     {
         if( rgb < 0 || rgb > 0xFF'FF'FF ) {
-            throw std::invalid_argument( "PrintColored: rgb < 0 || rgb > 0xFF'FF'FF" );
+            throw exception::out_of_range( "PrintColored: rgb < 0 || rgb > 0xFF'FF'FF" );
         }
         fmt::print( fmt::fg( static_cast<fmt::color>(static_cast<unsigned int>(rgb)) ), "{}", rStr.GetAsString() );
     }
@@ -468,7 +546,7 @@ public:
         throw control::Exit_Script( code );
     }
 
-    // as long as we dont support implicit cast.
+    [[deprecated("Obsolete now! Please, use a static_cast.")]]
     static long long DoubleToLongLong( double const d )
     {
         return static_cast<long long>(d);
@@ -493,7 +571,7 @@ public:
         }
     }
 
-    /// Converts string to either f64 or i64 or a Bool( false )
+    /// Converts string to either f64, u8, u64 or i64 or a Bool( false )
     static ValueObject StrToNumEx( std::string  const &rStr )
     {
         // Use Parser for parse a number, will either return a f64 or i64 or a Bool( false )
@@ -527,22 +605,61 @@ public:
 
     static long long StrUTF8GlyphCount( std::string const &rStr ) // in glyphs
     {
-        return static_cast<long long>(util::utf8_string_length(rStr));
+        return static_cast<long long>(util::utf8_string_length( rStr ));
     }
 
+    /// \returns the byte position of glyph \param glyph in rStr. rStr must be a valid UTF-8 encoded string.
+    static long long StrUTF8GlyphToBytePos( std::string rStr, long long const glyph )
+    {
+        return static_cast<long long>(util::utf8_glyph_to_byte_pos( rStr, glyph ));
+    }
+
+    /// \returns a complete UTF-8 code point as std::string where \param at poitns into or an empty string when out of range.
     static std::string StrAt( std::string const &rStr, long long const at )
     {
         if( at < 0 || static_cast<size_t>(at) >= rStr.length() ) {
             return {};
         }
+#if TEASCRIPT_STR_UTF8_FIX
+        // we must always return one complete valid utf-8 code point.
+        // NOTE: this algorithm assumes that the string is a valid UTF-8 encoded string.
+        auto         start = static_cast<std::size_t>(at);
+        std::size_t  count = 1;
+        // first we check if we peek in a middle of an utf-8 code point sequecne. Then we must search the start.
+        if( (static_cast<unsigned char>(rStr[static_cast<std::size_t>(at)]) & 0xC0) == 0x80 ) {
+            // find the start
+            while( (static_cast<unsigned char>(rStr[start]) & 0xC0) == 0x80 && start > 0 ) {
+                --start;
+            }
+        }
+        // here we have the start
+        // do we need to find an end?
+        if( static_cast<unsigned char>(rStr[start]) > 0xC1 ) {
+            auto cur = start + 1;
+            while( cur < rStr.length() && (static_cast<unsigned char>(rStr[cur]) & 0xC0) == 0x80 ) {
+                ++count;
+                ++cur;
+            }
+        }
+
+        return rStr.substr( start, count );
+#else
         return {rStr.at( static_cast<size_t>(at) )};
+#endif
     }
 
+    /// \returns a substring of \param rStr for the range [from, from+count). 
+    /// If the range does not form a complete UTF-8 range or is out of range an empty string will be returned.
     static std::string SubStr( std::string const &rStr, long long const from, long long const count )
     {
         if( from < 0 || static_cast<size_t>(from) >= rStr.length() || count < -1 ) { // -1 == npos == until end of string
             return {};
         }
+#if TEASCRIPT_STR_UTF8_FIX
+        if( not util::is_complete_utf8_range( rStr, static_cast<std::size_t>(from), static_cast<std::size_t>(count) ) ) {
+            return {};
+        }
+#endif
         return rStr.substr( static_cast<size_t>(from), static_cast<size_t>(count) );
     }
 
@@ -558,14 +675,39 @@ public:
         return res == std::string::npos ? -1LL : static_cast<long long>(res);
     }
 
+    /// replaces the range [start, start+count) in /param rStr with /praram rNew.
+    /// If the range does not form a complete UTF-8 range or is out of range nothing will happen and the function will return false.
     static bool StrReplacePos( std::string &rStr, long long const start, long long const count, std::string const &rNew )
     {
+#if TEASCRIPT_STR_UTF8_FIX
+        if( start < 0 || static_cast<size_t>(start) >= rStr.length() || count < -1 ) { // -1 == npos == until end of string
+            return false;
+        }
+        if( not util::is_complete_utf8_range( rStr, static_cast<std::size_t>(start), static_cast<std::size_t>(count) ) ) {
+            return false;
+        }
+#endif
         try {
             rStr.replace( static_cast<size_t>(start), static_cast<size_t>(count), rNew );
             return true;
         } catch( ... ) {
             return false;
         }
+    }
+
+    static ValueObject StrFromAscii( ValueObject const &val )
+    {
+        if( not val.GetTypeInfo()->IsArithmetic() ) {
+            return ValueObject( false );
+        }
+        try {
+            auto const v = val.GetAsInteger();
+            if( v >= 0 && v < 128 ) {
+                return ValueObject( std::string( 1, static_cast<char>(v) ) );
+            }
+        } catch( ... ) {
+        }
+        return ValueObject( false );
     }
 
     /// gets the local wall clock time in fractional seconds.
@@ -792,6 +934,12 @@ public:
             if( !file.good() ) {
                 return ValueObject( false );
             }
+#if 1
+            auto const span = std::span( buf.data(), buf.size() );  // libc++14 needs the constructor call, std::span( buf ) won't compile!
+            if( not util::is_valid_utf8( span, true ) ) {
+                return ValueObject( false ); // FIXME: return a better error!
+            }
+#else // the old check was very relaxed...
             for( size_t idx = 0; idx < buf.size(); ++idx ) {
                 unsigned char const  c = static_cast<unsigned char>(buf[idx]);
                 if( c < 0x20 ) { // before 'space' ? (ASCII Control)
@@ -813,6 +961,7 @@ public:
                     } // else: we could check if c is a follow char. but then the check above must be complete _and_ also advance idx.
                 }
             }
+#endif
             return ValueObject( std::move( buf ), false );
         }
         return ValueObject( false );
@@ -842,6 +991,59 @@ public:
         return false;
     }
 
+
+    static ValueObject ReadBinaryFile( std::string const &rFile )
+    {
+        // TODO: THREAD path building per CoreLib / Context instance? make thread safe and use the internal current path for make absolute!
+        // TODO: error handling! return an Error instead of Bool / throw!
+        auto const  path = std::filesystem::absolute( util::utf8_path( rFile ) );
+
+        auto fp = fopen( path.string().c_str(), "rb" );
+        if( !fp ) {
+            return ValueObject( false );
+        }
+
+        struct FClose
+        {
+            FILE *mfp;
+            FClose( FILE *fp ) : mfp( fp ) {}
+            ~FClose() { fclose( mfp ); }
+        };
+        FClose const f( fp );
+
+        fseek( fp, 0, SEEK_END ); // seek to end
+        size_t const size = ftell( fp );
+        fseek( fp, 0, SEEK_SET ); // seek to start
+
+        Buffer buf( size );
+        auto const read = fread( buf.data(), 1, size, fp );
+        if( read == size ) {
+            return ValueObject( std::move( buf ), false );
+        } else {
+            return ValueObject( false );
+        }
+    }
+
+    static bool WriteBinaryFile( std::string const &rFile, Buffer const &rContent, bool const overwrite )
+    {
+        // TODO: THREAD path building per CoreLib / Context instance? make thread safe and use the internal current path for make absolute!
+        // TODO: error handling! return an Error instead of Bool / throw!
+        auto const  path = std::filesystem::absolute( util::utf8_path( rFile ) );
+        auto fp = fopen( path.string().c_str(), overwrite ? "wb" : "wbx");
+        if( !fp ) {
+            return false;
+        }
+        if( rContent.size() != fwrite( rContent.data(), 1, rContent.size(), fp ) ) {
+            fclose( fp );
+            ::remove( path.string().c_str() );
+            return false;
+        }
+        fclose( fp );
+        return true;
+    }
+
+
+    // Tuple
 
     static long long TupleSize( Tuple const & rTuple )
     {
@@ -933,6 +1135,512 @@ public:
     {
         return IntegerSequence( start, end, step );
     }
+
+
+    // Buffer
+
+protected:
+    static void CheckValueObjectForBufferPos( ValueObject const &pos )
+    {
+        if( not pos.GetTypeInfo()->IsArithmetic() ) {
+            throw exception::type_mismatch( "Must be an arithmetic type!" );
+        }
+        if( pos.GetTypeInfo()->IsSigned() ) {
+            if( pos.GetAsInteger() < 0 ) {
+                throw exception::out_of_range( "Must be a positive integer!" );
+            }
+        }
+    }
+
+    static bool CheckValueObjectForBufferPos_NoThrow( ValueObject const &pos )
+    {
+        if( not pos.GetTypeInfo()->IsArithmetic() ) {
+            return false;
+        }
+        if( pos.GetTypeInfo()->IsSigned() ) {
+            if( pos.GetAsInteger() < 0 ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static size_t ToSize( ValueObject const &size_or_pos )
+    {
+        if constexpr( sizeof( size_t ) >= sizeof( U64 ) ) {
+            return static_cast<size_t>(util::ArithmeticFactory::Convert<U64>( size_or_pos ).GetValue<U64>());
+        } else {
+            auto const v = util::ArithmeticFactory::Convert<U64>( size_or_pos ).GetValue<U64>();
+            if( std::numeric_limits<size_t>::max() < v ) {
+                throw exception::out_of_range( "value too big for size_t!" );
+            }
+            return static_cast<size_t>(v);
+        }
+    }
+
+    static bool CheckBufferPosForRead( Buffer const &rBuffer, size_t const pos, size_t const wanted ) noexcept
+    {
+        if( std::numeric_limits<size_t>::max() - wanted < pos ) { // overflow protection
+            return false;
+        }
+        if( pos + wanted > rBuffer.size() ) {
+            return false;
+        }
+        return true;
+    }
+
+    static bool CheckBufferPosForWrite( Buffer  &rBuffer, size_t const pos, size_t const wanted, U8 const val = 0 ) noexcept
+    {
+        if( pos > rBuffer.size() ) { // == size will append data if enough capacity
+            return false;
+        }
+        if( std::numeric_limits<size_t>::max() - wanted < pos ) { // overflow protection
+            return false;
+        }
+        // our buffers don't grow automatically behind the current allocation!
+        if( pos + wanted > rBuffer.capacity() ) {
+            return false;
+        }
+        // grow?
+        if( pos + wanted > rBuffer.size() ) {
+            if( val != 0 ) {
+                rBuffer.resize( pos + wanted, val );
+            } else {
+                rBuffer.resize( pos + wanted ); // probably faster when use default construct instead of copy from val
+            }
+        }
+
+        return true;
+    }
+
+public:
+    static Buffer MakeBuffer( ValueObject const & size )
+    {
+        CheckValueObjectForBufferPos( size );
+        Buffer buf;
+        buf.reserve( ToSize( size ) );
+        return buf;
+    }
+
+    static U64 BufSize( Buffer const &rBuffer )
+    {
+        return rBuffer.size();
+    }
+
+    static U64 BufCapacity( Buffer const &rBuffer )
+    {
+        return rBuffer.capacity();
+    }
+
+    static bool BufResize( Buffer &rBuffer, ValueObject const &size )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( size ) ) {
+            return false;
+        }
+        auto const  s = ToSize( size );
+        try {
+            rBuffer.resize( s );
+            return true;
+        } catch( ... ) {
+            return false;
+        }
+    }
+
+    static U8 BufAt( Buffer const &rBuffer, ValueObject const & pos )
+    {
+        CheckValueObjectForBufferPos( pos );
+        auto const idx = ToSize( pos );
+        if( idx >= rBuffer.size() ) {
+            throw exception::out_of_range( "idx is out of range!" );
+        }
+
+        return rBuffer[idx];
+    }
+
+    static bool BufFill( Buffer &rBuffer, ValueObject const &pos, ValueObject const &count, U8 const val )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return false;
+        }
+        if( not count.GetTypeInfo()->IsArithmetic() ) {
+            return false;
+        }
+        auto const  idx = ToSize( pos );
+        auto const  n   = ToSize( count );
+        auto const  old = rBuffer.size();
+        //                                                                         possible overflow will be caught by idx > size()!
+        if( not CheckBufferPosForWrite( rBuffer, idx, n == static_cast<size_t>(-1) ? rBuffer.capacity() - idx : n, val ) ) {
+            return false;
+        }
+
+        // old data to overwrite?
+        if( idx < old ) {
+            std::fill_n( rBuffer.begin() + idx, old - idx, val );
+        }
+        return true;
+    }
+
+    static bool BufFill32( Buffer &rBuffer, ValueObject const &pos, ValueObject const &count, U64 const val )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return false;
+        }
+        if( not count.GetTypeInfo()->IsArithmetic() ) {
+            return false;
+        }
+        auto const  idx = ToSize( pos );
+        if( idx >= rBuffer.capacity() ) {
+            return false;
+        }
+        auto const  n   = ToSize( count );
+        auto const  end = n == static_cast<size_t>(-1) ? rBuffer.capacity() - idx : n;
+        if( val > std::numeric_limits<std::uint32_t>::max() ) {
+            return false;
+        }
+        auto const  valu32 = static_cast<std::uint32_t>(val);
+
+        if( (end % sizeof( valu32 )) != 0 ) { // not aligned to full value boundary!
+            return false;
+        }
+
+        if( not CheckBufferPosForWrite( rBuffer, idx, end ) ) {
+            return false;
+        }
+
+        auto elems = end / sizeof(valu32);
+        auto i = idx;
+        while( elems >= 16 ) {
+
+            ::memcpy( rBuffer.data() + i + (0 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (1 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (2 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (3 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+
+            ::memcpy( rBuffer.data() + i + (4 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (5 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (6 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (7 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+
+            ::memcpy( rBuffer.data() + i + (8 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (9 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (10 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (11 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+
+            ::memcpy( rBuffer.data() + i + (12 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (13 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (14 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+            ::memcpy( rBuffer.data() + i + (15 * sizeof( valu32 )), &valu32, sizeof( valu32 ) );
+
+            i += (16 * sizeof( valu32 ));
+            elems -= 16;
+        }
+        // rest
+        while( elems > 0 ) {
+            ::memcpy( rBuffer.data() + i, &valu32, sizeof( valu32 ) );
+            i += sizeof( valu32 );
+            --elems;
+        }
+        return true;
+    }
+
+    static bool BufCopy( Buffer &dest, ValueObject const &dst_off, Buffer const &src, ValueObject const &src_off, ValueObject const &len )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( dst_off ) ) {
+            return false;
+        }
+        if( not CheckValueObjectForBufferPos_NoThrow( src_off ) ) {
+            return false;
+        }
+        if( not len.GetTypeInfo()->IsArithmetic() ) {
+            return false;
+        }
+        auto const  dst_idx = ToSize( dst_off );
+        if( dst_idx >= dest.capacity() ) {
+            return false;
+        }
+
+        auto const  src_idx = ToSize( src_off );
+        auto const  l       = ToSize( len );
+        auto const  end     = l == static_cast<size_t>(-1) ? src.size() - src_idx : l;
+        if( not CheckBufferPosForRead( src, src_idx, end ) ) {
+            return false;
+        }
+        if( not CheckBufferPosForWrite( dest, dst_idx, end ) ) {
+            return false;
+        }
+
+        ::memcpy( dest.data() + dst_idx, src.data() + src_idx, end );
+        return true;
+    }
+
+    static bool BufSetU8( Buffer  &rBuffer, ValueObject const &pos, U8 const val )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return false;
+        }
+        auto const idx = ToSize( pos );
+        if( not CheckBufferPosForWrite( rBuffer, idx, sizeof( U8 ) ) ) {
+            return false;
+        }
+
+        rBuffer[idx] = val;
+
+        return true;
+    }
+
+    static bool BufSetI8( Buffer &rBuffer, ValueObject const &pos, I64 const val )
+    {
+        if( val < std::numeric_limits<signed char>::min() || val > std::numeric_limits<signed char>::max() ) {
+            return false;
+        }
+        auto const valu8 = static_cast<U8>(static_cast<signed char>(val));
+        return BufSetU8( rBuffer, pos, valu8 );
+    }
+
+    // writing unsigned 16 bit data in host byte order into the buffer.
+    static bool BufSetU16( Buffer &rBuffer, ValueObject const &pos, U64 const val )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return false;
+        }
+
+        auto  idx = ToSize( pos );
+        if( not CheckBufferPosForWrite( rBuffer, idx, sizeof( std::uint16_t ) ) ) {
+            return false;
+        }
+        if( val > std::numeric_limits<std::uint16_t>::max() ) {
+            return false;
+        }
+        auto const valu16 = static_cast<std::uint16_t>(val);
+
+        // here it is ensured to have valid elements in the buffer already.
+
+        ::memcpy( rBuffer.data() + idx, &valu16, sizeof( valu16 ) );
+
+        return true;
+    }
+
+    // writing signed 16 bit data in host byte order into the buffer.
+    static bool BufSetI16( Buffer &rBuffer, ValueObject const &pos, I64 const val )
+    {
+        if( val < std::numeric_limits<std::int16_t>::min() || val > std::numeric_limits<std::int16_t>::max() ) {
+            return false;
+        }
+        auto const valu16 = static_cast<std::uint16_t>(static_cast<std::int16_t>(val));
+        return BufSetU16( rBuffer, pos, static_cast<U64>(valu16) );
+    }
+
+    // writing unsigned 32 bit data in host byte order into the buffer.
+    static bool BufSetU32( Buffer &rBuffer, ValueObject const &pos, U64 const val )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return false;
+        }
+
+        auto  idx = ToSize( pos );
+        if( not CheckBufferPosForWrite( rBuffer, idx, sizeof( std::uint32_t ) ) ) {
+            return false;
+        }
+        if( val > std::numeric_limits<std::uint32_t>::max() ) {
+            return false;
+        }
+        auto const valu32 = static_cast<std::uint32_t>(val);
+
+        // here it is ensured to have valid elements in the buffer already.
+
+        ::memcpy( rBuffer.data() + idx, &valu32, sizeof( valu32 ) );
+
+        return true;
+    }
+
+    // writing signed 32 bit data in host byte order into the buffer.
+    static bool BufSetI32( Buffer &rBuffer, ValueObject const &pos, I64 const val )
+    {
+        if( val < std::numeric_limits<std::int32_t>::min() || val > std::numeric_limits<std::int32_t>::max() ) {
+            return false;
+        }
+        auto const valu32 = static_cast<std::uint32_t>(static_cast<std::int32_t>(val));
+        return BufSetU32( rBuffer, pos, static_cast<U64>(valu32) );
+    }
+
+    // writing unsigned 64 bit data in host byte order into the buffer.
+    static bool BufSetU64( Buffer &rBuffer, ValueObject const &pos, U64 const val )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return false;
+        }
+
+        auto  idx = ToSize( pos );
+        if( not CheckBufferPosForWrite( rBuffer, idx, sizeof( U64 ) ) ) {
+            return false;
+        }
+
+        // here it is ensured to have valid elements in the buffer already.
+
+        ::memcpy( rBuffer.data() + idx, &val, sizeof( val ) );
+
+        return true;
+    }
+
+    // writing signed 64 bit data in host byte order into the buffer.
+    static bool BufSetI64( Buffer &rBuffer, ValueObject const &pos, I64 const val )
+    {
+        return BufSetU64( rBuffer, pos, static_cast<U64>(val) );
+    }
+
+    // writing String (_without_ trailing 0 !) into the buffer.
+    static bool BufSetString( Buffer &rBuffer, ValueObject const &pos, String const &rStr )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return false;
+        }
+
+        auto const idx = ToSize( pos );
+        if( not CheckBufferPosForWrite( rBuffer, idx, rStr.length() ) ) {
+            return false;
+        }
+
+        // here it is ensured to have valid elements in the buffer already.
+
+        ::memcpy( rBuffer.data() + idx, rStr.data(), rStr.length() );
+
+        return true;
+    }
+
+    static ValueObject BufGetU8( Buffer const &rBuffer, ValueObject const &pos )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return ValueObject( false );
+        }
+        auto const idx = ToSize( pos );
+        if( not CheckBufferPosForRead( rBuffer, idx, sizeof( U8 ) ) ) {
+            return ValueObject( false );
+        }
+
+        return ValueObject( rBuffer[idx] );
+    }
+
+    static ValueObject BufGetI8( Buffer const &rBuffer, ValueObject const &pos )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return ValueObject( false );
+        }
+        auto const idx = ToSize( pos );
+        if( not CheckBufferPosForRead( rBuffer, idx, sizeof( signed char ) ) ) {
+            return ValueObject( false );
+        }
+
+        I64 const val = static_cast<I64>(static_cast<signed char>(rBuffer[idx]));
+        return ValueObject( val );
+    }
+
+    template< std::integral Intermediate, std::integral Result>
+    static ValueObject BufGet_T( Buffer const &rBuffer, ValueObject const &pos )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return ValueObject( false );
+        }
+        auto const idx = ToSize( pos );
+        if( not CheckBufferPosForRead( rBuffer, idx, sizeof( Intermediate ) ) ) {
+            return ValueObject( false );
+        }
+
+        Intermediate val_i{};
+        ::memcpy( &val_i, rBuffer.data() + idx, sizeof( Intermediate ) );
+        
+        if constexpr( std::is_same_v<Intermediate, Result> ) {
+            return ValueObject( val_i );
+        } else {
+            Result const val = static_cast<Result>(val_i);
+            return ValueObject( val );
+        }
+    }
+
+    static ValueObject BufGetU16( Buffer const &rBuffer, ValueObject const &pos )
+    {
+        return BufGet_T<std::uint16_t, U64>( rBuffer, pos );
+    }
+
+    static ValueObject BufGetI16( Buffer const &rBuffer, ValueObject const &pos )
+    {
+        return BufGet_T<std::int16_t, I64>( rBuffer, pos );
+    }
+
+    static ValueObject BufGetU32( Buffer const &rBuffer, ValueObject const &pos )
+    {
+        return BufGet_T<std::uint32_t, U64>( rBuffer, pos );
+    }
+
+    static ValueObject BufGetI32( Buffer const &rBuffer, ValueObject const &pos )
+    {
+        return BufGet_T<std::int32_t, I64>( rBuffer, pos );
+    }
+
+    static ValueObject BufGetU64( Buffer const &rBuffer, ValueObject const &pos )
+    {
+        return BufGet_T<U64, U64>( rBuffer, pos );
+    }
+
+    static ValueObject BufGetI64( Buffer const &rBuffer, ValueObject const &pos )
+    {
+        return BufGet_T<I64, I64>( rBuffer, pos );
+    }
+
+    static ValueObject BufGetString( Buffer const &rBuffer, ValueObject const &pos, ValueObject const &len )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return ValueObject( false );
+        }
+        if( not CheckValueObjectForBufferPos_NoThrow( len ) ) {
+            return ValueObject( false );
+        }
+        auto const idx = ToSize( pos );
+        auto const l   = ToSize( len );
+        if( not CheckBufferPosForRead( rBuffer, idx, l ) ) {
+            return ValueObject( false );
+        }
+
+        auto const span = std::span( rBuffer.data() + idx, l );
+        if( not util::is_valid_utf8( span ) ) {
+            return ValueObject( false );
+        }
+
+        std::string  res;
+        res.assign( reinterpret_cast<char const *>(span.data()), span.size() );
+        return ValueObject( std::move( res ), ValueConfig( true ) );
+    }
+
+    // extract an ascii string out of the buffer, all values must be in range [0,127]
+    static ValueObject BufGetAscii( Buffer const &rBuffer, ValueObject const &pos, ValueObject const &len )
+    {
+        if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
+            return ValueObject( false );
+        }
+        if( not CheckValueObjectForBufferPos_NoThrow( len ) ) {
+            return ValueObject( false );
+        }
+        auto const idx = ToSize( pos );
+        auto const l   = ToSize( len );
+        if( not CheckBufferPosForRead( rBuffer, idx, l ) ) {
+            return ValueObject( false );
+        }
+
+        auto const span = std::span( rBuffer.data() + idx, l );
+#if !defined(_LIBCPP_VERSION) // libc++14 does not have ranges::all_of yet!
+        if( not std::ranges::all_of( span, []( auto const c ) { return c < 128; } ) ) {
+            return ValueObject( false );
+        }
+#else
+        if( not std::all_of( span.begin(), span.end(), [](auto const c) { return c < 128; }) ) {
+            return ValueObject( false );
+        }
+#endif
+        
+        std::string  res;
+        res.assign( reinterpret_cast<char const *>(span.data()), span.size() );
+        return ValueObject( std::move( res ), ValueConfig( true ) );
+    }
+
 
     static ValueObject ReadDirFirst( Context &rContext, std::string const &rPath )
     {
@@ -1027,12 +1735,32 @@ public:
         return ValueObject( std::move( res ), cfg );
     }
 
+private:
+    // as long as we must support _f64toi64 ... 
+    static long long f64toi64( double const d )
+    {
+        return static_cast<long long>(d);
+    }
+
 protected:
 
     virtual void BuildInternals( Context &rTmpContext, config::eConfig const config )
     {
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+        // using collection directly here for speed up add key value.
+        Context::VariableCollection  res;
+        //rTmpContext.Reserve( 128 );
+        res.Reserve( 128 );
+
+#define tea_add_var( s, v ) res.AppendKeyValue( s, v )
+// Unfortunately the extra checks consume all prior benefits...
+//#define tea_add_var( s, v ) rTmpContext.AddValueObject( s, v )
+#else
         Context::VariableStorage  res; //TODO: add directly to context since it is the final context now.
         res.reserve( 128 );
+
+#define tea_add_var( s, v ) res.push_back( std::make_pair( s, v ) )
+#endif
 
 #if 0 // Possible way to add teascript code with underscore _name
         {
@@ -1049,9 +1777,9 @@ protected:
 
         // add start time stamp of this CoreLibrary incarnation, the Core Lib config and our copyright information
         {
-            res.push_back( std::make_pair( "_init_core_stamp", ValueObject( GetTimeStamp(), cfg ) ) );
-            res.push_back( std::make_pair( "_core_config", ValueObject( static_cast<long long>(static_cast<unsigned long long>(config)), cfg ) ) ); // config of Core Lib (first cast to ull for avoid - by accident)
-            res.push_back( std::make_pair( "__teascript_copyright", ValueObject( std::string(TEASCRIPT_COPYRIGHT), cfg ) ) );
+            tea_add_var( "_init_core_stamp", ValueObject( GetTimeStamp(), cfg ) );
+            tea_add_var( "_core_config", ValueObject( static_cast<long long>(static_cast<unsigned long long>(config)), cfg ) ); // config of Core Lib (first cast to ull for avoid - by accident)
+            tea_add_var( "__teascript_copyright", ValueObject( std::string(TEASCRIPT_COPYRIGHT), cfg ) );
         }
 
         // feature tuple (decided to have this always for make it easier to test in scripts)
@@ -1066,81 +1794,89 @@ protected:
             feat.AppendKeyValue( "toml", ValueObject( (TEASCRIPT_TOMLSUPPORT == 1), cfg ) );
             //TODO: feat.AppendKeyValue( "json", ValueObject( (TEASCRIPT_JSONSUPPORT == 1), cfg ) );
             ValueObject val{std::move( feat ), cfg_mutable};
-            res.push_back( std::make_pair( "features", std::move( val ) ) ); // missing _ is intended for now.
+            tea_add_var( "features", std::move( val ) ); // missing _ is intended for now.
         }
 
         // Add the basic Types
         {
-            res.push_back( std::make_pair( "TypeInfo", ValueObject( TypeTypeInfo, cfg ) ) );
-            res.push_back( std::make_pair( "NaV", ValueObject( TypeNaV, cfg ) ) );
-            res.push_back( std::make_pair( "Bool", ValueObject( TypeBool, cfg ) ) );
-            res.push_back( std::make_pair( "i64", ValueObject( TypeLongLong, cfg ) ) );
-            res.push_back( std::make_pair( "f64", ValueObject( TypeDouble, cfg ) ) );
-            res.push_back( std::make_pair( "String", ValueObject( TypeString, cfg ) ) );
-            res.push_back( std::make_pair( "Number", ValueObject( MakeTypeInfo<Number>("Number"), cfg))); // Fake concept for 'Number'
-            res.push_back( std::make_pair( "Function", ValueObject( MakeTypeInfo<FunctionPtr>("Function"), cfg)));
-            res.push_back( std::make_pair( "Tuple", ValueObject( MakeTypeInfo<Tuple>( "Tuple" ), cfg ) ) );
-            res.push_back( std::make_pair( "Const", ValueObject( MakeTypeInfo<Const>( "Const" ), cfg ) ) ); // Fake concept for 'const'
-            //TODO: res.push_back( std::make_pair( "Sequence", ValueObject( TypeIntegerSequence, cfg ) ) );
+            tea_add_var( "TypeInfo", ValueObject( TypeTypeInfo, cfg ) );
+            tea_add_var( "NaV", ValueObject( TypeNaV, cfg ) );
+            tea_add_var( "Bool", ValueObject( TypeBool, cfg ) );
+            tea_add_var( "u8", ValueObject( TypeU8, cfg ) );
+            tea_add_var( "i64", ValueObject( TypeLongLong, cfg ) );
+            tea_add_var( "u64", ValueObject( TypeU64, cfg ) );
+            tea_add_var( "f64", ValueObject( TypeDouble, cfg ) );
+            tea_add_var( "String", ValueObject( TypeString, cfg ) );
+            tea_add_var( "Number", ValueObject( MakeTypeInfo<Number>("Number"), cfg)); // Fake concept for 'Number'
+            tea_add_var( "Function", ValueObject( MakeTypeInfo<FunctionPtr>("Function"), cfg));
+            tea_add_var( "Tuple", ValueObject( MakeTypeInfo<Tuple>( "Tuple" ), cfg ) );
+            tea_add_var( "Const", ValueObject( MakeTypeInfo<Const>( "Const" ), cfg ) ); // Fake concept for 'const'
+            tea_add_var( "IntegerSequence", ValueObject( TypeIntegerSequence, cfg ) );
+            tea_add_var( "Buffer", ValueObject( TypeBuffer, cfg ) );
         }
 
 
         // _version_major | _version_minor | _version_patch | _version_combined_number | _api_version (long long) --> version information
         {
-            res.push_back( std::make_pair( "_version_major", ValueObject( static_cast<long long>(version::Major), cfg ) ) );
-            res.push_back( std::make_pair( "_version_minor", ValueObject( static_cast<long long>(version::Minor), cfg ) ) );
-            res.push_back( std::make_pair( "_version_patch", ValueObject( static_cast<long long>(version::Patch), cfg ) ) );
-            res.push_back( std::make_pair( "_version_combined_number", ValueObject( static_cast<long long>(version::combined_number()), cfg ) ) );
-            res.push_back( std::make_pair( "_version_build_date_time", ValueObject( std::string(version::build_date_time_str()), cfg)));
-            res.push_back( std::make_pair( "_api_version", ValueObject( API_Version, cfg ) ) ); // Core Lib API version
-        }
-
-        //NOTE: as long as we don't have a cast, this is the only possible way to get an i64 from a f64. Therefore it belongs to minimal.
-        // _f64toi64 : i64 (f64) --> converts a f64 to i64. same effect as trunc() but yields a i64.
-        {
-            auto func = std::make_shared< LibraryFunction1< decltype(DoubleToLongLong), double, long long > >( &DoubleToLongLong );
-            ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_f64toi64", std::move( val ) ) );
+            tea_add_var( "_version_major", ValueObject( static_cast<long long>(version::Major), cfg ) );
+            tea_add_var( "_version_minor", ValueObject( static_cast<long long>(version::Minor), cfg ) );
+            tea_add_var( "_version_patch", ValueObject( static_cast<long long>(version::Patch), cfg ) );
+            tea_add_var( "_version_combined_number", ValueObject( static_cast<long long>(version::combined_number()), cfg ) );
+            tea_add_var( "_version_build_date_time", ValueObject( std::string(version::build_date_time_str()), cfg));
+            tea_add_var( "_api_version", ValueObject( API_Version, cfg ) ); // Core Lib API version
         }
 
         // for a minimal core lib this is all already...
         if( core_level == config::LevelMinimal ) {
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+            rTmpContext.InjectVars( std::move( res ) );
+#else
             rTmpContext.BulkAdd( res );
+#endif
             return;
+        }
+
+        // NOTE: since we have an explicit cast (as operator) this is a relict and will be deprecated at some time point.
+        //       But it stays here for a while since it was the only possible way to get an i64 from a f64 for a long time.
+        // _f64toi64 : i64 (f64) --> converts a f64 to i64. same effect as trunc() but yields a i64.
+        {
+            auto func = std::make_shared< LibraryFunction1< decltype(f64toi64), double, long long > >( &f64toi64 );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_f64toi64", std::move( val ) );
         }
 
         // _out : void ( String ) --> prints param1 (String) to stdout
         if( not (opt_out & config::NoStdOut) ) {
             auto func = std::make_shared< LibraryFunction1< decltype(PrintStdOut), std::string > >( &PrintStdOut );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_out", std::move( val ) ) );
+            tea_add_var( "_out", std::move( val ) );
         }
 
         // _err : void ( String ) --> prints param1 (String) to stderr
         if( not (opt_out & config::NoStdErr) ) {
             auto func = std::make_shared< LibraryFunction1< decltype(PrintStdError), std::string > >( &PrintStdError );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_err", std::move( val ) ) );
+            tea_add_var( "_err", std::move( val ) );
         }
 
         // readline : String ( void ) --> read line from stdin (and blocks until line finished), returns the read line without line feed.
         if( not (opt_out & config::NoStdIn) ) {
             auto func = std::make_shared< LibraryFunction0< decltype(ReadLine), std::string > >( &ReadLine );
             ValueObject val{std::move( func ), cfg_mutable};
-            res.push_back( std::make_pair( "readline", std::move( val ) ) ); // missing _ is intended for now.
+            tea_add_var( "readline", std::move( val ) ); // missing _ is intended for now.
         }
 
         // _exit_failure | _exit_success (long long) --> common exit codes
         {
-            res.push_back( std::make_pair( "_exit_failure", ValueObject( static_cast<long long>(EXIT_FAILURE), cfg ) ) );
-            res.push_back( std::make_pair( "_exit_success", ValueObject( static_cast<long long>(EXIT_SUCCESS), cfg ) ) );
+            tea_add_var( "_exit_failure", ValueObject( static_cast<long long>(EXIT_FAILURE), cfg ) );
+            tea_add_var( "_exit_success", ValueObject( static_cast<long long>(EXIT_SUCCESS), cfg ) );
         }
 
         // _exit : void (i64) --> exits the script (with stack unwinding/scope cleanup) with param1 exit code. (this function never returns!)
         {
             auto func = std::make_shared< LibraryFunction1< decltype(ExitScript), long long > >( &ExitScript );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_exit", std::move( val ) ) );
+            tea_add_var( "_exit", std::move( val ) );
         }
 
 
@@ -1150,7 +1886,202 @@ protected:
         {
             auto func = std::make_shared< LibraryFunction3< decltype(MakeSequence), long long, long long, long long, IntegerSequence> >( &MakeSequence );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_seq", std::move( val ) ) );
+            tea_add_var( "_seq", std::move( val ) );
+        }
+
+        // Buffer
+
+        // _buf: Buffer ( size: Number )  --> creates an empty Buffer (size == 0) with capacity 'size'.
+        {
+            auto func = std::make_shared< LibraryFunction1< decltype(MakeBuffer), ValueObject, Buffer> >( &MakeBuffer );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_buf", std::move( val ) );
+        }
+
+        // _buf_size: U64 ( Buffer )  --> returns the actual amount of used/filled bytes in the buffer.
+        {
+            auto func = std::make_shared< LibraryFunction1< decltype(BufSize), Buffer, U64> >( &BufSize );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_buf_size", std::move( val ) );
+        }
+
+        // _buf_capacity: U64 ( Buffer )  --> returns the amount of allocated memory in bytes for the buffer.
+        {
+            auto func = std::make_shared< LibraryFunction1< decltype(BufCapacity), Buffer, U64> >( &BufCapacity );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_buf_capacity", std::move( val ) );
+        }
+
+        // _buf_at: U8 ( Buffer, pos: Number )  --> returns byte at given position, throws on out of range.
+        {
+            auto func = std::make_shared< LibraryFunction2< decltype(BufAt), Buffer, ValueObject, U8> >(&BufAt);
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_buf_at", std::move( val ) );
+        }
+
+        // _buf_fill: Bool ( Buffer, pos: Number, count: Number, val: U8 )  --> fills the buffer from pos up to pos + count with val.
+        {
+            auto func = std::make_shared< LibraryFunction4< decltype(BufFill), Buffer, ValueObject, ValueObject, U8, bool> >( &BufFill );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_buf_fill", std::move( val ) );
+        }
+
+        if( core_level >= config::LevelCore ) {
+            // _buf_resize: Bool ( Buffer, size: Number )  --> resizes the buffer (shrink or grow). new values are added as zero. see _buf_fill also.
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(BufResize), Buffer, ValueObject, bool> >( &BufResize );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_resize", std::move( val ) );
+            }
+
+            // _buf_copy: Bool ( dst: Buffer, dst_off: Number, src: Buffer, src_off: Number, len: Number )  --> copies src buffer into dst buffer.
+            {
+                auto func = std::make_shared< LibraryFunction5< decltype(BufCopy), Buffer, ValueObject, Buffer, ValueObject, ValueObject, bool> >( &BufCopy );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_copy", std::move( val ) );
+            }
+        }
+
+        if( core_level >= config::LevelUtil ) {
+            // _buf_fill32: Bool ( Buffer, pos: Number, count: Number, val: U64 )  --> fills the buffer from pos up to pos + count with val as u32
+            {
+                auto func = std::make_shared< LibraryFunction4< decltype(BufFill32), Buffer, ValueObject, ValueObject, U64, bool> >( &BufFill32 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_fill32", std::move( val ) );
+            }
+
+            // _buf_set_u8: Bool ( Buffer, pos: Number, val: U8 )  --> sets val as U8 in buffer at given position, returns true on success.
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(BufSetU8), Buffer, ValueObject, U8, bool> >( &BufSetU8 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_set_u8", std::move( val ) );
+            }
+
+            // _buf_set_i8: Bool ( Buffer, pos: Number, val: I64 )  --> sets val as I8 in buffer at given position, returns true on success.
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(BufSetI8), Buffer, ValueObject, I64, bool> >( &BufSetI8 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_set_i8", std::move( val ) );
+            }
+
+            // _buf_set_u16: Bool ( Buffer, pos: Number, val: U64 )  --> sets val as U16 in buffer at given position, returns true on success.
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(BufSetU16), Buffer, ValueObject, U64, bool> >( &BufSetU16 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_set_u16", std::move( val ) );
+            }
+
+            // _buf_set_i16: Bool ( Buffer, pos: Number, val: I64 )  --> sets val as I16 in buffer at given position, returns true on success.
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(BufSetI16), Buffer, ValueObject, I64, bool> >( &BufSetI16 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_set_i16", std::move( val ) );
+            }
+
+            // _buf_set_u32: Bool ( Buffer, pos: Number, val: U64 )  --> sets val as U32 in buffer at given position, returns true on success.
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(BufSetU32), Buffer, ValueObject, U64, bool> >( &BufSetU32 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_set_u32", std::move( val ) );
+            }
+
+            // _buf_set_i32: Bool ( Buffer, pos: Number, val: I64 )  --> sets val as I32 in buffer at given position, returns true on success.
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(BufSetI32), Buffer, ValueObject, I64, bool> >( &BufSetI32 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_set_i32", std::move( val ) );
+            }
+
+            // _buf_set_u64: Bool ( Buffer, pos: Number, val: U64 )  --> sets val as U64 in buffer at given position, returns true on success.
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(BufSetU64), Buffer, ValueObject, U64, bool> >( &BufSetU64 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_set_u64", std::move( val ) );
+            }
+
+            // _buf_set_i64: Bool ( Buffer, pos: Number, val: I64 )  --> sets val as I64 in buffer at given position, returns true on success.
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(BufSetI64), Buffer, ValueObject, I64, bool> >( &BufSetI64 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_set_i64", std::move( val ) );
+            }
+
+            // _buf_set_string: Bool ( Buffer, pos: Number, val: String )  --> writes the String (_without_ trailing 0!) val into the buffer at given position, returns true on success.
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(BufSetString), Buffer, ValueObject, String, bool> >( &BufSetString );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_set_string", std::move( val ) );
+            }
+
+            // _buf_get_u8: U8|Bool ( Buffer, pos: Number )  --> gets an U8 from buffer at given position, returns Bool(false) on failure.
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(BufGetU8), Buffer, ValueObject, ValueObject> >( &BufGetU8 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_get_u8", std::move( val ) );
+            }
+
+            // _buf_get_i8: I64|Bool ( Buffer, pos: Number )  --> gets an I8 as I64 from buffer at given position, returns Bool(false) on failure.
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(BufGetI8), Buffer, ValueObject, ValueObject> >( &BufGetI8 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_get_i8", std::move( val ) );
+            }
+
+            // _buf_get_u16: U64|Bool ( Buffer, pos: Number )  --> gets an U16 as U64 from buffer at given position, returns Bool(false) on failure.
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(BufGetU16), Buffer, ValueObject, ValueObject> >( &BufGetU16 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_get_u16", std::move( val ) );
+            }
+
+            // _buf_get_i16: I64|Bool ( Buffer, pos: Number )  --> gets an I16 as I64 from buffer at given position, returns Bool(false) on failure.
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(BufGetI16), Buffer, ValueObject, ValueObject> >( &BufGetI16 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_get_i16", std::move( val ) );
+            }
+
+            // _buf_get_u32: U64|Bool ( Buffer, pos: Number )  --> gets an U32 as U64 from buffer at given position, returns Bool(false) on failure.
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(BufGetU32), Buffer, ValueObject, ValueObject> >( &BufGetU32 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_get_u32", std::move( val ) );
+            }
+
+            // _buf_get_i32: I64|Bool ( Buffer, pos: Number )  --> gets an I32 as I64 from buffer at given position, returns Bool(false) on failure.
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(BufGetI32), Buffer, ValueObject, ValueObject> >( &BufGetI32 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_get_i32", std::move( val ) );
+            }
+
+            // _buf_get_u64: U64|Bool ( Buffer, pos: Number )  --> gets an U64 from buffer at given position, returns Bool(false) on failure.
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(BufGetU64), Buffer, ValueObject, ValueObject> >( &BufGetU64 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_get_u64", std::move( val ) );
+            }
+
+            // _buf_get_i64: I64|Bool ( Buffer, pos: Number )  --> gets an I64 from buffer at given position, returns Bool(false) on failure.
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(BufGetI64), Buffer, ValueObject, ValueObject> >( &BufGetI64 );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_get_i64", std::move( val ) );
+            }
+
+            // _buf_get_string: String|Bool ( Buffer, pos: Number, len: Number )  --> gets a String from buffer at given position, must be valid UTF-8, returns Bool(false) on failure.
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(BufGetString), Buffer, ValueObject, ValueObject, ValueObject> >( &BufGetString );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_get_string", std::move( val ) );
+            }
+
+            // _buf_get_ascii: String|Bool ( Buffer, pos: Number, len: Number )  --> gets a String from buffer at given position, all values must be in range [0,127], returns Bool(false) on failure.
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(BufGetAscii), Buffer, ValueObject, ValueObject, ValueObject> >( &BufGetAscii );
+                ValueObject val{std::move( func ), cfg};
+                tea_add_var( "_buf_get_ascii", std::move( val ) );
+            }
         }
 
         if( core_level >= config::LevelCore ) {
@@ -1158,21 +2089,21 @@ protected:
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(StrToNum), std::string, ValueObject> >( &StrToNum );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_strtonum", std::move( val ) ) );
+                tea_add_var( "_strtonum", std::move( val ) );
             }
 
-            // _strtonumex : i64|f64|Bool (String) --> converts a String to i64 or f64, Bool(false) on error. this works only with real String objects.
+            // _strtonumex : i64|u8|u64|f64|Bool (String) --> converts a String to i64,u8,u64 or f64, Bool(false) on error. this works only with real String objects.
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(StrToNumEx), std::string, ValueObject> >( &StrToNumEx );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_strtonumex", std::move( val ) ) );
+                tea_add_var( "_strtonumex", std::move( val ) );
             }
 
             // _numtostr : String (i64) --> converts a i64 to String. this works only with real i64 objects. alternative for 'num % ""'
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(NumToStr), long long, std::string > >( &NumToStr );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_numtostr", std::move( val ) ) );
+                tea_add_var( "_numtostr", std::move( val ) );
             }
 
 #if TEASCRIPT_FMTFORMAT
@@ -1180,7 +2111,7 @@ protected:
             {
                 auto func = std::make_shared< FormatStringFunc >();
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "format", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "format", std::move( val ) ); // missing _ is intended for now.
             }
 #endif
         }
@@ -1192,12 +2123,12 @@ protected:
                 // cprint : void (i64, String)  --> prints the text in the given rgb color (only available with libfmt)
                 auto func = std::make_shared< LibraryFunction2< decltype(PrintColored), long long, ValueObject > >( &PrintColored );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "cprint", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "cprint", std::move( val ) ); // missing _ is intended for now.
 
                 Parser p;
                 // cprintln : void (i64, String)  --> same as cprint but adds a new line to the end.
                 auto func_node_val = p.Parse( "func ( rgb, s ) { cprint( rgb, s % \"\\n\" ) }", "Core" )->Eval( rTmpContext );
-                res.push_back( std::make_pair( "cprintln", std::move( func_node_val ) ) ); // missing _ is intended for now.
+                tea_add_var( "cprintln", std::move( func_node_val ) ); // missing _ is intended for now.
             }
 #endif
 
@@ -1205,21 +2136,21 @@ protected:
             if( not (opt_out & config::NoStdOut) ) {
                 auto func = std::make_shared< LibraryFunction0< decltype(PrintVersion) > >( &PrintVersion );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_print_version", std::move( val ) ) );
+                tea_add_var( "_print_version", std::move( val ) );
             }
 
             // _sqrt : f64 (f64) --> calculates square root
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(Sqrt), double, double > >( &Sqrt );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_sqrt", std::move( val ) ) );
+                tea_add_var( "_sqrt", std::move( val ) );
             }
 
             // _trunc : f64 (f64) --> rounds the given Number towards zero as f64. e.g. 1.9 will yield 1.0, -2.9 will yield -2.0.
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(Trunc), double, double > >( &Trunc );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_trunc", std::move( val ) ) );
+                tea_add_var( "_trunc", std::move( val ) );
             }
         }
 
@@ -1229,14 +2160,14 @@ protected:
         if( not (opt_out & config::NoEval) ) {
             auto func = std::make_shared< EvalFunc >( false );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_eval", std::move( val ) ) );
+            tea_add_var( "_eval", std::move( val ) );
         }
 
         // eval_file : Any (String) --> parses and evaluates the content of the file and returns its result. All defined functions and variables in the top level scope will stay available.
         if( core_level >= config::LevelCore && not (opt_out & config::NoEvalFile) ) {
             auto func = std::make_shared< EvalFunc >( true );
             ValueObject val{std::move( func ), cfg_mutable};
-            res.push_back( std::make_pair( "eval_file", std::move( val ) ) ); // missing _ is intended for now.
+            tea_add_var( "eval_file", std::move( val ) ); // missing _ is intended for now.
         }
 
 
@@ -1246,21 +2177,21 @@ protected:
         {
             auto func = std::make_shared< MakeTupleFunc >();
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_tuple_create", std::move( val ) ) );
+            tea_add_var( "_tuple_create", std::move( val ) );
         }
 
         // _tuple_size : i64 ( Tuple ) --> returns the element count of the Tuple
         {
             auto func = std::make_shared< LibraryFunction1< decltype(TupleSize), Tuple, long long > >( &TupleSize );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_tuple_size", std::move( val ) ) );
+            tea_add_var( "_tuple_size", std::move( val ) );
         }
 
         // _tuple_same_types : Bool ( Tuple, Tuple ) --> checks whether the 2 tuples have the same types in exactly the same order (and with same names).
         {
             auto func = std::make_shared< LibraryFunction2< decltype(TupleSameTypes), Tuple, Tuple, bool > >( &TupleSameTypes );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_tuple_same_types", std::move( val ) ) );
+            tea_add_var( "_tuple_same_types", std::move( val ) );
         }
 
         if( core_level >= config::LevelCore ) {
@@ -1268,98 +2199,98 @@ protected:
             {
                 auto func = std::make_shared< LibraryFunction2< decltype(TupleValue), Tuple, long long, ValueObject > >( &TupleValue );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_val", std::move( val ) ) );
+                tea_add_var( "_tuple_val", std::move( val ) );
             }
 
             // _tuple_named_val : Any ( Tuple, String ) --> returns the value with given name (or throws)
             {
                 auto func = std::make_shared< LibraryFunction2< decltype(TupleNamedValue), Tuple, std::string, ValueObject > >( &TupleNamedValue );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_named_val", std::move( val ) ) );
+                tea_add_var( "_tuple_named_val", std::move( val ) );
             }
 
             // _tuple_set : void ( Tuple, i64, Any ) --> sets the value at given index or throws if index not exist.
             {
                 auto func = std::make_shared< LibraryFunction3< decltype(TupleSetValue), Tuple, long long, ValueObject > >( &TupleSetValue );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_set", std::move( val ) ) );
+                tea_add_var( "_tuple_set", std::move( val ) );
             }
 
             // _tuple_named_set : void ( Tuple, String, Any ) --> set the value with given name (or throws)
             {
                 auto func = std::make_shared< LibraryFunction3< decltype(TupleSetNamedValue), Tuple, std::string, ValueObject > >( &TupleSetNamedValue );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_named_set", std::move( val ) ) );
+                tea_add_var( "_tuple_named_set", std::move( val ) );
             }
 
             // _tuple_append : void ( Tuple, Any ) --> appends new value to the end as new element
             {
                 auto func = std::make_shared< LibraryFunction2< decltype(TupleAppend), Tuple, ValueObject > >( &TupleAppend );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_append", std::move( val ) ) );
+                tea_add_var( "_tuple_append", std::move( val ) );
             }
 
             // _tuple_named_append : Bool ( Tuple, String, Any ) --> appends new value with given name to the end as new element if the name not exist yet.
             {
                 auto func = std::make_shared< LibraryFunction3< decltype(TupleNamedAppend), Tuple, std::string, ValueObject, bool > >( &TupleNamedAppend );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_named_append", std::move( val ) ) );
+                tea_add_var( "_tuple_named_append", std::move( val ) );
             }
 
             // _tuple_insert : void ( Tuple, i64, Any ) --> inserts new value at given index
             {
                 auto func = std::make_shared< LibraryFunction3< decltype(TupleInsert), Tuple, long long, ValueObject > >( &TupleInsert );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_insert", std::move( val ) ) );
+                tea_add_var( "_tuple_insert", std::move( val ) );
             }
 
             // _tuple_named_insert : void ( Tuple, i64, String, Any ) --> inserts a value with given name at given index
             {
                 auto func = std::make_shared< LibraryFunction4< decltype(TupleNamedInsert), Tuple, long long, std::string, ValueObject > >( &TupleNamedInsert );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_named_insert", std::move( val ) ) );
+                tea_add_var( "_tuple_named_insert", std::move( val ) );
             }
 
             // _tuple_remove : Bool ( Tuple, i64 ) --> removes element at given index, returns whether an element has been removed.
             {
                 auto func = std::make_shared< LibraryFunction2< decltype(TupleRemove), Tuple, long long, bool > >( &TupleRemove );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_remove", std::move( val ) ) );
+                tea_add_var( "_tuple_remove", std::move( val ) );
             }
 
             // _tuple_named_remove : Bool ( Tuple, String ) --> removes element with given name, returns whether an element has been removed.
             {
                 auto func = std::make_shared< LibraryFunction2< decltype(TupleNamedRemove), Tuple, std::string, bool > >( &TupleNamedRemove );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_named_remove", std::move( val ) ) );
+                tea_add_var( "_tuple_named_remove", std::move( val ) );
             }
 
             // _tuple_index_of : i64 ( Tuple, String ) --> returns the index of the element with given name or -1
             {
                 auto func = std::make_shared< LibraryFunction2< decltype(TupleIndexOf), Tuple, std::string, long long > >( &TupleIndexOf );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_index_of", std::move( val ) ) );
+                tea_add_var( "_tuple_index_of", std::move( val ) );
             }
 
             // _tuple_name_of : String ( Tuple, i64 ) --> returns the name of the element with given idx (or throws)
             {
                 auto func = std::make_shared< LibraryFunction2< decltype(TupleNameOf), Tuple, long long, std::string > >( &TupleNameOf );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_name_of", std::move( val ) ) );
+                tea_add_var( "_tuple_name_of", std::move( val ) );
             }
 
             // _tuple_swap : void ( Tuple, i64, i64 ) --> swaps elements of given indices
             {
                 auto func = std::make_shared< LibraryFunction3< decltype(TupleSwapValues), Tuple, long long, long long > >( &TupleSwapValues );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_tuple_swap", std::move( val ) ) );
+                tea_add_var( "_tuple_swap", std::move( val ) );
             }
 
             // tuple_print : void ( Tuple, String, i64 ) --> prints (recursively) all (named) elements, for debugging (String param is the "root" name, last param is for max nesting level)
             if( not (opt_out & config::NoStdOut) ) {
                 auto func = std::make_shared< LibraryFunction3< decltype(TuplePrint), ValueObject, std::string, long long > >( &TuplePrint );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "tuple_print", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "tuple_print", std::move( val ) ); // missing _ is intended for now.
             }
         }
 
@@ -1370,50 +2301,65 @@ protected:
         {
             auto func = std::make_shared< LibraryFunction1< decltype(StrLength), std::string, long long > >( &StrLength );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_strlen", std::move( val ) ) );
+            tea_add_var( "_strlen", std::move( val ) );
         }
 
         // _strglyphs : i64 ( String ) --> returns the utf-8 (Unicode) glyph count of the string (excluding the ending 0).
         {
             auto func = std::make_shared< LibraryFunction1< decltype(StrUTF8GlyphCount), std::string, long long > >( &StrUTF8GlyphCount );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_strglyphs", std::move( val ) ) );
+            tea_add_var( "_strglyphs", std::move( val ) );
         }
 
-        // _strat : String ( String, i64 ) --> returns a substring of one character at given position. empty string if out of range.
+        // _strglyphtobytepos : i64 ( String, i64 ) --> returns the byte position of the given glyph in given string, or -1 if out of range.
+        {
+            auto func = std::make_shared< LibraryFunction2< decltype(StrUTF8GlyphToBytePos), std::string, long long, long long > >( &StrUTF8GlyphToBytePos );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_strglyphtobytepos", std::move( val ) );
+        }
+
+        // _strat : String ( String, i64 ) --> returns a substring of one complete UTF-8 code point where position points into. empty string if out of range.
         {
             auto func = std::make_shared< LibraryFunction2< decltype(StrAt), std::string, long long, std::string > >( &StrAt );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_strat", std::move( val ) ) );
+            tea_add_var( "_strat", std::move( val ) );
         }
 
         // _substr : String ( String, from: i64, count: i64 ) --> returns a substring [from, from+count). count -1 means until end of string. returns empty string on invalid arguments.
         {
             auto func = std::make_shared< LibraryFunction3< decltype(SubStr), std::string, long long, long long, std::string > >( &SubStr );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_substr", std::move( val ) ) );
+            tea_add_var( "_substr", std::move( val ) );
         }
 
         // _strfind : i64 ( String, substring: String, offset: i64 ) --> searches for substring from offset and returns found pos of first occurrence. -1 if not found.
         {
             auto func = std::make_shared< LibraryFunction3< decltype(StrFind), std::string, std::string, long long, long long > >( &StrFind );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_strfind", std::move( val ) ) );
+            tea_add_var( "_strfind", std::move( val ) );
         }
+
+        // _strfromascii : String|Bool ( char: Number ) --> returns a String build from the ascii char. For invalid chars (>127) Bool(false) will be returned.
+        {
+            auto func = std::make_shared< LibraryFunction1< decltype(StrFromAscii), ValueObject, ValueObject > >( &StrFromAscii );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_strfromascii", std::move( val ) );
+        }
+
 
         if( core_level >= config::LevelCore ) {
             // _strfindreverse : i64 ( String, substring: String, offset: i64 ) --> searches for substring from behind from offset and returns found pos of first occurrence. -1 if not found.
             {
                 auto func = std::make_shared< LibraryFunction3< decltype(StrReverseFind), std::string, std::string, long long, long long > >( &StrReverseFind );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_strfindreverse", std::move( val ) ) );
+                tea_add_var( "_strfindreverse", std::move( val ) );
             }
 
             // _strreplacepos : Bool ( str: String, start: i64, count: i64, new: String ) --> replaces the section [start, start+count) in str with new. returns false on error, e.g. start is out of range.
             {
                 auto func = std::make_shared< LibraryFunction4< decltype(StrReplacePos), std::string, long long, long long, std::string, bool > >( &StrReplacePos );
                 ValueObject val{std::move( func ), cfg};
-                res.push_back( std::make_pair( "_strreplacepos", std::move( val ) ) );
+                tea_add_var( "_strreplacepos", std::move( val ) );
             }
         }
 
@@ -1424,7 +2370,7 @@ protected:
         {
             auto func = std::make_shared< LibraryFunction0< decltype(GetTimeStamp), double > >( &GetTimeStamp );
             ValueObject val{std::move( func ), cfg};
-            res.push_back( std::make_pair( "_timestamp", std::move( val ) ) );
+            tea_add_var( "_timestamp", std::move( val ) );
         }
 
         if( core_level >= config::LevelUtil ) {
@@ -1432,28 +2378,28 @@ protected:
             {
                 auto func = std::make_shared< LibraryFunction0< decltype(GetLocalTimeInSecs), double > >( &GetLocalTimeInSecs );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "clock", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "clock", std::move( val ) ); // missing _ is intended for now.
             }
 
             // clock_utc : f64 ( void ) --> gets the UTC time of the current day in (fractional) seconds as f64. (note: This UTC time is with leap seconds!)
             {
                 auto func = std::make_shared< LibraryFunction0< decltype(GetUTCTimeInSecs), double > >( &GetUTCTimeInSecs );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "clock_utc", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "clock_utc", std::move( val ) ); // missing _ is intended for now.
             }
 
             // sleep : void ( i64 ) --> sleeps (at least) for given amount of seconds.
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(SleepSecs), long long > >( &SleepSecs );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "sleep", std::move( val ) ) );
+                tea_add_var( "sleep", std::move( val ) );
             }
 
             // random : i64 ( i64, i64 ) --> creates a random number in between [start,end]. start, end must be >= 0 and <= UINT_MAX.
             {
                 auto func = std::make_shared< LibraryFunction2< decltype(CreateRandomNumber), long long, long long, long long > >( &CreateRandomNumber );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "random", std::move( val ) ) );
+                tea_add_var( "random", std::move( val ) );
             }
 
 #if TEASCRIPT_TOMLSUPPORT
@@ -1461,7 +2407,7 @@ protected:
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(TomlSupport::ReadTomlString), std::string, ValueObject, true> >( &TomlSupport::ReadTomlString );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "readtomlstring", std::move( val ) ) ); // missing _ is intended
+                tea_add_var( "readtomlstring", std::move( val ) ); // missing _ is intended
             }
 #endif
         }
@@ -1473,56 +2419,56 @@ protected:
             {
                 auto func = std::make_shared< LibraryFunction0< decltype(CurrentPath), std::string > >( &CurrentPath );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "cwd", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "cwd", std::move( val ) ); // missing _ is intended for now.
             }
 
             // change_cwd : Bool ( String ) --> changes the current working dir
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(ChangeCurrentPath), std::string, bool> >( &ChangeCurrentPath );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "change_cwd", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "change_cwd", std::move( val ) ); // missing _ is intended for now.
             }
 
             // tempdir : String ( void ) --> returns configured temp directory as String
             {
                 auto func = std::make_shared< LibraryFunction0< decltype(TempPath), std::string > >( &TempPath );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "tempdir", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "tempdir", std::move( val ) ); // missing _ is intended for now.
             }
 
             // path_exists : Bool ( String ) --> returns whether path in String exists as directory or file.
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(PathExists), std::string, long long> >( &PathExists );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "path_exists", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "path_exists", std::move( val ) ); // missing _ is intended for now.
             }
 
             // file_size : i64 ( String ) --> returns file size in bytes. -1 on error / file not exists / is not a file.
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(FileSize), std::string, long long> >( &FileSize );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "file_size", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "file_size", std::move( val ) ); // missing _ is intended for now.
             }
 
             // last_modified : String ( String ) --> returns the last modified time as String for the given path or empty string if not exists/error.
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(LastModified), std::string, std::string> >( &LastModified );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "last_modified", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "last_modified", std::move( val ) ); // missing _ is intended for now.
             }
 
             // readdirfirst : Tuple ( String ) --> returns the first direntry of given path (see direntry for details)
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(ReadDirFirst), std::string, ValueObject, true> >( &ReadDirFirst );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "readdirfirst", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "readdirfirst", std::move( val ) ); // missing _ is intended for now.
             }
 
             // readdirnext : Tuple ( Tuple ) --> returns the next direntry of given direntry (see direntry for details)
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(ReadDirNext), Tuple, ValueObject, true> >( &ReadDirNext );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "readdirnext", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "readdirnext", std::move( val ) ); // missing _ is intended for now.
             }
         }
 
@@ -1533,7 +2479,7 @@ protected:
             {
                 auto func = std::make_shared< LibraryFunction3< decltype(FileCopy), std::string, std::string, bool, bool> >( &FileCopy );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "file_copy", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "file_copy", std::move( val ) ); // missing _ is intended for now.
             }
 
             // file_copy_newer : Bool ( file: String, dest_dir: String ) 
@@ -1541,7 +2487,7 @@ protected:
             {
                 auto func = std::make_shared< LibraryFunction2< decltype(FileCopyIfNewer), std::string, std::string, bool> >( &FileCopyIfNewer );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "file_copy_newer", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "file_copy_newer", std::move( val ) ); // missing _ is intended for now.
             }
         }
 
@@ -1550,7 +2496,14 @@ protected:
         {
             auto func = std::make_shared< LibraryFunction1< decltype(ReadTextFile), std::string, ValueObject > >( &ReadTextFile );
             ValueObject val{std::move( func ), cfg_mutable};
-            res.push_back( std::make_pair( "readtextfile", std::move( val ) ) ); // missing _ is intended for now.
+            tea_add_var( "readtextfile", std::move( val ) ); // missing _ is intended for now.
+        }
+
+        // readfile : Buffer|Bool ( String ) --> reads the content of a file and returns it in a Buffer.
+        if( core_level >= config::LevelFull && not (opt_out & config::NoFileRead) ) {
+            auto func = std::make_shared< LibraryFunction1< decltype(ReadBinaryFile), std::string, ValueObject > >( &ReadBinaryFile );
+            ValueObject val{std::move( func ), cfg_mutable};
+            tea_add_var( "readfile", std::move( val ) ); // missing _ is intended for now.
         }
 
 
@@ -1560,7 +2513,7 @@ protected:
             {
                 auto func = std::make_shared< LibraryFunction2< decltype(CreateDir), std::string, bool, bool > >( &CreateDir );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "create_dir", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "create_dir", std::move( val ) ); // missing _ is intended for now.
             }
 
             // writetextfile : Bool ( file: String, str: String, overwrite: Bool, bom: Bool ) 
@@ -1568,7 +2521,15 @@ protected:
             {
                 auto func = std::make_shared< LibraryFunction4< decltype(WriteTextFile), std::string, std::string, bool, bool, bool > >( &WriteTextFile );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "writetextfile", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "writetextfile", std::move( val ) ); // missing _ is intended for now.
+            }
+
+            // writefile : Bool ( file: String, content: Buffer, overwrite: Bool ) 
+            // --> writes the content of the Buffer into file. overwrite indicates if a prior existing file shall be overwritten (old content destroyed!)
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(WriteBinaryFile), std::string, Buffer, bool, bool > >( &WriteBinaryFile );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "writefile", std::move( val ) ); // missing _ is intended for now.
             }
         }
 
@@ -1578,11 +2539,18 @@ protected:
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(PathDelete), std::string, bool > >( &PathDelete );
                 ValueObject val{std::move( func ), cfg_mutable};
-                res.push_back( std::make_pair( "path_delete", std::move( val ) ) ); // missing _ is intended for now.
+                tea_add_var( "path_delete", std::move( val ) ); // missing _ is intended for now.
             }
         }
 
+// cleanup
+#undef tea_add_var
+
+#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
+        rTmpContext.InjectVars( std::move( res ) );
+#else
         rTmpContext.BulkAdd( res );
+#endif
     }
 public:
     CoreLibrary() = default;
@@ -1599,7 +2567,6 @@ public:
             sys.RegisterType<FunctionPtr>("Function");
             sys.RegisterType<std::vector<ValueObject>>("ValueObjectVector");
             sys.RegisterType<Tuple>( "Tuple" );
-            sys.RegisterType<IntegerSequence>( "IntegerSequence" ); // TODO: Remove once a static instance exists.
 
             Context tmp{ std::move( sys ), true };
             tmp.is_debug = rContext.is_debug; // take over from possible old instance.
@@ -1670,7 +2637,7 @@ func to_f64( val )
 func to_i64( val )
 {
     if( val is Number ) {
-        _f64toi64( val + 0.0 ) // first convert to f64 looks odd but it covers all cases.
+        val as i64
     } else {
         false
     }
@@ -1728,7 +2695,7 @@ func round( n )
 // (same level as cprint)
 func make_rgb( r, g, b )
 {
-    r * 256 * 256 + g * 256 + b
+    r bit_lsh 16 bit_or g bit_lsh 8 bit_or b
 }
 
 // increments by given step
@@ -1741,6 +2708,12 @@ func inc( n @=, step := 1 )
 func dec( n @=, step := 1 )
 {
     n := n - step
+}
+
+// fills the complete capacity of the buffer with zeroes (convenience). post: size == capacity
+func buf_zero( buf @= )
+{
+    _buf_fill( buf, 0, -1, 0u8 )
 }
 )_SCRIPT_";
 
@@ -1774,17 +2747,6 @@ func fail_with_message( error_str, error_code := _exit_failure )
 }
 )_SCRIPT_";
 
-
-        static constexpr char core_lib_eval[] = R"_SCRIPT_(
-// parses and evaluates expr (will do to string conversion), returns result of expr
-// WARNING: This function is now DEPRECATED and will be removed in the next release! Use _eval() instead.
-// NOTE: This function opens a new scope, so all new defined variables and functions will be undefined again after the call. Use _eval instead to keep definitions.
-func eval( expr )
-{
-    _eval( expr % "" )
-}
-)_SCRIPT_";
-
         static constexpr char core_lib_file[] = R"_SCRIPT_(
 func file_exists( file )
 {
@@ -1808,7 +2770,7 @@ func readtomlfile( file )
 
         static constexpr char core_lib_teascript[] = R"_SCRIPT_(
 // checks whether the tuple contains the given name or index
-func tuple_contains( tup @=, idx_or_name )
+func tuple_contains( const tup @=, idx_or_name )
 {
     if( idx_or_name is String ) {
         _tuple_index_of( tup, idx_or_name ) >= 0
@@ -1856,16 +2818,17 @@ func strreplacelast( str @=, what, new, offset := -1 ) // offset -1 == whole str
     }
 }
 
-// trims the string if it starts or ends with characters in given set. note: set must be ASCII only!
+// trims the string if it starts or ends with characters in given set.
 // e.g. strtrim( s, " \t\r\n", false, true ) will remove all spaces, tabs, carriage returns and new lines at the end of the string.
-func strtrim( str @=, set, leading := true, trailing := true )
+func strtrim( const str @=, set, leading := true, trailing := true )
 {
     def res := false
     if( leading ) {
         def c := 0
         repeat {
-            if( _strfind( set, _strat( str, c ), 0 ) >= 0 ) {
-                c := c + 1
+            const x := _strat( str, c ) // will return a complete UTF-8 code point.
+            if( _strfind( set, x, 0 ) >= 0 ) {
+                c := c + _strlen( x )
             } else {
                 stop
             }
@@ -1878,8 +2841,9 @@ func strtrim( str @=, set, leading := true, trailing := true )
         def i := _strlen( str ) - 1
         def c := 0
         repeat {
-            if( _strfind( set, _strat( str, i - c ), 0 ) >= 0 ) {
-                c := c + 1
+            const x := _strat( str, i - c ) // will return a complete UTF-8 code point.
+            if( _strfind( set, x, 0 ) >= 0 ) {
+                c := c + _strlen( x )
             } else {
                 stop
             }
@@ -1891,12 +2855,102 @@ func strtrim( str @=, set, leading := true, trailing := true )
     res
 }
 
+// splits the given string at every occurring separator and returns a tuple with the elements.
+func strsplit( const str @=, separator, skip_empty := false )
+{
+    def res := _tuple_create()
+    const str_size := _strlen( str )
+    if( str_size == 0 ) {
+        return res
+    }
+    const sep_size := _strlen( separator )
+    if( sep_size == 0 ) {
+        def res.0 := str
+        return res
+    }
+    def pos := 0
+    repeat {
+        const x := _strfind( str, separator, pos )
+        if( x >= 0 ) {
+            const s := _substr( str, pos, x - pos )
+            if( not skip_empty or _strlen( s ) > 0 ) {
+                _tuple_append( res, s )
+            }
+            pos := x + sep_size
+            if( pos == str_size ) {
+                if( not skip_empty ) {
+                    _tuple_append( res, "" )
+                }
+                stop
+            }
+        } else {
+            // do we have a last element?
+            if( pos < str_size ) {
+                _tuple_append( res, _substr( str, pos, -1 ) )
+            }
+            stop
+        }
+    }
+    res
+}
+
+// joins all elements of a tuple to a string with given separator.
+func strjoin( const tup @=, separator, add_leading := false, add_trailing := false )
+{
+    def res := ""
+    if( add_leading ) {
+        res := separator
+    }
+    const last := _tuple_size( tup ) - 1
+    forall( idx in tup ) {
+        res := res % tup[ idx ]
+        if( idx != last ) {
+            res := res % separator
+        }
+    }
+    if( add_trailing ) { // this covers also empty tuple case
+        res := res % separator
+    }
+    res
+}
+
+// creates an utf-8 iterator for the given string and sets .cur to first utf-8 glyph.
+func utf8_begin( const str @=  )
+{
+    def   it       := _tuple_create()
+    def   it.cur   := ""
+    def   it._pos  := 0
+    const it._base @= str
+    const it._size := _strlen( str )
+    
+    it.cur := _strat( str, 0 )
+    
+    it
+}
+
+// checks whether the given utf-8 iterator is at end.
+func utf8_end( const it @= )
+{
+    it._pos + _strlen( it.cur ) >= it._size
+}
+
+// advances the utf-8 iterator to next utf-8 glyph and updates .cur. 
+// if there is no more glyph it will point to the end of the string (\0).
+func utf8_next( it @= )
+{
+    const npos := it._pos + _strlen( it.cur )
+    it.cur  := _strat( it._base, npos )
+    it._pos := npos
+    
+    it
+}
+
 
 // computes power of n with integer exponent. if exp is a float it will get truncated. returns a f64.
 func pow( n, exp )
 {
     const num := n + 0.0 // make a f64
-    def   e   := _f64toi64( +exp + 0.0 ) // ensure integer is used.
+    def   e   := (+exp) as i64 // ensure an integer is used.
     def   res := 1.0
     repeat {
         if( e == 0 ) { stop }
@@ -1953,7 +3007,7 @@ func ceil( n )
 func timevals( t, HH @=, MM @=, S @=, ms @= 0 )
 {
     if( t is f64 and t >= 0.0 ) {
-        const secs := _f64toi64( t )
+        const secs := t as i64
         HH   := secs / 60 / 60
         MM   := (secs - (HH * 60 * 60)) / 60
         S    := (secs - (HH * 60 * 60) - (MM * 60))
@@ -2001,9 +3055,6 @@ func rolldice( eyes := 6 )
         }
         if( not (config & config::NoStdErr) ) {
             p.Parse( core_lib_stderr, "Core" )->Eval( rContext );
-        }
-        if( not (config & config::NoEval) ) {
-            p.Parse( core_lib_eval, "Core" )->Eval( rContext );
         }
 
         if( (config & config::LevelMask) >= config::LevelFull ) {

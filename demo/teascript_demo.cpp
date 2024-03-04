@@ -1,12 +1,10 @@
 /* === TeaScript Demo Program ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License 
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of 
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 
 // check for at least C++20
@@ -528,16 +526,109 @@ return tup[ random( 0, NUM-1) ]
     // NOTE: Visit can also return a value if the lambdas return one (must be always the same type).
     res.Visit( overloaded{
             []( auto ) -> void { std::cout << "<unhandled type>" << std::endl; },
-            []( std::any &a ) {
-                if( auto const *p_tuple = std::any_cast<teascript::Tuple>(&a); p_tuple != nullptr ) {
-                    std::cout << "Tuple: (" << p_tuple->GetValueByIdx(0) << ", " << p_tuple->GetValueByIdx(1) << ")" << std::endl;
-                } else std::cout << "<unhandled type>" << std::endl; },
+            []( std::any const & ) { std::cout << "<unhandled type>" << std::endl; },
             []( teascript::NotAValue ) { std::cout << "<not a value>" << std::endl; },
-            []( teascript::Bool  ) { std::cout << "<Bool>" << std::endl;; },
+            []( teascript::Bool ) { std::cout << "<Bool>" << std::endl;; },
             []( teascript::Integer const i ) { std::cout << "Integer: " << i << std::endl; },
             []( teascript::Decimal const d ) { std::cout << "Decimal: " << d << std::endl; },
-            []( teascript::String const &rStr ) { std::cout << "String: " << rStr << std::endl; } }
+            []( teascript::String const &rStr ) { std::cout << "String: " << rStr << std::endl; },
+            []( teascript::Tuple const &rTuple ) { std::cout << "Tuple: (" << rTuple.GetValueByIdx( 0 ) << ", " << rTuple.GetValueByIdx( 1 ) << ")" << std::endl; } 
+         }
      );
+}
+
+// This testcode demonstrates the usage of the new Buffer type (aka std::vector<unsigned char>) in TeaScript (since version 0.13).
+// It shows the great bidirectional usage of the same data (and type) in C++ and TeaScript.
+// Also, you can see a little bit of the new possibilities for integer (literals), e.g., suffix, hex, cast.
+// If libfmt include is found you can see a runtime switch using the format() function to print a number as hex.
+void test_code9()
+{
+    // our desired buffer size (in bytes)
+    constexpr size_t  size = 128ULL;
+
+    // TeaScript will manage the lieftime of the Buffer (takes ownership).
+    // If we need more control on C++ level, we can just use a ValueObject as a "shared pointer variant" (the 'ValueShared' is important for it!)
+    auto  managed_value = teascript::ValueObject( teascript::Buffer( size ), teascript::ValueConfig{teascript::ValueShared,teascript::ValueMutable} );
+    //auto const managed_value = teascript::ValueObject( teascript::Buffer( 20ULL ), true ); // short cut of the above...
+
+    // now the buffer lives until the last value object instance with the same shared value goes out of scope (actually there is only ours above.)
+    
+    // get a reference to the buffer for a more handy usage... :-)
+    teascript::Buffer &buffer = managed_value.GetValue<teascript::Buffer>();
+    // alternative:
+    //std::vector<unsigned char> &buffer = managed_value.GetValue<std::vector<unsigned char>>();
+
+    // now imagine we have some proprietary binary header/struct we need to store in the buffer for interchange and/or binary storage.
+    // lets assume there is one magic number as 32 bit unsigned, followed by 2 16 bit (signed!) values for version major / minor, 
+    // followed by a 64 bit unsigned length information, followed by a string (without trailing 0) of the previous mentioned length.
+    
+    std::uint32_t  const magic = 0x1337cafe;
+    std::int16_t   const major = 2;
+    std::int16_t   const minor = 11;
+    std::string    const content = "Some text message is included here.";
+    std::uint64_t  const len = static_cast<std::uint64_t>(content.length()); // ensure it is always 64 bit.
+
+    // store the data in our propietary buffer format... 
+    // NOTE: for simplicity we always use the host byte order! also, we assume buffer is always big enough (ok for demo mode, not for productive code!)
+    ::memcpy( buffer.data(), &magic, sizeof( magic ) );
+    ::memcpy( buffer.data() + 4, &major, sizeof( major ) );
+    ::memcpy( buffer.data() + 6, &minor, sizeof( minor ) );
+    ::memcpy( buffer.data() + 8, &len, sizeof( len ) );
+    ::memcpy( buffer.data() + 16, content.data(), len );
+
+    // now everything is prepared, lets use the buffer in TeaScript.
+
+    // create the TeaScript default engine.
+    teascript::Engine  engine;
+
+    // add the buffer as variable 'buffer' (can be an arbitrary name).
+    engine.AddSharedValueObject( "buffer", managed_value );
+
+    // ok, doing some scripting stuff... and use the buffer inside a script.
+    // NOTE: Usually scripts are loaded from file, e.g., use ExecuteScript( std::filesystem::path("") )
+    //       For nice editing of scriptcode on Windows you can use Notepad++ with TeaScript SyntaxHighlighting from the repo.
+    auto res = engine.ExecuteCode( R"_SCRIPT_(
+const magic := _buf_get_u32( buffer, 0 )
+if( magic != 0x1337cafe ) {
+    fail_with_message( "magic number is wrong: %(magic)!" )
+} else {
+    if( features.format ) { // need libfmt support!
+        print( format( "magic: {:#x}\n", magic ) )
+    } else {
+        print( "magic (dec): %(magic)\n" )
+    }
+}
+const major := _buf_get_i16( buffer, 4 )
+const minor := _buf_get_i16( buffer, 6 )
+if( major < 2 or (major == 2 and minor < 11) ) {
+    fail_with_message( "version too old: %(major).%(minor)!" )
+}
+
+const len := _buf_get_u64( buffer, 8 )
+
+const str := _buf_get_string( buffer, 16, len )
+
+println( "The message is: %(str)" )
+
+// change sth., just for demonstration
+const newstr := "This is the newest and greatest message ever!"
+
+def ok := true
+ok := ok and _buf_set_u64( buffer, 8, _strlen(newstr) as u64 )
+ok := ok and _buf_set_string( buffer, 16, newstr )
+ok := ok and _buf_set_u32( buffer, 16 + _strlen(newstr), 0xFEEDC0DEu64 ) // we only have u8 and u64, so we must use u64 here!
+
+)_SCRIPT_" );
+
+    // lets check what is the actual content in the buffer.
+    if( res.GetTypeInfo()->IsSame<bool>() && res.GetValue<bool>() ) {
+        // we can also use the CoreLibrary functions to operate on the buffer.
+        auto const new_len_val = teascript::CoreLibrary::BufGetU64( buffer, teascript::ValueObject( 8LL ) );
+        auto const new_content = teascript::CoreLibrary::BufGetString( buffer, teascript::ValueObject( 16LL ), new_len_val );
+        std::cout << "New string content: " << new_content << std::endl;
+        auto const some_secret = teascript::CoreLibrary::BufGetU32( buffer, teascript::ValueObject( 16ULL + new_len_val.GetValue<unsigned long long>() ) );
+        std::cout << "a secret code is present: " << std::hex << some_secret.GetAsInteger() << std::endl;
+    }
 }
 
 
@@ -632,6 +723,8 @@ int main( int argc, char **argv )
         test_code7();
     } else if( argc == 2 && args[1] == "-8" ) {
         test_code8();
+    } else if( argc == 2 && args[1] == "-9" ) {
+        test_code9();
     } else if( argc >= 2 ) {
         return exec_script_file( args );
     } else {

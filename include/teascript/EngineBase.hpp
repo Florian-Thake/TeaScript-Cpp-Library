@@ -1,12 +1,10 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 #pragma once
 
@@ -125,7 +123,7 @@ public:
         AddValueObject( rName, ValueObject( i, ValueConfig( eShared::ValueShared, eConst::ValueMutable ) ) );
     }
 
-    /// Adds the given value as a mutable Integer with name \param rName to the current scope.
+    /// Adds the given value as a mutable Integer with name \param rName to the current scope. NOTE: will change to I32 if this type is added!
     /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
     inline
     void AddVar( std::string const &rName, int const i )
@@ -133,12 +131,28 @@ public:
         AddVar( rName, static_cast<teascript::Integer>(i) );
     }
 
-    /// Adds the given value as a mutable Integer with name \param rName to the current scope.
+    /// Adds the given value as a mutable U64 with name \param rName to the current scope.
     /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
     inline
-    void AddVar( std::string const &rName, unsigned int const i )
+    void AddVar( std::string const &rName, teascript::U64 const u )
     {
-        AddVar( rName, static_cast<teascript::Integer>(i) );
+        AddValueObject( rName, ValueObject( u, ValueConfig( eShared::ValueShared, eConst::ValueMutable ) ) );
+    }
+
+    /// Adds the given value as a mutable U64 with name \param rName to the current scope. NOTE: will change to U32 if this type is added!
+    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    inline
+    void AddVar( std::string const &rName, unsigned int const u )
+    {
+        AddVar( rName, static_cast<teascript::U64>(u) );
+    }
+
+    /// Adds the given value as a mutable U8 with name \param rName to the current scope.
+    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    inline
+    void AddVar( std::string const &rName, teascript::U8 const u )
+    {
+        AddValueObject( rName, ValueObject( u, ValueConfig( eShared::ValueShared, eConst::ValueMutable ) ) );
     }
 
     /// Adds the given value as a mutable Decimal with name \param rName to the current scope.
@@ -157,6 +171,14 @@ public:
         AddValueObject( rName, ValueObject( s, ValueConfig( eShared::ValueShared, eConst::ValueMutable ) ) );
     }
 
+    /// Adds the given value as a mutable String with name \param rName to the current scope.
+    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    inline
+    void AddVar( std::string const &rName, teascript::String  &&s )
+    {
+        AddValueObject( rName, ValueObject( std::move(s), ValueConfig( eShared::ValueShared, eConst::ValueMutable ) ) );
+    }
+
     /// Adds the given value as a mutable String with name \param rName to the current scope. The char array \param s must be zero terminated.
     /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
     template<size_t N>
@@ -164,6 +186,28 @@ public:
     void AddVar( std::string const &rName, char const (&s)[N] )
     {
         AddVar( rName, teascript::String( s, N - 1 ) ); // - 1 for not add the \0 as content. String will be null terminated anyway.
+    }
+
+    /// Adds the given value as a mutable Buffer with name \param rName to the current scope.
+    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    inline
+    void AddVar( std::string const &rName, teascript::Buffer &&rBuffer )
+    {
+        AddValueObject( rName, ValueObject( std::move( rBuffer ), ValueConfig( ValueShared, ValueMutable ) ) );
+    }
+
+    /// Adds the given value (mutable or const) with name \param rName to the current scope. The ValueObejct must be a shared one!
+    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    inline
+    void AddSharedValueObject( std::string const &rName, teascript::ValueObject const &rValueObject )
+    {
+        if( rValueObject.InternalType() == ValueObject::TypeNaV ) {
+            throw exception::runtime_error( "teascript::EngingeBase::AddSharedValueObject(): NaV not allowed!" );
+        }
+        if( not rValueObject.IsShared() ) {
+            throw exception::runtime_error( "teascript::EngingeBase::AddSharedValueObject(): value must be shared!" );
+        }
+        AddValueObject( rName, rValueObject );
     }
 
 
@@ -206,7 +250,7 @@ public:
         AddValueObject( rName, ValueObject( i, ValueConfig( eShared::ValueShared, eConst::ValueConst ) ) );
     }
 
-    /// Adds the given value as a const Integer with name \param rName to the current scope.
+    /// Adds the given value as a const Integer with name \param rName to the current scope. NOTE: will change to I32 if this type is added!
     /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
     inline
     void AddConst( std::string const &rName, int const i )
@@ -214,12 +258,28 @@ public:
         AddConst( rName, static_cast<teascript::Integer>(i) );
     }
 
-    /// Adds the given value as a const Integer with name \param rName to the current scope.
+    /// Adds the given value as a const U64 with name \param rName to the current scope.
+    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    inline
+    void AddConst( std::string const &rName, teascript::U64 const u )
+    {
+        AddValueObject( rName, ValueObject( u, ValueConfig( eShared::ValueShared, eConst::ValueConst ) ) );
+    }
+
+    /// Adds the given value as a const U64 with name \param rName to the current scope. NOTE: will change to U32 if this type is added!
     /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
     inline
     void AddConst( std::string const &rName, unsigned int const i )
     {
-        AddConst( rName, static_cast<teascript::Integer>(i) );
+        AddConst( rName, static_cast<teascript::U64>(i) );
+    }
+
+     /// Adds the given value as a const U8 with name \param rName to the current scope.
+    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    inline
+    void AddConst( std::string const &rName, teascript::U8 const u )
+    {
+        AddValueObject( rName, ValueObject( u, ValueConfig( eShared::ValueShared, eConst::ValueConst ) ) );
     }
 
     /// Adds the given value as a const Decimal with name \param rName to the current scope.
@@ -238,6 +298,14 @@ public:
         AddValueObject( rName, ValueObject( s, ValueConfig( eShared::ValueShared, eConst::ValueConst ) ) );
     }
 
+    /// Adds the given value as a const String with name \param rName to the current scope.
+    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    inline
+    void AddConst( std::string const &rName, teascript::String  &&s )
+    {
+        AddValueObject( rName, ValueObject( std::move(s), ValueConfig( eShared::ValueShared, eConst::ValueConst ) ) );
+    }
+
     /// Adds the given value as a const String with name \param rName to the current scope. The char array \param s must be zero terminated.
     /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
     template<size_t N>
@@ -245,6 +313,14 @@ public:
     void AddConst( std::string const &rName, char const (&s)[N] )
     {
         AddConst( rName, teascript::String( s, N - 1 ) ); // - 1 for not add the \0 as content. String will be null terminated anyway.
+    }
+
+    /// Adds the given value as a mutable Buffer with name \param rName to the current scope.
+    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    inline
+    void AddConst( std::string const &rName, teascript::Buffer &&rBuffer )
+    {
+        AddValueObject( rName, ValueObject( std::move( rBuffer ), ValueConfig( ValueShared, ValueConst ) ) );
     }
 
 

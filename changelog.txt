@@ -6,6 +6,138 @@ NOTE: The dates are not the release dates, but a last commit date.
 
 
 ================
+VERSION 0.13.0, Mon Feb 26 12:19:18 2024
+================
+    VERSION: 0.13.0 - Buffer, U8, U64, bit ops, UTF-8 Iterator, hex integrals, MPL-2.0
+
+    LICENSE: The TeaScript C++ Library is now licensed under the MPL-2.0
+    
+    The Mozilla Public License is available here also https://www.mozilla.org/en-US/MPL/2.0/
+    
+    The MPL-2.0 License has following advantages for TeaScript:
+    - it can be linked statically (if all conditions are fulfilled).
+      (that is why LGPL was not choosen. TeaScript is not available as DLL.)
+    - it is explicit compatible with AGPL, GPL and LGPL.
+    - it is compatible with Apache, MIT, BSD, Boost license (and others).
+    - Larger works (means Applications using TeaScript) can be distributed
+      closed source (or under a compatible license) as long as the conditions are fulfilled.
+    - For the upcoming module system it means that a new first- or third-party
+      module for TeaScript may use any compatible license like
+      MPL-2.0, (A)GPL, MIT, Apache and so on.
+    LICENSE: added MPL-2.0, cleaned up some files.
+    FIX: fixed a bug where a new defined variable (with def :=) was const ... 
+    ... when a const value was returned from a function.
+    DEMO: fixed test_code8() (Tuple is first class citizen).
+    DIST: added bit ops to SyntaxHighlighting.xml for Notepad++
+    HOST: adjust help message for :stmt 0
+    DEMO: added example_v0.13.tea
+    CORE/SCRIPTS: use new bit operators for make_rgb().
+    DEMO: added test_code9() for demonstrate Buffer usage.
+    ENGINE: added AddVar|Const overloads for U8, U64 and added AddSharedValueObject, ...    
+    - ... changed AddVar|Const for unsigned int adding an U64 instead of I64.
+    - added overload taking a rvalue string for can move in a string object.
+    SHELL: added #echo off|on to --batch processing mode.
+    LINUX: fixed compile with libc++14
+    TEST/MISC: added corelibrary_test04 for new string/utf-8 functions, ...
+    - changed _strfromascii taking any Number type as argument.
+    - optimized finding internal names in global namespace.
+    - fixed some core library functions to be invocable with const objects.
+    - made Buffer to string convertable (NOTE: Carefull when printing!)
+    - finished work on write_image.tea
+    TEST: added v0.13 to corelibrary_test01.tea.
+    CORELIB: ReadTextFile now uses complete utf-8 validation.
+    SHELL: added :search <str> command, lists all variables/functions containing <str>.
+    CORELIB: added _buf_copy, _buf_resize, _buf_get_ascii, _strfromascii
+    TEASCRIPT: added binary bit operators bit_and|or|xor, bit_lsh|rsh and unary bit_not
+    - added ArithmeticFactory::ApplyBitNot, ApplyBitOp, ApplyBitshift
+    - added ASTNode_Bit_Operator
+    - made ApplyBinOp and ApplyUnOp deprecated in favor of ApplyBinaryOp|ApplyUnaryOp
+    - the bit operators are available for U8, U64 and I64.
+    - thanks to the underlying C++20 bit shift with I64 is possible as well.
+    - the rhs operand for shift will be casted to U8, detection is done for too big values.
+    - fixed format() with U8/U64
+    UNITTEST: added Buffer CoreLibrary tests.
+    FIX: warnings in Sequence<unsigned>::Next()
+    CORELIB: added _buf_get_u8|i8|u16|i16|u32|i32|u64|i64|string and ...
+    - ... implemented util::is_valid_utf8 as template taking a std::span<CharT>
+    TEASCRIPT: added subscript operator for Buffer, made bad_value_cast ...
+    - ... inherit by runtime_error (with SourceLocation!).
+    - added SourceLocation to some bad_value_cast occurences in Subscript Operator.
+    TEASCRIPT: added parameter info to debug print functions.
+    DIST: Added SyntaxHighlighting for Notepad++
+    VALUE: AssignValue for U64 and U8.
+    CORELIB: added read/writefile for binary data, _buf_fill[32], buf_zero, ...
+    ... fixed _buf_set functions writing in host byte order instead of big endian ;-O
+    - added write_image.tea for show TeaScript can write BMP files.
+    CORELIB: added _buf_set_u8|i8|u16|i16|u32|i32|u64|i64|string and allowing ...
+    - ... to append data if position is either last valid index + 1 or
+      the size of data exceeds the current size as long as enough capacity is available.
+    - removed _buf_append as it is _buf_set_u8( buf, _buf_size(buf), val )
+    TEASCRIPT: added Buffer, added _buf[|_at|_size|_capacity|_append|_set]
+    TEST: added Unittest for as operator, Sequence<signed|unsigned>
+    TEASCRIPT: added U8 and U64, Arithmetic::Compare/Convert, hex parsing, ...    
+    - improved Arithmetic BinOp (support 2 different types as operands)
+    - improved as operator by using new Arithmetic::Convert
+    - cast to unsigned has defined overflow, signed will throw.
+    - allow suffix f64, i64, u8 and u64 for number literals.
+    - integer literals can be in hex notation (upper or lower), must start w. [-/+]0x
+    - Unittest for integer parsing.
+    OPTIMIZE: Introduced InternalType() in ValueObject and ...    
+    ... use it in ArithmetikHelper as well as in FormatString.    
+    FIX: HasPrintableValue() in ValueObject for Sequence/TypeInfo.
+    VALUE: made Tuple a first class citizen.
+    PARSER: added ##enable[_if]/disable[_if], SetEnabled()/SetDisabled().
+    CORELIB: added utf8_iterator functions.
+    TEASCRIPT: added As Operator for explicit cast.
+    ASTNODE: Added Append + AddPart + new constructor to ASTNode_File
+    ASTNODE: merged in small changes (public getter) from branch 'exp'.
+    ASTNODE: added virtual Check() for validation.
+    ASTNODE: changed Eval() to const.
+    VALUE: added convenience AssignValue() overloads.
+    CLEAN: Removed deprecated eval() and Parser::Int(). Made ...    
+    ... Engine::ActivateDeprecatedDefaultMutableParameters() deprecated.
+    LIB: Split Util.hpp into Util.hpp, UtilContent.hpp and UtilInternal.hpp
+    TYPES/LIB: Split Type.hpp into Types.hpp and TypeSystem.hpp. With this ...    
+    ... IntegerSequence was added as a static TypeInfo instance in TypeSystem.
+    CONTEXT: Use Collection with unordered_map, added policy to Collection, and ...
+    ... optionally use boost container instead of the std containers.
+    This is disabled by default for now because benchmark shows a performance penalty.
+    HOST: count total lines when load=file
+    HOST: stmt 0 shows amount of remaining statements.
+    HOST: added --batch for batch processing (before the shell).
+    CORELIB: fixed broken UTF-8 behavior for _strat!
+    - now _strat always returns a valid complete UTF-8 code point.
+      If the wanted pos does not point at a start of an UTF-8 code point,
+      the last valid start will be used.
+      This is a breaking change since the length of the returned string
+      is not always 1 (or 0) but between 0 and 4 now.
+    - reject invalid (not complete) UTF-8 ranges for _strfind and _strreplacepos
+    - added StrUTF8GlyphToBytePos() / _strglyphtobytepos()
+    - added strsplit() (into Tuple)
+    - added strjoin() (from Tuple)
+    DOCU: added _seq() documentation.
+    BUILD: add bigobj to VS settings.
+    CONTEXT: made BulkAdd deprecated, introduced InjectVars with std::move    
+    - refactored BuildInternal to add to Collection instead of tmp vector.
+    - ... add the end the values are moved into the Context (InjectVars)
+    - added default move constructor/assignment to Collection
+    - speedup boostrap LevelCore ca. 0.00009480s (before) to 0.00008440s (now)
+    CONTEXT: Refactored storage layout and use Collection now.    
+    - with this the ValueObject is now only stored once and not twice anymore!
+    - added Collection::RemoveValueByKeyWithPlaceholder(). With this ...
+    - ... undefing will be super fast due to the vector stays stable ...
+    - ... and the indices in the map don't need to be touched as well.
+    - Also, SetValue via SharedAssign is now straight forward as it should be.
+    - added npos to Collection.
+    - reduced complexity of Collection::AppendKeyValue to one lookup, so that ...
+    - ... BulkAdd can be made obsolete soon.
+    
+    - This is only one little refactoring step. More are required for ...
+    - a) multithreaded contexts.
+    - b) faster lookup
+    - c) and eventually different scoping behavior.
+
+================
 Version 0.12.0, Tue Jan 16 14:42:09 2024
 ================
     VERSION: 0.12.0 - Colored Output, Format String, Forall Loop, Sequences, interactive debugging.

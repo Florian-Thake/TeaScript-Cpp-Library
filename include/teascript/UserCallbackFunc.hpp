@@ -1,12 +1,10 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 #pragma once
 
@@ -22,9 +20,11 @@ namespace teascript {
 class UserCallbackFunc : public FunctionBase
 {
     CallbackFunc  mCallback;
+    int           mParamCount;   // desired parameter count, -1 == arbitrary (e.g., func( ... ) )
 public:
-    UserCallbackFunc( CallbackFunc const &rCallback )
+    UserCallbackFunc( CallbackFunc const &rCallback, int param_count = -1 )
         : mCallback( rCallback )
+        , mParamCount( param_count )
     {
         if( !mCallback ) {
             throw exception::runtime_error( "UserCallbackFunc(): callback function is invalid!" );
@@ -37,6 +37,12 @@ public:
 
         return mCallback( rContext );
     }
+
+    int ParamCount() const override
+    {
+        return mParamCount;
+    }
+
 };
 
 } // namespace teascript

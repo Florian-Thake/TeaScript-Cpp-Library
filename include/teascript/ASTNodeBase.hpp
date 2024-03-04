@@ -1,12 +1,10 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2023 Florian Thake <contact |at| tea-age.solutions>.
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MPL-2.0
  *
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License
- * as published by the Free Software Foundation, version 3.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 #pragma once
 
@@ -17,6 +15,7 @@
 
 
 #include <memory> // shared_ptr
+#include <vector>
 #include <string>
 #include <stdexcept>
 #include <functional>
@@ -31,6 +30,9 @@ class Context;
 class ASTNode;
 
 using ASTNodePtr = std::shared_ptr<ASTNode>;
+
+using ASTNodeContainer = std::vector<ASTNodePtr>;
+
 
 /// The common base class for all ASTNodes.
 class ASTNode
@@ -60,8 +62,17 @@ public:
     {
     }
 
+    /// checks if the ASTNode is ready for Eval() can be called, e.g., all necessarry children are present (if any)
+    /// \throws if it is not ready.
+    virtual void Check() const
+    {
+        if( IsIncomplete() ) {
+            throw exception::eval_error( GetSourceLocation(), "ASTNode " + GetName() + " is incomplete!" );
+        }
+    }
+
     /// recursive evaluation of the AST within the given context \praram rContext. \return ValueObject as result.
-    virtual ValueObject Eval( Context &rContext ) = 0;
+    virtual ValueObject Eval( Context &rContext ) const = 0;
 
 
     /// \return the name of this ASTNode.
@@ -146,6 +157,15 @@ public:
     virtual ASTNodePtr PopChild()
     {
         throw exception::runtime_error( GetSourceLocation(), "ASTNode::PopChild(): This ASTNode cannot have children!" );
+    }
+
+    virtual ASTNodeContainer::const_iterator begin() const noexcept
+    {
+        return {};
+    }
+    virtual ASTNodeContainer::const_iterator end() const noexcept
+    {
+        return {};
     }
 
     /// applies a callback function recursively to the AST. Stops nesting if callback returns false.
