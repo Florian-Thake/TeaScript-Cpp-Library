@@ -1,16 +1,16 @@
 # TeaScript C++ Library
 This is a snapshot of the latest Release of the **TeaScript C++ Library** for embed in C++ Applications.<br><br>
-**Extend** your applications dynamically during runtime with TeaScript.<br>
-Once your application has **customization points** for TeaScript each installation/distribution can be extended/modified **without** expensive re-compile and deployment procedure with arbitrary and individual functionality.
+Extend your applications dynamically during runtime with TeaScript.<br>
+Once your application has customization points for TeaScript each installation/distribution can be extended/modified without expensive re-compile and deployment procedure with arbitrary and individual functionality.
 
-**TeaScript** is an embeddable and standalone **Multi-Paradigm script language** close to C++ syntax but easier to use.<br>
+TeaScript is an embeddable and standalone **Multi-Paradigm script language** close to C++ syntax but easier to use.<br>
 More information about TeaScript is available here: https://tea-age.solutions/teascript/overview-and-highlights/
 
-This Library can be used as a **header only** library and is **dependency free** for fully C++20 supporting compilers / C++ standard libraries.
+This Library can be used as a **header only** library and can be **dependency free** for fully C++20 supporting compilers / C++ standard libraries (optional features require to include other free software libraries).
 
-Provided with this Library is a **demo app** for illustrating the C++ API usage and a basic way for execute TeaScript files.
+Provided with this Library is a demo app for illustrating the C++ API usage and a basic way for execute TeaScript files.
 
-The full featured **TeaScript Host Application** for execute **standalone** script files, an interactive shell, a REPL, **debugging** capabilities, time measurement and more can be downloaded **for free** as a **pre-compiled** Windows and Linux bundle and with included source code here:<br>
+The full featured **TeaScript Host Application** for execute standalone script files, an interactive shell, a REPL, debugging capabilities, time measurement and more can be downloaded **for free** as a **pre-compiled** Windows and Linux bundle and with included source code here:<br>
 https://tea-age.solutions/downloads/<br>
 
 Also, a Library bundle with more example scripts is available in the download section.
