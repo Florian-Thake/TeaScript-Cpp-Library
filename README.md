@@ -10,9 +10,10 @@ This Library can be used as a **header only** library and is **dependency free**
 
 Provided with this Library is a **demo app** for illustrating the C++ API usage and a basic way for execute TeaScript files.
 
-A Library bundle with more example scripts as well as a full featured **TeaScript Host Application** for execute **standalone** script files, 
-an interactive shell, a REPL, debugging options, time measurement and more can be downloaded for free here (including its source): <br>
-https://tea-age.solutions/downloads/
+The full featured **TeaScript Host Application** for execute **standalone** script files, an interactive shell, a REPL, **debugging** capabilities, time measurement and more can be downloaded **for free** as a **pre-compiled** Windows and Linux bundle and with included source code here:<br>
+https://tea-age.solutions/downloads/<br>
+
+Also, a Library bundle with more example scripts is available in the download section.
 
 # About TeaScript
 **What is new in TeaScript 0.13.0?** TeaScript 0.13 comes with Buffer, U8, U64, bit ops, UTF-8 Iterator, hex integrals, MPL-2.0 license and more.<br>
@@ -22,6 +23,9 @@ https://tea-age.solutions/2024/03/04/release-of-teascript-0-13-0/ <br>
 Get a very nice overview with the most **impressive highlights** here:<br>
 https://tea-age.solutions/teascript/overview-and-highlights/ <br>
 <br>
+Read nice introductions of every new language and library feature in the release blog post collection:<br>
+[Release blog posts](https://tea-age.solutions/teascript/downloads/#all_release_articles) <br>
+
 TeaScript language documentation:<br>
 https://tea-age.solutions/teascript/teascript-language-documentation/ <br>
 Integrated Core Library Documentation:<br>
@@ -133,22 +137,27 @@ auto const res = engine.ExecuteCode( "squared( 2 )" );
 // print the result.
 std::cout << "square is " << res.GetAsInteger() << std::endl;
 ```
+## More C++ examples
 
 More examples are in the [teascript_demo.cpp](demo/teascript_demo.cpp) of this repo.
 
 # Example TeaScript Code
 
-Better syntax highlighting is on the TeaScript home page or in Notepad++ with the provided [SyntaxHighlighting.xml](TeaScript_SyntaxHighlighting_Notepad%2B%2B.xml)
+**Hint:** Better syntax highlighting is on the TeaScript home page or in Notepad++ with the provided [SyntaxHighlighting.xml](TeaScript_SyntaxHighlighting_Notepad%2B%2B.xml)
 
 ```cpp
-def    age  := 42     // mutable variable of type i64
-const  year := 2022   // const variable of type i64
+def    age  := 42u8   // mutable variable of type u8
+const  year := 2022   // const variable of type i64 (i64 is the default for Numbers)
 
 // output: Thomas is 42 years old and born in 1980.
-println( "Thomas is %(age) years old and born in %(year - age)." ) 
+println( "Thomas is %(age) years old and born in %(year - age)." )
+
+// or use the string format feature (must link with libfmt for be available!)
+// all formatting options of libfmt are possible except named arguments.
+println( format( "Thomas is {} years old and born in {}.", age, year - age ) )
 
 
-// result of a loop can be direct assigned to a variable. (can do this with any code blocks)
+// result of a loop can be direct assigned to a variable. (can do this with any code blocks, like if, etc.)
 // illustrating this by computing the gcd (greatest common divisor) with a loop and store the result directly in a variable:
 def x1 := 48
 def x2 := 18
@@ -182,6 +191,48 @@ repeat "this" {         // loop is named "this"
 // c will be 6 here.
 
 
+// === Tuples and Named Tuples as C-like structs ===
+
+def tup := (1,3,5,7)     // tuple with 4 elements
+tup.0                    // 1    (or use _tuple_val( tup, 0 ))
+tup.1                    // 3
+// can append with the Uniform Definition Syntax (or use _tuple_append())
+def tup.4 := 9
+tup.4                    // 9
+// and delete as well (or use _tuple_remove())
+undef tup.0              // now all remaining elements are down one index
+tup.0                    // 3 now
+
+// types can be mixed (and nested)
+def mixed_tup := (true, "Peter", 3.123, 0xffffu64, ("nested", 123u8))
+mixed_tup.1              // "Peter"
+
+// easy iterating over all tuple elements
+forall( idx in mixed_tup ) {
+    println( mixed_tup[ idx ] )
+}
+
+
+// -- NAMED TUPLES as C-like structs --
+
+// most easy with the Uniform Definition Syntax
+// (have a look at the battery of utility functions for more possibilities!)
+def root := _tuple_create()           // start with empty tuple
+def root.name  := "Peter"             // add element "name" with value "Peter"
+def root.email := "peter@mail.com"    // add element "email"
+def root.birth := _tuple_create()     // sub tuple
+def root.birth.year  := 1980          // add element "year" to tuple "birth" with value 1980
+def root.birth.month := 10            // add element "month" to tuple "birth"
+def root.birth.day   := 27            // add element "day" to tuple "birth"
+
+// PRO TIP: use a factory function for act as a constructor for same Named Tuple structures.
+
+root.name       // "Peter"
+root.1          // "peter@mail.com" (access by index still possible)
+root.birth      // (1980, 10, 27)
+root.birth.day  // 27
+
+
 // === Lambdas and higher order functions:
 
 // classical way to define a function.
@@ -197,9 +248,14 @@ call( squared, 3 )  // passing function as parameter. result: 9
 
 call( func (z) { z + z }, 3 ) // passing lambda as parameter. result: 6
 ```
-More impressive highlights on:<br>
+## More TeaScript code examples
+
+More impressive **highlights** on:<br>
 https://tea-age.solutions/teascript/overview-and-highlights/<br>
-and in the provided example files in the demo directory: [demo](demo/)
+and in the provided example files in the demo directory:<br> 
+[demo](demo/) <br>
+as well as in the collection of release blog posts which are also introducing the new language and library features:<br>
+[Release blog posts](https://tea-age.solutions/teascript/downloads/#all_release_articles)
 
 
 # Supported compiler (tested with)
@@ -289,7 +345,7 @@ Third, usage of the high-level C++ API only. This API will stay backward compati
 The high-level API consists of the classes teascript::Engine / teascript::EngineBase, all public getters in teascript::ValueObject as well as everything in Exception.hpp / SourceLocation.hpp and version.h (except if otherwise noted).
 
 # License
-TeaScript is 100% Open Source and Free Software and licensed under the Mozilla Public License 2.0.<br>
+TeaScript is 100% Open Source and Free Software and the **C++ Library** is licensed under the Mozilla Public License 2.0.<br>
 
 The Mozilla Public License can be read here https://www.mozilla.org/en-US/MPL/2.0/ <br>
 
@@ -301,11 +357,10 @@ This license has the following advantages for TeaScript and for its users:<br>
 - Larger works (means Applications using TeaScript) can be distributed closed source (or under a compatible license) as long as the conditions are fulfilled.
 - For the upcoming module system it means that a new first- or third-party module for TeaScript may use any compatible license like MPL-2.0, (A)GPL, MIT, Apache and so on.
 <br>
-Many questions regarding the MPL are also answered in the official FAQ: https://www.mozilla.org/en-US/MPL/2.0/FAQ/<br>
-
-If you have further questions regarding the new license don’t hesitate to contact me.
-
-
+Many questions regarding the MPL are also answered in the official FAQ:<br>
+https://www.mozilla.org/en-US/MPL/2.0/FAQ/<br>
+<br>
+If you have further questions regarding the license don’t hesitate to contact me.
 
 # Disclaimer
 This software is provided “as-is” without any express or implied warranty. In no event shall the author be held liable for any damages arising from the use of this software.
