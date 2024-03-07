@@ -13,7 +13,7 @@ Provided with this Library is a demo app for illustrating the C++ API usage and 
 The full featured **TeaScript Host Application** for execute standalone script files, an interactive shell, a REPL, debugging capabilities, time measurement and more can be downloaded **for free** as a **pre-compiled** Windows and Linux bundle and with included source code here:<br>
 https://tea-age.solutions/downloads/<br>
 
-Also, a Library bundle with more example scripts is available in the download section.
+Also, a Library bundle with more example scripts is available in the download section as well.
 
 # About TeaScript
 **What is new in TeaScript 0.13.0?** TeaScript 0.13 comes with Buffer, U8, U64, bit ops, UTF-8 Iterator, hex integrals, MPL-2.0 license and more.<br>
@@ -194,7 +194,7 @@ repeat "this" {         // loop is named "this"
 // === Tuples and Named Tuples as C-like structs ===
 
 def tup := (1,3,5,7)     // tuple with 4 elements
-tup.0                    // 1    (or use _tuple_val( tup, 0 ))
+tup.0                    // 1    (or use tup[0] or _tuple_val( tup, 0 ))
 tup.1                    // 3
 // can append with the Uniform Definition Syntax (or use _tuple_append())
 def tup.4 := 9
@@ -202,10 +202,12 @@ tup.4                    // 9
 // and delete as well (or use _tuple_remove())
 undef tup.0              // now all remaining elements are down one index
 tup.0                    // 3 now
+tup.1 := 6               // 6 now    (or use tup[1] := 6 or _tuple_set( tup, 1, 6 ))
 
 // types can be mixed (and nested)
 def mixed_tup := (true, "Peter", 3.123, 0xffffu64, ("nested", 123u8))
 mixed_tup.1              // "Peter"
+mixed_tup[4][1]          // 123
 
 // easy iterating over all tuple elements
 forall( idx in mixed_tup ) {
@@ -231,7 +233,15 @@ root.name       // "Peter"
 root.1          // "peter@mail.com" (access by index still possible)
 root.birth      // (1980, 10, 27)
 root.birth.day  // 27
+// alternatives:
+root[0]         // "Peter"   (of course the Number could be a variable here)
+root["name"]    // "Peter"   (of course the string could be a variable here)
+root."name"     // "Peter"
+// access way can be changed for each level, e.g.:
+root["birth"].0 // 1980   (or root[2]."year", ... )
 
+// There are more features and possibilities available for Tuples / Named Tuples
+// which can be found in the various release blog posts (especially version 0.10.0 / 0.11.0) and documentation pages.
 
 // === Lambdas and higher order functions:
 
