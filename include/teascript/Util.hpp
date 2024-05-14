@@ -29,6 +29,7 @@ namespace util {
 namespace {
 
 
+[[maybe_unused]]
 void pretty_print( teascript::exception::runtime_error const &ex, std::string const src_overwrite = {} )
 {
     if( not ex.IsSourceLocSet() ) {
@@ -50,6 +51,7 @@ void pretty_print( teascript::exception::runtime_error const &ex, std::string co
 
 // colored variant is only possible when libfmt is used.
 #if TEASCRIPT_FMTFORMAT
+[[maybe_unused]]
 void pretty_print_colored( teascript::exception::runtime_error const &ex, std::string const src_overwrite = {} )
 {
     if( not ex.IsSourceLocSet() ) {
@@ -77,6 +79,7 @@ void pretty_print_colored( teascript::exception::runtime_error const &ex, std::s
 
 /// \returns whether [start,start+count) is forming a complete UTF-8 range in \param rStr.
 /// \note: This functions assumes /param rStr is a valid UTF-8 encoded string!
+[[maybe_unused]]
 bool is_complete_utf8_range( std::string const &rStr, std::size_t const start, std::size_t const count )
 {
     // if we peek in the middle of an utf-8 code point sequence it is not a complete utf-8 range.
@@ -98,6 +101,7 @@ bool is_complete_utf8_range( std::string const &rStr, std::size_t const start, s
     return true;
 }
 
+[[maybe_unused]]
 size_t utf8_string_length( std::string const &rStr )
 {
     constexpr unsigned char utf8_Continuation_Prefix = 0x80;  // 10xx xxxx
@@ -114,6 +118,7 @@ size_t utf8_string_length( std::string const &rStr )
     return glyphs;
 }
 
+[[maybe_unused]]
 size_t utf8_glyph_to_byte_pos( std::string const &rStr, size_t const glyph )
 {
     if( rStr.empty() ) [[unlikely]] {
@@ -149,7 +154,9 @@ bool is_valid_utf8( std::span<CharT> const &rData, bool const reject_control_cha
         unsigned char const x = static_cast<unsigned char>(rData[idx]);
         if( x > 127 ) {
 
-            if( x == 0xC0 || x == 0xC1 || x > 0xF4 ) {
+            // start with a follow char is not allowed, 0xC0|C1 and > 0xF4 is invalid.
+            //if( x < 0xC0 || x == 0xC0 || x == 0xC1 || x > 0xF4 ) {
+            if( x < 0xC2 || x > 0xF4 ) {
                 return false;
             }
             int follow = 0;

@@ -5,24 +5,10 @@ Beside feature incompleteness there are the following known issues which will be
 NOTE: The numbers stay same, solved items will (usually) be removed in the next release from this list.
      
 
-3.) [PLATFORM: any] Solved in 0.13 (explicit cast to variuos number types is posible now with the as operator
-                                    e.g., n as i64 or x as f64 )
-
-
-5.) [PLATFORM: Windows]
-    Echo'ed(!) input of Unicode might be broken on Windows for the case if the Unicode glyph is 
-    assembled as a surrogate pair in it's UTF-16 representation. This is a bug (or missing feature)
-    inside the WIN32 API. See https://developercommunity.visualstudio.com/t/Bug-in-WIN32-API-ReadConsoleW-for-UTF-16/10252965
-    Echo'ed input is present when
-    - typing commands / code in the interactive shell. (TeaScript Host Application only)
-    - request user input via readline() function.      (TeaScript Library and Host Application)
+5.) [PLATFORM: Windows] Solved! 
+    Turns out the broken echo'ed Unicode output was a bug in the Windows Terminal application.
+    It is fixed in Windows Terminal 1.19.
     
-    Nevertheless, the read in data is correctly stored in it's UTF-8 representation and can be used without problems,
-    e.g. printing the read data later on the screen will be correct.
-    
-    Hint: Ensure you are using "Windows Terminal" together with either PowerShell or Command Prompt to experience
-    the best possible Unicode support on Windows.
-
 
 6.) [PLATFORM: any]
     Parsing and/or Evaluation errors from inside in-string evaluation may show wrong source
@@ -32,15 +18,17 @@ NOTE: The numbers stay same, solved items will (usually) be removed in the next 
     For TeaScript Library use Engine::SetDebugMode( true )
 
    
-7.) [PLATFORM: Linux with gcc or clang w. libstdc++]
+7.) [PLATFORM: Linux with gcc < 13 or clang w. libstdc++]
     Comparing values where at least one is a floating point and this value is not finite (e.g. NAN or infinity)
     will throw a teascript::exception::runtime_error. Actually, this exception cannot be caught within the 
     TeaScript code.
-    On Windows (Visual Studio) and clang w. libc++ a total strong ordering will be performed and the values can be compared.
+    On Windows (Visual Studio) and clang w. libc++  and gcc >= 13
+    a total strong ordering will be performed and the values can be compared.
 
     
-8.) [PLATFORM: Linux]
+8.) [PLATFORM: Linux with clang or gcc < 13]
     CoreLibrary function clock_utc() will return UTC time _without_ leap seconds.
+    WORKAROUND: Use gcc >= 13 on Linux.
 
     
 10.) [PLATFORM: any]
@@ -50,5 +38,17 @@ NOTE: The numbers stay same, solved items will (usually) be removed in the next 
      WORKAROUND: since 0.11.0 Subscript Operator is implemented, use tup[0].1 or tup[0][1]  as a workaround.
 
 
-13.) -
+13.) [PLATFORM: Linux with clang and libc++]
+     Sending a Suspend Request from another thread to a running program (compiled TeaScript Binary (.tsb))
+     in the TeaStackVM is not possible due to the lack of the C++20 library feature std::stop_source|token.
+     WORKAROUND: Use gcc/g++ on Linux, ideally >= version 13.
+
+
+14.) [PLATFORM: any]
+     In compile mode: A stop or loop statement referencing an outer loop from an inner loop
+     is not possible when issued from inside an operand of a unary,binary operator or subscript operator.
+     However, this is actually possible in evaluation mode but it is dicouraged to use (looks like dirty code!).
+     E.g., the following code evaluates but is broken when compiled:
+     def tup := (1,2,3,4)
+     repeat "test" { print( tup[ repeat { stop "test", 1 } ] ) }
 

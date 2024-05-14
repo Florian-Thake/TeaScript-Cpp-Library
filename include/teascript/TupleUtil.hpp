@@ -69,6 +69,7 @@ void foreach_named_element( std::string const &fullname, ValueObject &rVal, bool
 // needed for linking
 namespace {
 
+[[maybe_unused]]
 bool is_same_structure( Tuple const &rTup1, Tuple const &rTup2 ) noexcept
 {
     if( rTup1.Size() != rTup2.Size() ) {

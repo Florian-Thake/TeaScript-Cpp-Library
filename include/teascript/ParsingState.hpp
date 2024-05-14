@@ -91,6 +91,7 @@ public:
     // these settings will be reset on clear calls.
     // these state infos are maintained and only be used by the outer level. It is just here to have everything collected in one state object.
     bool disabled         = false;
+    bool tsvm_mode        = false;
     bool utf8_bom_removed = false;
     bool is_in_comment    = false;
     size_t is_in_rawstring = 0;    // >0 in rawstring. Is the amount of parsed starting ".
@@ -109,6 +110,7 @@ public:
         ast_offset = 0;
         open_statement = false;
         disabled = false;
+        tsvm_mode = false;
         utf8_bom_removed = false;
         is_in_comment = false;
         is_in_rawstring = 0;
@@ -795,9 +797,9 @@ public:
             return;
         }
 #if 1 //NOTE: Workaround needed to lift up (RHS) Operand for building the function call with it instead! Can be removed only with "Parse ahead" or other mechanics in StartCall/EndCall.
-        // WORKAROUND for call a func in return or stop-with statement and also in unary/binary operators. TODO: Make clean!
+        // WORKAROUND for call a func in return, yield or stop-with statement and also in unary/binary operators. TODO: Make clean!
         if( !mWorkingAST.empty() && open_statement && 
-            (mWorkingAST.back()->GetName() == "Return" || mWorkingAST.back()->GetName() == "Stop"
+            (mWorkingAST.back()->GetName() == "Return" || mWorkingAST.back()->GetName() == "Yield" || mWorkingAST.back()->GetName() == "Stop"
               || mWorkingAST.back()->GetName() == "UnOp" || mWorkingAST.back()->GetName() == "BinOp") ) {
             if( mWorkingAST.back()->HasChildren() && mWorkingAST.back()->IsComplete() ) {
                 auto ch = mWorkingAST.back()->PopChild();
@@ -858,9 +860,9 @@ public:
             throw exception::parsing_error( std::move(loc), "EndExpression: There is no (start of an) expression!" );
         }
 
-        // no node after dummy? that is an empty expression. create a NoOp.
+        // no node after dummy? that is an empty expression. create a NaV
         if( mIndexStack.top() == mWorkingAST.size() - 1 ) {
-            mWorkingAST.emplace_back( std::make_shared<ASTNode_NoOp>() );
+            mWorkingAST.emplace_back( std::make_shared<ASTNode_Constant>(ValueObject()) );
         } else {
             if( mWorkingAST.back()->IsIncomplete() ) {
                 throw exception::parsing_error( mWorkingAST.back()->GetSourceLocation(), "EndExpression: Last node is not complete, probably a RHS is missing!" );
@@ -899,7 +901,7 @@ public:
 #if 1 //NOTE: Workaround needed to lift up (RHS) Operand for building the subscript operator with it instead! Can be removed only with "Parse ahead".
         // WORKAROUND for use subscript operator in return or stop-with statement and also in unary/binary operators. TODO: Make clean!
         if( !mWorkingAST.empty() && open_statement &&
-            (mWorkingAST.back()->GetName() == "Return" || mWorkingAST.back()->GetName() == "Stop"
+            (mWorkingAST.back()->GetName() == "Return" || mWorkingAST.back()->GetName() == "Yield" || mWorkingAST.back()->GetName() == "Stop"
               || mWorkingAST.back()->GetName() == "UnOp" || (mWorkingAST.back()->GetName() == "BinOp" && mWorkingAST.back()->GetDetail() != ".")) ) {
             if( mWorkingAST.back()->HasChildren() && mWorkingAST.back()->IsComplete() ) {
                 auto ch = mWorkingAST.back()->PopChild();

@@ -10,6 +10,7 @@
 
 #include <cassert>
 #include <iostream> // std::cout for debug operator
+#include <span>
 
 #include "ValueObject.hpp"
 #include "Number.hpp"
@@ -108,9 +109,8 @@ public:
 
     ValueObject Eval( Context & ) const override
     {
-        return {NaV};
+        return {};
     }
-
 };
 
 
@@ -292,7 +292,7 @@ public:
 class ASTNode_Expression : public ASTNode_Child_Capable
 {
 public:
-    enum class Mode
+    enum class eMode : unsigned int
     {
         ExprOrTuple, // evals last node or build a tuple
         Cond, // evals all nodes
@@ -302,7 +302,7 @@ private:
     bool mIsComplete = false;
 
 protected:
-     Mode mMode = {Mode::ExprOrTuple};
+     eMode mMode = {eMode::ExprOrTuple};
 
     explicit ASTNode_Expression( std::string name, SourceLocation loc = {} )
         : ASTNode_Child_Capable( std::move(name), std::move(loc) )
@@ -329,7 +329,12 @@ public:
         mIsComplete = true;
     }
 
-    void SetMode( Mode const mode ) noexcept
+    eMode GetMode() const noexcept
+    {
+        return mMode;
+    }
+
+    void SetMode( eMode const mode ) noexcept
     {
         mMode = mode;
     }
@@ -358,7 +363,7 @@ public:
     {
         Check();
         // actually expr. with more than one node are reserved for build tuples and thus only the last node get executed (like it contains only one node)
-        if( mMode == Mode::ExprOrTuple ) {
+        if( mMode == eMode::ExprOrTuple ) {
             if( mChildren.size() == 1 ) { // 1 child is one value.
                 return mChildren.back()->Eval( rContext );
             } else {
@@ -386,14 +391,105 @@ public:
 /// Unary Operators which have exactly one operand (at right hand site)
 class ASTNode_Unary_Operator : public ASTNode_Child_Capable
 {
-    std::string const mOperator; //TODO: Use enum!
+public:
+    enum class eOperation : unsigned int
+    {
+        LogicalNot,
+        BitNot,
+        UnaryMinus,
+        UnaryPlus,
+        ShareCount,
+        Typename,
+        Typeof
+    };
+
+    static eOperation StringToEnum( std::string const &rStr )
+    {
+        switch( rStr[0] ) {
+        case 'n':
+            if( rStr == "not" ) [[likely]] {
+                return eOperation::LogicalNot;
+            }
+            break;
+        case 'b':
+            if( rStr == "bit_not" ) [[likely]] {
+                return eOperation::BitNot;
+            }
+            break;
+        case '-':
+            if( rStr.size() == 1 ) [[likely]] {
+                return eOperation::UnaryMinus;
+            }
+            break;
+        case '+':
+            if( rStr.size() == 1 ) [[likely]] {
+                return eOperation::UnaryPlus;
+            }
+            break;
+        case '@':
+            if( rStr == "@?" ) [[likely]] {
+                return eOperation::ShareCount;
+            }
+            break;
+        case 't':
+            if( rStr == "typeof" ) [[likely]] {
+                return eOperation::Typeof;
+            } else if( rStr == "typename" ) {
+                return eOperation::Typename;
+            }
+            break;
+        default:
+            break;
+        }
+        throw exception::runtime_error( "ASTNode_Unary_Operator::StringToEnum(): unsupported string!" );
+    }
+
+    static std::string EnumToString( eOperation const e )
+    {
+        switch( e ) {
+        case eOperation::LogicalNot:
+            return "not";
+        case eOperation::BitNot:
+            return "bit_not";
+        case eOperation::UnaryMinus:
+            return "-";
+        case eOperation::UnaryPlus:
+            return "+";
+        case eOperation::ShareCount:
+            return "@?";
+        case eOperation::Typename:
+            return "typename";
+        case eOperation::Typeof:
+            return "typeof";
+        default:
+            throw exception::runtime_error( "ASTNode_Unary_Operator::EnumToString(): unsupported enum!" );
+        }
+    }
+
+private:
+    eOperation mOperation;
+    
+
+protected:
+    struct NoCheck {};
+
+    ASTNode_Unary_Operator( NoCheck, std::string const &rOperator, SourceLocation loc = {} )
+        : ASTNode_Child_Capable( "UnOp", rOperator, std::move( loc ) )
+        , mOperation(static_cast<eOperation>(~0u)) // sth. invalid.
+    {
+    }
 
 public:
     ASTNode_Unary_Operator( std::string const &rOperator, SourceLocation loc = {} )
         : ASTNode_Child_Capable( "UnOp", rOperator, std::move(loc) )
-        , mOperator( rOperator )
+        , mOperation( StringToEnum(rOperator) )
     {
-        // TODO: check for valid op.
+    }
+
+    inline
+    eOperation GetOperation() const noexcept
+    {
+        return mOperation;
     }
 
     bool IsComplete() const noexcept final
@@ -424,34 +520,35 @@ public:
         }
     }
 
+    static ValueObject StaticExec( eOperation const op, ValueObject const &operand, SourceLocation const & loc = {} )
+    {
+        switch( op ) {
+        case eOperation::LogicalNot:
+            return ValueObject{ not operand.GetAsBool()};
+        case eOperation::BitNot:
+            return util::ArithmeticFactory::ApplyBitNot( operand );
+        case eOperation::UnaryMinus:
+            return util::ArithmeticFactory::ApplyUnaryOp( operand, "-" );
+        case eOperation::UnaryPlus:
+            return util::ArithmeticFactory::ApplyUnaryOp( operand, "+" );
+        case eOperation::ShareCount:
+            return ValueObject{operand.ShareCount()};
+        case eOperation::Typename:
+            return ValueObject( operand.GetTypeInfo()->GetName() );
+        case eOperation::Typeof:
+            return ValueObject( *operand.GetTypeInfo(), ValueConfig{ValueShared,ValueMutable} );
+        default:
+            throw exception::eval_error( loc, "ASTNode_Unary_Operator::StaticExec(): unsupported operation!" );
+        }
+    }
+
     ValueObject Eval( Context & rContext ) const override
     {
         Check();
 
         ValueObject const  operand = mChildren[0]->Eval( rContext );
 
-        // bit not
-        if( mOperator == "bit_not" ) {
-            return util::ArithmeticFactory::ApplyBitNot( operand );
-        }
-        // logical
-        if( mOperator == "not" ) {
-            return ValueObject{!operand.GetAsBool()};
-        }
-
-        // FIXME: use Operator categories! / enum ranges (>= BinOpPlus && <= BinOpMod)
-        // arithmetic
-        if( mOperator == "-" || mOperator == "+" ) {
-            return util::ArithmeticFactory::ApplyUnaryOp( operand, mOperator );
-        }
-
-        // share_count
-        if( mOperator == "@?" ) {
-            return ValueObject{operand.ShareCount()};
-        }
-
-        throw exception::eval_error( GetSourceLocation(), "Internal Error! Unknown Unary Operator!!" );
-        //return {NaV};
+        return StaticExec( mOperation, operand );
     }
 };
 
@@ -459,13 +556,178 @@ public:
 /// Binary Operators which have a LHS and RHS.
 class ASTNode_Binary_Operator : public ASTNode_Child_Capable
 {
-    std::string const mOperator; //TODO: Use enum!
+public:
+    enum class eOperation : unsigned int
+    {
+        LogicalAnd,
+        LogicalOr,
+        ArithPlus,
+        ArithMinus,
+        ArithMul,
+        ArithDiv,
+        ArithMod,
+        CompLt,
+        CompLe,
+        CompGt,
+        CompGe,
+        CompEq,
+        CompNe,
+        Shared,
+        StringConcat
+
+    };
+
+    static eOperation StringToEnum( std::string const &rStr )
+    {
+        if( rStr.size() == 1 ) {
+            switch( rStr[0] ) {
+            case '+':
+                return eOperation::ArithPlus;
+            case '-':
+                return eOperation::ArithMinus;
+            case '*':
+                return eOperation::ArithMul;
+            case '/':
+                return eOperation::ArithDiv;
+            case '>':
+                return eOperation::CompGt;
+            case '<':
+                return eOperation::CompLt;
+            case '%':
+                return eOperation::StringConcat;
+            default:
+                break;
+            }
+        } else if( rStr.size() == 2 ) {
+            switch( rStr[0] ) {
+            case '=':
+                if( rStr[1] == '=' ) [[likely]] {
+                    return eOperation::CompEq;
+                }
+                break;
+            case '!':
+                if( rStr[1] == '=' ) [[likely]] {
+                    return eOperation::CompNe;
+                }
+                break;
+            case '>':
+                if( rStr[1] == '=' ) [[likely]] {
+                    return eOperation::CompGe;
+                }
+                break;
+            case '<':
+                if( rStr[1] == '=' ) [[likely]] {
+                    return eOperation::CompLe;
+                }
+                break;
+            case '@':
+                if( rStr[1] == '@' ) [[likely]] {
+                    return eOperation::Shared;
+                }
+                break;
+            case 'l':
+                if( rStr[1] == 't' ) {
+                    return eOperation::CompLt;
+                } else if( rStr[1] == 'e' ) {
+                    return eOperation::CompLe;
+                }
+                break;
+            case 'g':
+                if( rStr[1] == 't' ) {
+                    return eOperation::CompGt;
+                } else if( rStr[1] == 'e' ) {
+                    return eOperation::CompGe;
+                }
+                break;
+            case 'e':
+                if( rStr[1] == 'q' ) [[likely]] {
+                    return eOperation::CompEq;
+                }
+                break;
+            case 'n':
+                if( rStr[1] == 'e' ) [[likely]] {
+                    return eOperation::CompNe;
+                }
+                break;
+            case 'o':
+                if( rStr[1] == 'r' ) [[likely]] {
+                    return eOperation::LogicalOr;
+                }
+                break;
+            default:
+                break;
+            }
+        } else {
+            if( rStr == "and" ) {
+                return eOperation::LogicalAnd;
+            } else if( rStr == "mod" ) {
+                return eOperation::ArithMod;
+            }
+        }
+        throw exception::runtime_error( "ASTNode_Binary_Operator::StringToEnum(): unsupported string!" );
+    }
+
+    static std::string EnumToString( eOperation const e )
+    {
+        switch( e ) {
+        case eOperation::LogicalAnd:
+            return "and";
+        case eOperation::LogicalOr:
+            return "or";
+        case eOperation::ArithPlus:
+            return "+";
+        case eOperation::ArithMinus:
+            return "-";
+        case eOperation::ArithMul:
+            return "*";
+        case eOperation::ArithDiv:
+            return "/";
+        case eOperation::ArithMod:
+            return "mod";
+        case eOperation::CompLt:
+            return "lt";
+        case eOperation::CompLe:
+            return "le";
+        case eOperation::CompGt:
+            return "gt";
+        case eOperation::CompGe:
+            return "ge";
+        case eOperation::CompEq:
+            return "eq";
+        case eOperation::CompNe:
+            return "ne";
+        case eOperation::Shared:
+            return "@@";
+        case eOperation::StringConcat:
+            return "%";
+        default:
+            throw exception::runtime_error( "ASTNode_Binary_Operator::EnumToString(): unsupported enum!" );
+        }
+    }
+
+private:
+    eOperation const mOperation;
+
+protected:
+    struct NoCheck {};
+
+    explicit ASTNode_Binary_Operator( NoCheck, std::string const &rOperator, SourceLocation loc = {} )
+        : ASTNode_Child_Capable( "BinOp", rOperator, std::move( loc ) )
+        , mOperation( static_cast<eOperation>(~0u) ) // sth. invalid.
+    {
+    }
+
 public:
     explicit ASTNode_Binary_Operator( std::string const &rOperator, SourceLocation loc = {} )
         : ASTNode_Child_Capable( "BinOp", rOperator, std::move(loc) )
-        , mOperator( rOperator )
+        , mOperation( StringToEnum(rOperator) )
     {
-        //TODO: add check for valid op.
+    }
+
+    inline
+    eOperation GetOperation() const noexcept
+    {
+        return mOperation;
     }
 
     bool IsComplete() const noexcept override
@@ -490,34 +752,38 @@ public:
     int Precedence() const noexcept override
     {
         // NOTE: Until we need a different solution we simply use the presedence values of C++ as a starting point....
-        //TODO: Use lookup table!
-        if( mOperator == "and" ) {
+        switch( mOperation ) {
+        case eOperation::LogicalAnd:
             return 14;
-        } else if( mOperator == "or" ) {
+        case eOperation::LogicalOr:
             return 15;
-        } else if( mOperator == "*" || mOperator == "/" || mOperator == "mod" ) {
-            return 5;
-        } else if( mOperator == "+" || mOperator == "-" ) {
+        case eOperation::ArithPlus:
+        case eOperation::ArithMinus:
             return 6;
-        } else if( mOperator == "<" || mOperator == "<=" || mOperator == ">" || mOperator == ">=" ) {
+        case eOperation::ArithMul:
+        case eOperation::ArithDiv:
+        case eOperation::ArithMod:
+            return 5;
+        case eOperation::CompLt:
+        case eOperation::CompLe:
+        case eOperation::CompGt:
+        case eOperation::CompGe:
             return 9;
-        } else if( mOperator == "lt" || mOperator == "le" || mOperator == "gt" || mOperator == "ge" ) {
-            return 9;
-        } else if( mOperator == "!=" || mOperator == "==" ) {
+        case eOperation::CompEq:
+        case eOperation::CompNe:
             return 10;
-        } else if( mOperator == "ne" || mOperator == "eq" ) {
-            return 10;
-        } else if( mOperator == "%" ) {
-            return 7; //TODO: check and adjust if needed!
-        } else if( mOperator == ":=" || mOperator == "@=" ) {
-            return 16;
-        } else if( mOperator == "@@" ) {
+        case eOperation::Shared:
             return 17; //TODO: check and adjust if needed!
-        } else if( mOperator == "is" || mOperator == "as" ) {
-            return 2; //very small to bind with closest neighbour , e.g. 3 + a is Number => 3 + (a is Number)  //TODO: check and adjust if needed!
+        case eOperation::StringConcat:
+            return 7; //TODO: check and adjust if needed!
+        default:
+            //TODO: use std::unreachable in C++23
+#if defined( _MSC_VER ) // MSVC
+            __assume(false);
+#else // GCC, clang, ...
+            __builtin_unreachable();
+#endif
         }
-
-        return INT_MAX;
     }
 
     void Check() const override
@@ -531,6 +797,49 @@ public:
         }
     }
 
+    static ValueObject StaticExec( eOperation const op, ValueObject const &lhs, ValueObject const &rhs, SourceLocation const &loc = {} )
+    {
+        switch( op ) {
+        case eOperation::LogicalAnd:
+        case eOperation::LogicalOr:
+            throw exception::runtime_error( loc, "LocgicalAnd/Or are not supported in ASTNode_Binary_Operator::StaticExec()!" );
+        case eOperation::ArithPlus:
+            return util::ArithmeticFactory::ApplyBinaryOp( lhs, rhs, "+" );
+        case eOperation::ArithMinus:
+            return util::ArithmeticFactory::ApplyBinaryOp( lhs, rhs, "-" );
+        case eOperation::ArithMul:
+            return util::ArithmeticFactory::ApplyBinaryOp( lhs, rhs, "*" );
+        case eOperation::ArithDiv:
+        case eOperation::ArithMod:
+            //WORKAROUND: BUG - Add SoruceLocation to division by zero / floating point modulo exceptions
+            try {
+                return util::ArithmeticFactory::ApplyBinaryOp( lhs, rhs, op == eOperation::ArithMod ? "mod" : "/" );
+            } catch( exception::division_by_zero const & ) {
+                throw exception::division_by_zero( loc );
+            } catch( exception::modulo_with_floatingpoint const & ) {
+                throw exception::modulo_with_floatingpoint( loc );
+            }
+        case eOperation::CompLt:
+            return ValueObject{lhs < rhs};
+        case eOperation::CompLe:
+            return ValueObject{lhs <= rhs};
+        case eOperation::CompGt:
+            return ValueObject{lhs > rhs};
+        case eOperation::CompGe:
+            return ValueObject{lhs >= rhs};
+        case eOperation::CompEq:
+            return ValueObject{lhs == rhs};
+        case eOperation::CompNe:
+            return ValueObject{lhs != rhs};
+        case eOperation::Shared:
+            return ValueObject{lhs.IsSharedWith( rhs )};
+        case eOperation::StringConcat:
+            return ValueObject{lhs.GetAsString() + rhs.GetAsString()};
+        default:
+            throw exception::eval_error( loc, "ASTNode_Binary_Operator::StaticExec(): unsupported operation!" );
+        }
+    }
+
     ValueObject Eval( Context & rContext ) const override
     {
         Check();
@@ -539,63 +848,16 @@ public:
         // don't pre-compute rhs for logical operators!
 
         // logical
-        if( mOperator == "and" ) {
+        if( mOperation == eOperation::LogicalAnd ) {
             return ValueObject{lhs.GetAsBool() && mChildren[1]->Eval( rContext ).GetAsBool()};
-        } else if( mOperator == "or" ) {
+        } else if( mOperation == eOperation::LogicalOr ) {
             return ValueObject{lhs.GetAsBool() || mChildren[1]->Eval( rContext ).GetAsBool()};
         }
 
         // after logical we can compute rhs always...
         ValueObject const  rhs = mChildren[1]->Eval( rContext );
 
-        // arithmentic
-        //WORKAROUND: BUG - Add SoruceLocation to division by zero / floating point modulo exceptions
-        bool const arithemetic_may_throw = mOperator == "/" || mOperator == "mod";
-        if( arithemetic_may_throw ) {
-            try {
-                return util::ArithmeticFactory::ApplyBinaryOp( lhs, rhs, mOperator );
-            } catch( exception::division_by_zero const & ) {
-                throw exception::division_by_zero( GetSourceLocation() );
-            } catch( exception::modulo_with_floatingpoint const & ) {
-                throw exception::modulo_with_floatingpoint( GetSourceLocation() );
-            }
-        }
-        // FIXME: use Operator categories! / enum ranges (>= BinOpPlus && <= BinOpMod)
-        bool const is_arithmetic_binop = mOperator == "+" || mOperator == "-" || mOperator == "*" /*|| mOperator == "/" || mOperator == "mod"*/;
-        if( is_arithmetic_binop ) {
-            return util::ArithmeticFactory::ApplyBinaryOp( lhs, rhs, mOperator );
-        }
-
-        // string concat
-        if( mOperator == "%" ) {
-            return ValueObject{lhs.GetAsString() + rhs.GetAsString()};
-        }
-
-        // comparison (relational)
-        if( mOperator == "<" || mOperator == "lt" ) {
-            return ValueObject{lhs < rhs};
-        } else if( mOperator == "<=" || mOperator == "le" ) {
-            return ValueObject{lhs <= rhs};
-        } else if( mOperator == ">" || mOperator == "gt" ) {
-            return ValueObject{lhs > rhs};
-        } else if( mOperator == ">=" || mOperator == "ge" ) {
-            return ValueObject{lhs >= rhs};
-        }
-        
-        // comparison (equality)
-        if( mOperator == "==" || mOperator == "eq" ) {
-            return ValueObject{lhs == rhs};
-        } else if( mOperator == "!=" || mOperator == "ne" ) {
-            return ValueObject{lhs != rhs};
-        }
-
-        // shared_with
-        if( mOperator == "@@" ) {
-            return ValueObject{lhs.IsSharedWith( rhs )};
-        }
-
-        throw exception::eval_error( GetSourceLocation(), "Internal Error! Unknown Binary Operator!!" );
-        //return {NaV};
+        return StaticExec( mOperation, lhs, rhs, GetSourceLocation() );
     }
 };
 
@@ -604,7 +866,7 @@ public:
 class ASTNode_Bit_Operator : public ASTNode_Binary_Operator
 {
 public:
-    enum class eBitOp
+    enum class eBitOp : unsigned int
     {
         And,
         Or,
@@ -653,13 +915,13 @@ public:
     }
 
 private:
-    eBitOp mBitOp;
+    eBitOp const mBitOp;
 public:
     inline eBitOp GetBitOp() const { return mBitOp; }
 
 
     ASTNode_Bit_Operator( std::string const &rOperator, SourceLocation loc = {} )
-        : ASTNode_Binary_Operator( rOperator, std::move( loc ) )
+        : ASTNode_Binary_Operator( NoCheck{}, rOperator, std::move( loc ) )
         , mBitOp( StringToEnum( rOperator ) )
     {
     }
@@ -686,14 +948,9 @@ public:
         }
     }
 
-    ValueObject Eval( Context &rContext ) const override
+    static ValueObject StaticExec( eBitOp const op, ValueObject const &lhs, ValueObject const &rhs, SourceLocation const &loc = {} )
     {
-        Check();
-
-        ValueObject const  lhs = mChildren[0]->Eval( rContext );
-        ValueObject const  rhs = mChildren[1]->Eval( rContext );
-
-        switch( mBitOp ) {
+        switch( op ) {
         case eBitOp::And:
             return util::ArithmeticFactory::ApplyBitOp( lhs, rhs, "a" );
         case eBitOp::Or:
@@ -702,15 +959,20 @@ public:
             return util::ArithmeticFactory::ApplyBitOp( lhs, rhs, "x" );
         case eBitOp::Lsh:
         case eBitOp::Rsh:
-            return util::ArithmeticFactory::ApplyBitshift( lhs, rhs, mBitOp==eBitOp::Lsh );
+            return util::ArithmeticFactory::ApplyBitshift( lhs, rhs, op == eBitOp::Lsh );
         default:
-            //TODO: use std::unreachable in C++23
-#if defined( _MSC_VER ) // MSVC
-            __assume(false);
-#else // GCC, clang, ...
-            __builtin_unreachable();
-#endif
+            throw exception::eval_error( loc, "ASTNode_Binary_Operator::StaticExec(): unsupported operation!" );
         }
+    }
+
+    ValueObject Eval( Context &rContext ) const override
+    {
+        Check();
+
+        ValueObject const  lhs = mChildren[0]->Eval( rContext );
+        ValueObject const  rhs = mChildren[1]->Eval( rContext );
+
+        return StaticExec( mBitOp, lhs, rhs, GetSourceLocation() );
     }
 };
 
@@ -767,20 +1029,20 @@ public:
     }
 
 private:
-    ValueObject SetValue( Tuple &rTuple, std::vector<ValueObject> const &rParams, ValueObject const &rValue, bool const shared )
+    static ValueObject SetValue( Tuple &rTuple, std::span<ValueObject const> const &rParams, ValueObject const &rValue, bool const shared, SourceLocation const &rLoc )
     {
         auto const &index_or_key = rParams[0];
 
         auto &obj = index_or_key.GetTypeInfo()->IsSame<String>() ? rTuple.GetValueByKey( index_or_key.GetValue<String>() ) : rTuple.GetValueByIdx( index_or_key.GetAsInteger() );
         if( shared ) {
-            obj.SharedAssignValue( rValue, GetSourceLocation() );
+            obj.SharedAssignValue( rValue, rLoc );
         } else {
-            obj.AssignValue( rValue, GetSourceLocation() );
+            obj.AssignValue( rValue, rLoc );
         }
         return obj;
     }
 
-    ValueObject SetValue( Buffer &rBuffer, std::vector<ValueObject> const &rParams, ValueObject const &rValue, bool const /*shared*/ )
+    static ValueObject SetValue( Buffer &rBuffer, std::span<ValueObject const> const &rParams, ValueObject const &rValue, bool const /*shared*/, SourceLocation const &rLoc )
     {
         try {
             auto const &index = rParams[0];
@@ -788,62 +1050,68 @@ private:
             rBuffer.at( idx ) = rValue.GetValue<Byte>();
             return ValueObject( rBuffer[idx] );
         } catch( exception::runtime_error &rEx ) {
-            rEx.SetSourceLocation( GetSourceLocation() ); // inject our source location!
+            rEx.SetSourceLocation( rLoc ); // inject our source location!
             throw;
         } catch( std::out_of_range const & ) {
-            throw exception::out_of_range( GetSourceLocation() );
+            throw exception::out_of_range( rLoc );
         }
     }
 
 public:
+
+    static ValueObject SetValueObject( ValueObject &lhs, std::span<ValueObject const> const &params, ValueObject const &rValue, bool const shared, SourceLocation const &rLoc = {} )
+    {
+        if( lhs.IsConst() ) {
+            throw exception::eval_error( rLoc, "Value is const. Elements cannot be changed!" );
+        }
+
+        if( params.empty() ) {
+            throw exception::eval_error( rLoc, "Subscript ASTNode incomplete! No index or key operand present!" );
+        } else if( params.size() > 1 ) {
+            throw exception::eval_error( rLoc, "Subscript ASTNode with more than one operand is not implemented!" );
+        }
+
+        if( lhs.InternalType() == ValueObject::TypeTuple ) {
+            return SetValue( lhs.GetValue<Tuple>(), params, rValue, shared, rLoc );
+        } else if( lhs.InternalType() == ValueObject::TypeBuffer ) {
+            if( rValue.InternalType() != ValueObject::TypeU8 ) {
+                throw exception::bad_value_cast( "Values for Buffer must be U8!" );
+            }
+            return SetValue( lhs.GetValue<Buffer>(), params, rValue, shared, rLoc );
+        } else {
+            throw exception::eval_error( rLoc, "Subscript ASTNode with unsupported type!" );
+        }
+
+    }
 
     ValueObject SetValueObject( Context &rContext, ValueObject const &rValue, bool const shared )
     {
         Check();
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
 
-        if( lhs.IsConst() ) {
-            throw exception::eval_error( GetSourceLocation(), "Value is const. Elements cannot be changed!" );
-        }
-
         // get and evaluate parameter list
         auto  paramval = mChildren[1]->Eval( rContext );
-        auto &params = paramval.GetValue< std::vector< ValueObject> >();
+        auto const &params = paramval.GetValue< std::vector< ValueObject> >();
 
-        if( params.empty() ) {
-            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode incomplete! No index or key operand present!" );
-        } else if( params.size() > 1 ) {
-            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode with more than one operand is not implemented!" );
-        }
-
-        if( lhs.InternalType() == ValueObject::TypeTuple ) {
-            return SetValue( lhs.GetValue<Tuple>(), params, rValue, shared );
-        } else if( lhs.InternalType() == ValueObject::TypeBuffer ) {
-            if( rValue.InternalType() != ValueObject::TypeU8 ) {
-                throw exception::bad_value_cast("Values for Buffer must be U8!");
-            }
-            return SetValue( lhs.GetValue<Buffer>(), params, rValue, shared );
-        } else {
-            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode with unsupported type!" );
-        }
+        return SetValueObject( lhs, std::span( params.data(), params.size() ), rValue, shared, GetSourceLocation() );
     }
 
 private:
-    ValueObject GetValue( Buffer const &rBuffer, std::vector<ValueObject> const &rParams ) const
+    static ValueObject GetValue( Buffer const &rBuffer, std::span<ValueObject const> const &rParams, SourceLocation const &rLoc )
     {
         auto const &index = rParams[0];
 
         try {
             return ValueObject( rBuffer.at( index.GetAsInteger() ) );
         } catch( exception::runtime_error &rEx ) {
-            rEx.SetSourceLocation( GetSourceLocation() ); // inject our source location!
+            rEx.SetSourceLocation( rLoc ); // inject our source location!
             throw;
         } catch( std::out_of_range const & ) {
-            throw exception::out_of_range( GetSourceLocation() );
+            throw exception::out_of_range( rLoc );
         }
     }
 
-    ValueObject GetValue( Tuple const &rTuple, std::vector<ValueObject> const &rParams ) const
+    static ValueObject GetValue( Tuple const &rTuple, std::span<ValueObject const> const &rParams, SourceLocation const &rLoc )
     {
         auto const &index_or_key = rParams[0];
 
@@ -854,12 +1122,29 @@ private:
                 return rTuple.GetValueByIdx( index_or_key.GetAsInteger() );
             }
         } catch( exception::runtime_error &rEx ) {
-            rEx.SetSourceLocation( GetSourceLocation() ); // inject our source location!
+            rEx.SetSourceLocation( rLoc ); // inject our source location!
             throw;
         }
     }
 
 public:
+
+    static ValueObject GetValueObject( ValueObject const &lhs, std::span<ValueObject const> const &params, SourceLocation const &rLoc = {} )
+    {
+        if( params.empty() ) {
+            throw exception::eval_error( rLoc, "Subscript ASTNode incomplete! No index or key operand present!" );
+        } else if( params.size() > 1 ) {
+            throw exception::eval_error( rLoc, "Subscript ASTNode with more than one operand is not implemented!" );
+        }
+
+        if( lhs.InternalType() == ValueObject::TypeTuple ) {
+            return GetValue( lhs.GetValue<Tuple>(), params, rLoc );
+        } else if( lhs.InternalType() == ValueObject::TypeBuffer ) {
+            return GetValue( lhs.GetValue<Buffer>(), params, rLoc );
+        } else {
+            throw exception::eval_error( rLoc, "Subscript ASTNode with unsupported type!" );
+        }
+    }
 
     ValueObject GetValueObject( Context &rContext ) const
     {
@@ -868,21 +1153,9 @@ public:
 
         // get and evaluate parameter list
         auto  paramval = mChildren[1]->Eval( rContext );
-        auto &params = paramval.GetValue< std::vector< ValueObject> >();
+        auto const &params = paramval.GetValue< std::vector< ValueObject> >();
 
-        if( params.empty() ) {
-            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode incomplete! No index or key operand present!" );
-        } else if( params.size() > 1 ) {
-            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode with more than one operand is not implemented!" );
-        }
-
-        if( lhs.InternalType() == ValueObject::TypeTuple ) {
-            return GetValue( lhs.GetValue<Tuple>(), params );
-        } else if( lhs.InternalType() == ValueObject::TypeBuffer ) {
-            return GetValue( lhs.GetValue<Buffer>(), params );
-        } else {
-            throw exception::eval_error( GetSourceLocation(), "Subscript ASTNode with unsupported type!" );
-        }
+        return GetValueObject( lhs, std::span( params.data(), params.size() ), GetSourceLocation() );
     }
 
     ValueObject Eval( Context &rContext ) const override
@@ -946,7 +1219,7 @@ private:
 
 public:
     explicit ASTNode_Dot_Operator( SourceLocation loc = {} )
-        : ASTNode_Binary_Operator( ".", std::move( loc ) )
+        : ASTNode_Binary_Operator( NoCheck{}, ".", std::move( loc ) )
     {
     }
 
@@ -1083,7 +1356,7 @@ class ASTNode_Assign : public ASTNode_Binary_Operator
     } mMode = eMode::Assign;
 public:
     ASTNode_Assign( bool const shared = false, SourceLocation loc = {} )
-        : ASTNode_Binary_Operator( shared ? "@=" : ":=", std::move(loc) )
+        : ASTNode_Binary_Operator( NoCheck{}, shared ? "@=" : ":=", std::move( loc ) )
         , mbShared( shared )
     {
     }
@@ -1101,6 +1374,11 @@ public:
     inline bool IsSharedAssign() const noexcept
     {
         return mbShared;
+    }
+
+    int Precedence() const noexcept override
+    {
+        return 16;
     }
 
     void AddChildNode( ASTNodePtr node ) override
@@ -1221,7 +1499,7 @@ protected:
 public:
 
     explicit ASTNode_Var_Def_Undef( eType const type, SourceLocation loc = {} )
-        : ASTNode_Unary_Operator( type == eType::Def ? "def" : type == eType::Undef ? "undef" : type == eType::IsDef ? "is_defined" : type == eType::Const ? "const" : "debug", std::move(loc) )
+        : ASTNode_Unary_Operator( NoCheck{}, type == eType::Def ? "def" : type == eType::Undef ? "undef" : type == eType::IsDef ? "is_defined" : type == eType::Const ? "const" : "debug", std::move( loc ) )
         , mType(type)
     { 
     }
@@ -1248,7 +1526,7 @@ public:
     void Check() const override
     {
         if( IsIncomplete() ) {
-            throw exception::eval_error( GetSourceLocation(), "Unary Operator ASTNode incomplete! Operand missing!" );
+            throw exception::eval_error( GetSourceLocation(), "Var_Def_Undef ASTNode incomplete! Operand (the variable name) for \"" + GetDetail() + "\" is missing!" );
         }
     }
 
@@ -1353,31 +1631,13 @@ public:
 
 };
 
-/// ASTNode for typeof and typename operator
+/// ASTNode for typeof and typename operator (left over after refactoring ASTNode_Unary_Operator)
 class ASTNode_Typeof_Typename : public ASTNode_Unary_Operator
 {
 public:
     explicit ASTNode_Typeof_Typename( bool const name, SourceLocation loc = {} )
         : ASTNode_Unary_Operator( name ? "typename" : "typeof", std::move(loc) )
     {
-    }
-
-    void Check() const override
-    {
-        if( IsIncomplete() ) {
-            throw exception::eval_error( GetSourceLocation(), "Unary Operator ASTNode incomplete! Operand missing!" );
-        }
-    }
-
-    ValueObject Eval( Context &rContext ) const override
-    {
-        Check();
-        auto const val = mChildren[0]->Eval( rContext );
-        if( GetDetail().ends_with( "of" ) ) { // typeof
-            return ValueObject( *val.GetTypeInfo(), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()});
-        } else { // typename
-            return ValueObject( val.GetTypeInfo()->GetName() );
-        }
     }
 };
 
@@ -1387,8 +1647,13 @@ class ASTNode_Is_Type : public ASTNode_Binary_Operator
 {
 public:
     explicit ASTNode_Is_Type( SourceLocation loc = {} )
-        : ASTNode_Binary_Operator( "is", std::move(loc) )
+        : ASTNode_Binary_Operator( NoCheck{}, "is", std::move( loc ) )
     { }
+
+    int Precedence() const noexcept override
+    {
+        return 2; //very small to bind with closest neighbour , e.g. 3 + a is Number => 3 + (a is Number)  //TODO: check and adjust if needed!
+    }
 
     void AddChildNode( ASTNodePtr node ) override
     {
@@ -1410,13 +1675,8 @@ public:
         }
     }
 
-    ValueObject Eval( Context &rContext ) const override
+    static ValueObject StaticExec( ValueObject const &lhs, ValueObject const &rhs, SourceLocation const &/*loc*/ = {} )
     {
-        Check();
-
-        auto const  lhs = mChildren[0]->Eval( rContext );
-        auto const  rhs = mChildren[1]->Eval( rContext );
-
         auto const *pT1 = lhs.GetTypeInfo();
         auto const *pT2 = rhs.GetTypeInfo();
         if( pT1 && pT2 ) {
@@ -1435,7 +1695,7 @@ public:
                     auto const &t2 = rhs.GetValue<TypeInfo>();
                     if( t2.GetName() == "Number" ) { // fake concept 'Number' //TODO: Make clean! Match interface? or switch to class Type ?
                         return ValueObject( pT1->IsArithmetic() );
-                    } else if( t2.GetName() == "Const" ) { //EXPERIMENTAL: fake concept 'Const' //TODO: Make clean! Match interface? or switch to class Type ?
+                    } else if( t2.GetName() == "Const" ) { // fake concept 'Const' //TODO: Make clean! Match interface? or switch to class Type ?
                         return ValueObject( lhs.IsConst() || not lhs.IsShared() ); // Contants are treated as Const here since the value cannot be changed.
                     }
                     return ValueObject( t2.IsSame( *pT1 ) );
@@ -1453,6 +1713,15 @@ public:
         return ValueObject{false};
     }
 
+    ValueObject Eval( Context &rContext ) const override
+    {
+        Check();
+
+        auto const  lhs = mChildren[0]->Eval( rContext );
+        auto const  rhs = mChildren[1]->Eval( rContext );
+
+        return StaticExec( lhs, rhs, GetSourceLocation() );
+    }
 };
 
 
@@ -1461,8 +1730,13 @@ class ASTNode_As_Type : public ASTNode_Binary_Operator
 {
 public:
     explicit ASTNode_As_Type( SourceLocation loc = {} )
-        : ASTNode_Binary_Operator( "as", std::move( loc ) )
+        : ASTNode_Binary_Operator( NoCheck{}, "as", std::move( loc ) )
     {
+    }
+
+    int Precedence() const noexcept override
+    {
+        return 2; //very small to bind with closest neighbour , e.g. 3 + a as u64 => 3 + (a as u64)  //TODO: check and adjust if needed!
     }
 
     void AddChildNode( ASTNodePtr node ) override
@@ -1485,14 +1759,10 @@ public:
         }
     }
 
-    ValueObject Eval( Context &rContext ) const override
+    static ValueObject StaticExec( ValueObject const &lhs, ValueObject const &rhs, SourceLocation const &loc = {} )
     {
-        Check();
-
-        auto const  lhs = mChildren[0]->Eval( rContext );
-        auto const  rhs = mChildren[1]->Eval( rContext );
         if( not rhs.GetTypeInfo()->IsSame<TypeInfo>() ) {
-            throw exception::eval_error( GetSourceLocation(), "As Operator: RHS must be a Type!" );
+            throw exception::eval_error( loc, "As Operator: RHS must be a Type!" );
         }
 
         auto const &ti = rhs.GetValue<TypeInfo>();
@@ -1506,11 +1776,21 @@ public:
         } else if( ti.IsSame<U64>() ) {
             return util::ArithmeticFactory::Convert<U64>( lhs );
         } else if( ti.IsSame<Bool>() ) {
-            return ValueObject( lhs.GetAsBool(), ValueConfig(ValueUnshared, ValueMutable) );
+            return ValueObject( lhs.GetAsBool(), ValueConfig( ValueUnshared, ValueMutable ) );
         } else if( ti.IsSame<String>() ) {
             return ValueObject( lhs.GetAsString(), ValueConfig( ValueUnshared, ValueMutable ) );
         }
         return {}; // NaV
+    }
+
+    ValueObject Eval( Context &rContext ) const override
+    {
+        Check();
+
+        auto const  lhs = mChildren[0]->Eval( rContext );
+        auto const  rhs = mChildren[1]->Eval( rContext );
+
+        return StaticExec( lhs, rhs, GetSourceLocation() );
     }
 };
 
@@ -1546,7 +1826,7 @@ public:
             //WORKAROUND for make more than one sub-expr. possible, e.g. if( def z := func(), z >= 100 ) {}
             ASTNode_Expression *const p = dynamic_cast<ASTNode_Expression *>(node.get());
             if( p ) {
-                p->SetMode( ASTNode_Expression::Mode::Cond );
+                p->SetMode( ASTNode_Expression::eMode::Cond );
             }
         } else if( mChildren.size() == 3 ) {
             // chained 'else if/else'? nest it...
@@ -1577,7 +1857,7 @@ public:
         bool  exec_if_branch = false;
         try {
             exec_if_branch = condition.GetAsBool();
-        } catch( std::bad_cast const & ) {
+        } catch( exception::bad_value_cast const & ) {
             throw exception::eval_error( GetSourceLocation(), "If condition does not evaluate to bool!" );
         }
 
@@ -1850,6 +2130,7 @@ public:
             return res;
         }
 
+        //FIXME: if seq_val is a sequence already we should use a reference for in later versions it will be possible to manipulate it elsewhere in the loop.
         auto  seq = seq_val.GetTypeInfo()->IsSame<Tuple>()
                   ? IntegerSequence( 0LL, static_cast<Integer>(seq_val.GetValue<Tuple>().Size() - 1), 1LL )
                   : seq_val.GetValue<IntegerSequence>();
@@ -1961,10 +2242,15 @@ public:
     {
     }
 
-    ValueObject Eval( Context &rContext ) const override
+    void Check() const override
     {
         // Expression::Check will do the wrong here!
         ASTNode::Check();
+    }
+
+    ValueObject Eval( Context &rContext ) const override
+    {
+        Check();
 
         std::vector< ValueObject > vals;
         vals.reserve( mChildren.size() );
@@ -1978,12 +2264,19 @@ public:
 
 
 /// represents a TeaScript Function Parameter specification (list of assign statements)
-class ASTNode_ParamSpec : public ASTNode_ParamList
+class ASTNode_ParamSpec : public ASTNode_Expression
 {
 public:
     explicit ASTNode_ParamSpec( SourceLocation loc = {} )
-        : ASTNode_ParamList( "ParamSpec", std::move( loc ) )
+        : ASTNode_Expression( "ParamSpec", std::move( loc ) )
     {
+        mMode = eMode::Cond; // all children will be evaluated.
+    }
+
+    void Check() const override
+    {
+        // Expression::Check will do the wrong here!
+        ASTNode::Check();
     }
 };
 
@@ -2007,10 +2300,96 @@ public:
         mChildren.emplace_back( std::move( node ) );
     }
 
+    void Check() const override
+    {
+        // ASTNode_StopLoop_Statement::Check will do the wrong here!
+        ASTNode::Check();
+    }
+
     ValueObject Eval( Context &rContext ) const override
     {
-        ASTNode::Check();
+        Check();
         throw control::Return_From_Function( mChildren.empty() ? ValueObject() : mChildren[0]->Eval( rContext ) );
+    }
+};
+
+/// represents the _Exit statement
+class ASTNode_Exit_Statement : public ASTNode_StopLoop_Statement
+{
+public:
+    explicit ASTNode_Exit_Statement( bool const need_statement = true, SourceLocation loc = {} )
+        : ASTNode_StopLoop_Statement( need_statement, "Exit", std::move( loc ) )
+    {
+    }
+
+    void AddChildNode( ASTNodePtr node ) override
+    {
+        // same as in base class except the error message.
+        assert( node.get() != nullptr );
+        if( IsComplete() ) {
+            throw exception::runtime_error( GetSourceLocation(), "Exit ASTNode complete! Cannot add additional child!" );
+        }
+        mChildren.emplace_back( std::move( node ) );
+    }
+
+    void Check() const override
+    {
+        // ASTNode_StopLoop_Statement::Check will do the wrong here!
+        ASTNode::Check();
+    }
+
+    ValueObject Eval( Context &rContext ) const override
+    {
+        Check();
+        throw control::Exit_Script( mChildren.empty() ? ValueObject() : mChildren[0]->Eval( rContext ) );
+    }
+};
+
+/// represents the yield statement
+class ASTNode_Yield_Statement : public ASTNode_StopLoop_Statement
+{
+public:
+    explicit ASTNode_Yield_Statement( SourceLocation loc = {} )
+        : ASTNode_StopLoop_Statement( true, "Yield", std::move( loc ) )
+    {
+    }
+
+    void AddChildNode( ASTNodePtr node ) override
+    {
+        // same as in base class except the error message.
+        assert( node.get() != nullptr );
+        if( IsComplete() ) {
+            throw exception::runtime_error( GetSourceLocation(), "Yield ASTNode complete! Cannot add additional child!" );
+        }
+        mChildren.emplace_back( std::move( node ) );
+    }
+
+    void Check() const override
+    {
+        // ASTNode_StopLoop_Statement::Check will do the wrong here!
+        ASTNode::Check();
+    }
+
+    ValueObject Eval( Context &/*rContext*/ ) const override
+    {
+        Check();
+        throw exception::suspend_statement( GetSourceLocation() );
+    }
+};
+
+/// ASTNode for suspend statement (in eval mode it just throws. compiled scripts can be suspended.)
+class ASTNode_Suspend_Statement : public ASTNode
+{
+public:
+    explicit ASTNode_Suspend_Statement( SourceLocation loc = {} )
+        : ASTNode( "Suspend", std::move( loc ) )
+    {
+    }
+
+    ValueObject Eval( Context &rContext ) const override
+    {
+        (void)rContext;
+        throw exception::suspend_statement( GetSourceLocation() );
     }
 };
 
@@ -2065,7 +2444,7 @@ public:
 };
 
 
-/// experimental ASTNode for a partial parsed file. 
+/// ASTNode for a partial parsed file. 
 /// All children of all ASTNode_FilePart innstances for one file would assemble the ASTNode_File.
 class ASTNode_FilePart : public ASTNode_Child_Capable
 {
@@ -2102,13 +2481,12 @@ public:
     }
 
     /// constructs the File ASTNode with given file parts. The caller is responsible for the container does not contain any nullptr!
-    template< class Container > requires std::is_same_v< typename Container::value_type, ASTNode_FilePart_Ptr>
+    template< class Container> requires(std::is_same_v< typename Container::value_type, ASTNode_FilePart_Ptr>
+                                     || std::is_same_v< typename Container::value_type, ASTNodePtr>)
     ASTNode_File( std::string const &rFileName, Container const &file_parts )
         : ASTNode_Child_Capable( "File", rFileName )
     {
-        for( auto const &part : file_parts ) {
-            AddPart( part );
-        }
+        Append( file_parts );
     }
 
     /// adds the given file part. \note nullptr will result in undefined behavior / seg fault.
@@ -2150,6 +2528,8 @@ public:
         return res;
     }
 };
+
+using ASTNode_FilePtr = std::shared_ptr< ASTNode_File >;
 
 
 } // namespace teascript

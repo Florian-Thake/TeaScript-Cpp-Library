@@ -19,23 +19,17 @@
 # endif
 #endif
 
-
-// Why on earth MS decided to make compile errors for these C++ standard library functions? They are still available and don't have a successor/replacement!
-#if defined _MSC_VER  && !defined _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
-# define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
-#endif
-#if defined _MSC_VER  && !defined _SILENCE_CXX20_U8PATH_DEPRECATION_WARNING
-# define _SILENCE_CXX20_U8PATH_DEPRECATION_WARNING
-#endif
-#if defined _MSC_VER  && !defined _CRT_SECURE_NO_WARNINGS
-# define _CRT_SECURE_NO_WARNINGS
-#endif
-
+// We opt-out for header only (must be in each TU (Translation Unit) where teascript includes are used, or project wide).
+// NOTE: The default is header only, which does not require to do anything special.
+#define TEASCRIPT_DISABLE_HEADER_ONLY       1
+// this is the TU (Translation Unit) where our definitions will be included (there should be only one TU with this macro!)
+// NOTE: If header only is disabled this must be done for Engine.hpp, CoroutineScriptEngine.hpp.
+#define TEASCRIPT_INCLUDE_DEFINITIONS       1
 
 // TeaScript includes
 #include "teascript/version.h"
 #include "teascript/Engine.hpp"
-
+#include "teascript/CoroutineScriptEngine.hpp"
 
 // Std includes
 #include <cstdlib> // EXIT_SUCCESS
@@ -70,6 +64,14 @@
 #  pragma warning( pop ) // for make compiler happy (warning)
 # endif
 #endif
+
+
+
+// forward definition, see coroutine_demo.cpp for implementation.
+void teascript_coroutine_demo();
+
+// forward definition, see suspend_thread_demo.cpp for implementation.
+void teascript_thread_suspend_demo();
 
 
 
@@ -209,8 +211,8 @@ class PartialEvalEngine : public teascript::Engine
 public:
     // we keep this example simple and just make the Parser and Context public available.
     // a full blown engine would provide new methods for partial evaluation.
-    inline teascript::Parser &GetParser() noexcept { return mParser; }
-    inline teascript::Parser const &GetParser() const noexcept { return mParser; }
+    inline teascript::Parser &GetParser() noexcept { return mBuildTools->mParser; }
+    inline teascript::Parser const &GetParser() const noexcept { return mBuildTools->mParser; }
     inline teascript::Context &GetContext() noexcept { return mContext; }
     inline teascript::Context const &GetContext() const noexcept { return mContext; }
 
@@ -294,7 +296,7 @@ else {
 
 
 // The next example will show the use of arbitrary pass through data.
-// Passthroug data can only be stored in variables or tunneled through the
+// Passthrough data can only be stored in variables or tunneled through the
 // TeaScript layer for use in callback functions / retrieved later. But it
 // can be copied / passed around freely like all other variables.
 
@@ -489,7 +491,7 @@ template<class... Ts> overloaded( Ts... ) -> overloaded<Ts...>;
 
 /// This testcode demonstrates the obtaining of a script result via a visitor by using also the well known overloaded idiom.
 /// The TeaScript code creates a tuple with random amount of elements whereby each element is created by functor from 
-/// a set of given functors. Each functor is create a different type. At the end one random element will be choosen
+/// a set of given functors. Each functor creates a different type. At the end one random element will be choosen
 /// as the script result. Thus, it is unknown at parsing/compile time which type will be returned by the script.
 /// A visitor can help to dispatch the result.
 /// NOTE: The TeaScript part also nicely shows the usage of the forall loop as well as usage of functors.
@@ -626,8 +628,62 @@ ok := ok and _buf_set_u32( buffer, 16 + _strlen(newstr), 0xFEEDC0DEu64 ) // we o
         auto const new_len_val = teascript::CoreLibrary::BufGetU64( buffer, teascript::ValueObject( 8LL ) );
         auto const new_content = teascript::CoreLibrary::BufGetString( buffer, teascript::ValueObject( 16LL ), new_len_val );
         std::cout << "New string content: " << new_content << std::endl;
-        auto const some_secret = teascript::CoreLibrary::BufGetU32( buffer, teascript::ValueObject( 16ULL + new_len_val.GetValue<unsigned long long>() ) );
+        //auto const some_secret = teascript::CoreLibrary::BufGetU32( buffer, teascript::ValueObject( 16ULL + new_len_val.GetValue<unsigned long long>() ) );
+        // or call TeaScript functions with the help of the engine (since 0.14.0)
+        auto const some_secret = engine.CallFuncEx( "_buf_get_u32", buffer, 16ULL + new_len_val.GetValue<unsigned long long>() );
         std::cout << "a secret code is present: " << std::hex << some_secret.GetAsInteger() << std::endl;
+    }
+}
+
+
+// This testcode demonstrate how to use explicitly the compile and program execution feature (added in vesion 0.14) with the default Engine.
+// NOTE: The ExecuteCode/ExecuteScript() functions will compile the code automatically under the hood (default).
+//       An alternative AST evaluation mode (which was always used in older versions < 0.14) can be activated during construction of the Engine.
+void test_code10()
+{
+    // create the TeaScript default engine.
+    teascript::Engine  engine;
+
+    // from example file "gcd.tea"
+    constexpr char gcd_tea[] = R"_SCRIPT_(
+// computes the gcd with a loop
+def x1 := if( is_defined arg1 ) { +arg1 } else { 1 }
+def x2 := if( is_defined arg2 ) { +arg2 } else { 1 }
+def gcd := repeat {
+    if( x1 == x2 ) {
+        stop with x1
+    } else if( x1 > x2 ) {
+        x1 := x1 - x2
+    } else /* x2 > x1 */ {
+        x2 := x2 - x1
+    }
+}
+)_SCRIPT_";
+    
+    // explicit compile the code to a program.
+    auto const program = engine.CompileCode( gcd_tea, teascript::eOptimize::O1 );
+
+    // NOTE: You can also directly compile a script file with:
+    // auto const program = engine.CompileScript( std::filesystem::path("path/to/file.tea"), teascript::eOptimize::O1 );
+
+    // Now you could save the TeaScript binary to disk via
+#if 0
+    program->Save( std::filesystem::path( "./file.tsb" ) );
+#endif
+    // load is possible with
+#if 0
+    auto const prg2 = teascript::StackVM::Program::Load( std::filesystem::path( "./file.tsb" ) );
+#endif
+
+    // our script wants 2 variables from which the gcd is computed.
+    engine.AddVar( "arg1", 42LL );
+    engine.AddVar( "arg2", 18LL );
+    // NOTE: an alternative way would be to pass a std::vector<teascript::ValueObject> to ExecuteProgram().
+    
+    // execute the compiled program
+    auto const res = engine.ExecuteProgram( program );
+    if( res.HasPrintableValue() ) { // does it return a printable result?
+        std::cout << "the gcd is: " << res.PrintValue() << std::endl;
     }
 }
 
@@ -651,11 +707,7 @@ int exec_script_file( std::vector<std::string> &args )
         // and execute the script file.
         auto const res = engine.ExecuteScript( script, args );
 
-        // does the script end via any exit( code ) ?
-        if( engine.HasExitCode() ) {
-            std::cout << "script exit code: " << engine.GetExitCode() << std::endl;
-            return static_cast<int>(engine.GetExitCode());
-        } else if( res.HasPrintableValue() ) { // does it return a printable result?
+        if( res.HasPrintableValue() ) { // does it return a printable result?
             std::cout << "result: " << res.PrintValue() << std::endl;
         }
     } catch( teascript::exception::runtime_error const &ex ) {
@@ -725,6 +777,12 @@ int main( int argc, char **argv )
         test_code8();
     } else if( argc == 2 && args[1] == "-9" ) {
         test_code9();
+    } else if( argc == 2 && args[1] == "-10" ) {
+        test_code10();
+    } else if( argc == 2 && args[1] == "suspend" ) {
+        teascript_thread_suspend_demo();
+    } else if( argc == 2 && args[1] == "coro" ) {
+        teascript_coroutine_demo();
     } else if( argc >= 2 ) {
         return exec_script_file( args );
     } else {
@@ -732,6 +790,8 @@ int main( int argc, char **argv )
         std::cout << teascript::copyright_info() << std::endl;
         std::cout << "\nUsage:\n"
                   << args[0] << " -<N>              --> execs test code N\n"
+                  << args[0] << " coro              --> execs coroutine demo\n"
+                  << args[0] << " suspend           --> execs thread suspend demo\n"
                   << args[0] << " filename [args]   --> execs TeaScript \"filename\" with \"args\"" << std::endl;
         std::cout << "\n\nContact: " << teascript::contact_info() << std::endl;
         std::cout << "The TeaScript Host Application for execute standalone TeaScript files\n"

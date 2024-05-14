@@ -38,7 +38,7 @@ public:
     {
         ScopedNewScope new_scope( rContext, rParams, rLoc );
 
-        /*auto vals = */(void)mParamSpec->Eval(rContext);
+        (void)mParamSpec->Eval(rContext);
 
         if( rContext.CurrentParamCount() > 0 ) { // TODO: relax this check ?
             throw exception::eval_error( rLoc, "Calling Func: Too many arguments!" );

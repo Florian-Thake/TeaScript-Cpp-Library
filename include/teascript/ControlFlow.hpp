@@ -118,6 +118,11 @@ public:
         return mResult;
     }
 
+    ValueObject &&MoveResult()
+    {
+        return std::move( mResult );
+    }
+
     const char *what() const noexcept override
     {
         return "teascript::control::Exit_Script";

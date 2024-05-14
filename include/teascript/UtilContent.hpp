@@ -62,6 +62,7 @@ std::string_view extract_current_line( teascript::Content const &r ) noexcept
     return {&(*start), end.Processed() - start.Processed()};
 }
 
+[[maybe_unused]]
 void debug_print_currentline( teascript::Content const &r, bool const with_marked_pos = false )
 {
     Content const c( r ); // dont interact with the object used outside to reduce chance of any unwanted side effects!
@@ -75,6 +76,7 @@ void debug_print_currentline( teascript::Content const &r, bool const with_marke
 
 // colored variant is only possible when libfmt is used.
 #if TEASCRIPT_FMTFORMAT
+[[maybe_unused]]
 void debug_print_currentline_colored( teascript::Content const &r, bool const with_marked_pos = false )
 {
     Content const c( r ); // dont interact with the object used outside to reduce chance of any unwanted side effects!

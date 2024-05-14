@@ -16,7 +16,7 @@
 namespace teascript {
 
 /// class UserCallbackFunc is for all functions from the user level made available in TeaScript code.
-/// \warning EXPERIMENTAL
+/// \warning EXPERIMENTAL, the interface, members and mechnaics may change!
 class UserCallbackFunc : public FunctionBase
 {
     CallbackFunc  mCallback;

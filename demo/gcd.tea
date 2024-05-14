@@ -6,8 +6,12 @@
  */
  
 // computes the gcd with a loop
-def x1 := if( is_defined arg1 ) { +arg1 } else { 1 }
-def x2 := if( is_defined arg2 ) { +arg2 } else { 1 }
+
+// note: arg1,arg2 is the legacy form of passing arguments, args the new form. If none is there, 1 is used as default.
+//       Here is both present because of the long history (this was one of the first example file) and backward compatibility,
+//       (It still can be executed back to (unreleased) version 0.6.0)
+def x1 := if( is_defined arg1 ) { +arg1 } else if( is_defined args ) { _strtonum( _tuple_val( args, 0 ) ) } else { 1 }
+def x2 := if( is_defined arg2 ) { +arg2 } else if( is_defined args and argN >= 2 ) { _strtonum( _tuple_val( args, 1 ) ) } else { 1 }
 def gcd := repeat {
     if( x1 == x2 ) {
         stop with x1

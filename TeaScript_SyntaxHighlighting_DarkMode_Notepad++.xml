@@ -1,5 +1,5 @@
 <NotepadPlus>
-    <UserLang name="TeaScript" ext="tea" udlVersion="2.1">
+    <UserLang name="TeaScript Dark" ext="tea" udlVersion="2.1">
         <Settings>
             <Global caseIgnored="no" allowFoldOfComments="no" foldCompact="no" forcePureLC="0" decimalSeparator="0" />
             <Prefix Keywords1="no" Keywords2="no" Keywords3="no" Keywords4="no" Keywords5="no" Keywords6="no" Keywords7="no" Keywords8="no" />
@@ -35,25 +35,25 @@
             <Keywords name="Delimiters">00&quot; 01\ 02&quot; 03&quot;&quot;&quot; 04 05&quot;&quot;&quot; 06# 07 08((EOL)) 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23</Keywords>
         </KeywordLists>
         <Styles>
-            <WordsStyle name="DEFAULT" fgColor="000000" bgColor="FFFFFF" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
-            <WordsStyle name="COMMENTS" fgColor="2FB40E" bgColor="FFFFFF" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
-            <WordsStyle name="LINE COMMENTS" fgColor="2FB40E" bgColor="FFFFFF" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
-            <WordsStyle name="NUMBERS" fgColor="18BFD1" bgColor="FFFFFF" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
-            <WordsStyle name="KEYWORDS1" fgColor="0080FF" bgColor="FFFFFF" fontName="Cascadia Mono" fontStyle="1" nesting="0" />
-            <WordsStyle name="KEYWORDS2" fgColor="8000FF" bgColor="FFFFFF" fontName="Cascadia Mono" fontStyle="1" nesting="0" />
+            <WordsStyle name="DEFAULT" fgColor="C0C0C0" bgColor="3F3F3F" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
+            <WordsStyle name="COMMENTS" fgColor="808000" bgColor="3F3F3F" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
+            <WordsStyle name="LINE COMMENTS" fgColor="808000" bgColor="3F3F3F" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
+            <WordsStyle name="NUMBERS" fgColor="18BFD1" bgColor="3F3F3F" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS1" fgColor="0080FF" bgColor="3F3F3F" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS2" fgColor="8080FF" bgColor="3F3F3F" fontName="Cascadia Mono" fontStyle="1" nesting="0" />
             <WordsStyle name="KEYWORDS3" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
             <WordsStyle name="KEYWORDS4" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
             <WordsStyle name="KEYWORDS5" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
             <WordsStyle name="KEYWORDS6" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
             <WordsStyle name="KEYWORDS7" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
             <WordsStyle name="KEYWORDS8" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
-            <WordsStyle name="OPERATORS" fgColor="FF8040" bgColor="FFFFFF" fontName="Cascadia Mono" fontStyle="1" nesting="0" />
-            <WordsStyle name="FOLDER IN CODE1" fgColor="000000" bgColor="FFFFFF" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
+            <WordsStyle name="OPERATORS" fgColor="FFFF80" bgColor="3F3F3F" fontName="Cascadia Mono" fontStyle="1" nesting="0" />
+            <WordsStyle name="FOLDER IN CODE1" fgColor="C0C0C0" bgColor="3F3F3F" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
             <WordsStyle name="FOLDER IN CODE2" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
             <WordsStyle name="FOLDER IN COMMENT" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
-            <WordsStyle name="DELIMITERS1" fgColor="FF0000" bgColor="FFFFFF" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
-            <WordsStyle name="DELIMITERS2" fgColor="FF0000" bgColor="FFFFFF" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
-            <WordsStyle name="DELIMITERS3" fgColor="FF00FF" bgColor="FFFFFF" fontName="Cascadia Mono" fontStyle="1" nesting="0" />
+            <WordsStyle name="DELIMITERS1" fgColor="FF8080" bgColor="3F3F3F" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS2" fgColor="FF8080" bgColor="3F3F3F" fontName="Cascadia Mono" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS3" fgColor="8080C0" bgColor="3F3F3F" fontName="Cascadia Mono" fontStyle="1" nesting="0" />
             <WordsStyle name="DELIMITERS4" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
             <WordsStyle name="DELIMITERS5" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
             <WordsStyle name="DELIMITERS6" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />

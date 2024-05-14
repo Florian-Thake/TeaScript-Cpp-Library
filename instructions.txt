@@ -7,8 +7,8 @@ Please, also read the COPYRIGHT.TXT for several licensing information.
 Supported compiler (tested with):
 
 Visual Studio 2022 (17.2 or newer)   --  Visual Studio 2019 also works (starting from 16.11.14)
-g++ 11.3                             --  not sure if g++ 10 or 9 could work as well.
-clang 14 (with libstdc++ or libc++)   --  not sure if clang 13 could work as well.
+g++ 11.3                             --  Use g++ 13 for all linux specific known issues are solved (see Known_Issues.txt)
+clang 14 (with libstdc++ or libc++)  --  There are clang and/or libc++ specific known issues (see Known_Issues.txt)
 
 Newer compilers should work in general.
 All compilers are compiling in C++20 and for x86_64.
@@ -18,11 +18,14 @@ Dependencies:
 
 None - for fully C++20 supporting compilers / C++ standard libraries.
 
-Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 10.1.1 and 9.1.0)
+Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 10.2.1 and 10.1.1)
 Libfmt can be downloaded here https://fmt.dev/latest/index.html
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 
 HINT: For Windows with C++20 it is also recommended to use libfmt for the best possible Unicode support for stdout.
+      Also, if you want the format and/or color feature (see below) libfmt is required.
+Opt-out header only when use libfmt: If you use libfmt elsewhere and you use it not as header only lib, you do this
+for TeaScript as well by defining TEASCRIPT_DISABLE_FMT_HEADER_ONLY to 1 (project wide or prior any TeaScript include).
 
 
 Optional Features:
@@ -39,8 +42,8 @@ See Libfmt section above.
 For building the demo app:
 
 Windows: Use the provided VS-project or the settings in compile.props. 
-         If you make a new project, you only need to add the teascript_demo.cpp file and 
-         set the include path to <package_root>/include/
+         If you make a new project, you only need to add the files teascript_demo.cpp, 
+         suspend_thread_demo.cpp and coroutine_demo.cpp and set the include path to <package_root>/include/
 
 Linux:   Use the compile_gcc.sh or compile_clang.sh with prior updated include path to libfmt.
 
@@ -54,6 +57,33 @@ Linux:
 ./teascript_demo gcd.tea 18 42
 
 If you see 6 as the result everything is functional.
+
+
+Opt-out header only compilation:
+
+The TeaScript C++ Library will be compiled as a header only library per default.
+For save includes and compile time it is possible to opt-out header only compilation.
+For opt-out header only compilation one translation unit (TU) must be chosen where
+all the definitions will go. This can either be an existing TU of your project or simply
+make a new one.
+The TU for the TeaScript definitios must ensure that these 2 defines are defined prior
+any TeaScript include:
+#define TEASCRIPT_DISABLE_HEADER_ONLY       1
+#define TEASCRIPT_INCLUDE_DEFINITIONS       1
+
+After that you must include the desired definitions of class Engine and/or class CoroutineScriptEngine:
+
+#include "teascript/Engine.hpp"
+#include "teascript/CoroutineScriptEngine.hpp"
+
+All other TU's, where TeaScript includes are done, need the define TEASCRIPT_DISABLE_HEADER_ONLY=1 prior any TeaScript include.
+(You can set this project wide also.)
+
+When opt-out header only compilation you save (at least) the huge includes in all TU's except one of the files
+CoreLibrary.hpp, StackMachine.hpp, StackVMCompiler.hpp, Parser.hpp, ParsingState.hpp and ASTNode.hpp
+(except if you need and include it by your self.)
+
+You can see an example of opt'ed out header only in teascript_demo.cpp and its companion files.
 
 
 Using the Library / API:

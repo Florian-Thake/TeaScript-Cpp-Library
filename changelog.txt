@@ -6,6 +6,270 @@ NOTE: The dates are not the release dates, but a last commit date.
 
 
 ================
+VERSION 0.14.0, Wed May 08 17:41:05 2024
+================
+    VERSION: 0.14.0 - TeaStackVM, Compiler, (Dis)Assembler, Suspend + Continue, Yield, improved debugging.
+
+    DIST: Syntax highlighting for dark mode notepad++
+    DIST: removed mentioning libfmt 9.1.0, it must be 10.1.1 or newer.
+    DIST: updated instructions.txt
+    DIST: updated Deprecated_ and KnownIssues.txt
+    DOCU: added comments to class Constraints.
+    ENGINE: added CallFunc/CallFuncEx for a handy way to call TeaScript functions.
+    STACKVM: fixed instr. MakeTuple with payload 0 (issuable only via ASM)
+    EXAMPLE: added example_0.14.tea for try debugging.
+    HOST: added possibility to print a range of instructions only via :disasm start,end
+
+    TEASCRIPT: removed EXPERIMENTAL state from ...
+    - Const concept for checking constness of a variable.
+    - class ASTNode_FilePart
+    - PassthroughData interfaces and usage.
+    - Get[Final]PartialParsedASTNodes of class Parser.
+
+    LINUX: fixed compile with g++11 and clang 14.
+    STACKVM: added initial reserved size for the call stack.
+    CORO: protect RunFor()/ChangeCoroutine() for called more than once the same time!
+    BUILD: opt-out for libfmt header only.
+    ENGINE: refactored class to be used as not header only!
+    - This breaks the mParser member is now only available via mBuildTools->
+    - added ContextFactory class for prepare a Context via arbitrary code.
+    - added more comments.
+    CORO: added SetInpuParameters, Reset and Suspend. bg task and co-op demo.
+    PARSER: fixed yield and calling function.
+    TEASCRIPT: New form of passing arguments to script via ...
+    - ... a Tuple "args" with all arguments as elements. argN still indicates amount.
+    - HOST: legacy args available via --legacy-args.
+    - ENGINE: legacy args available via TEASCRIPT_ENGINE_USE_LEGACY_ARGS=1
+    - EXAMPLES: handle new and legacy form of arguments.
+    FIX: Stack too small if suspend/yield was last stmt of loop
+    ENGINE: improved comments.
+    CORO: Implemented first version of CoroutineScriptEngine!
+    - LIB: added opt-out for header only usage. User can pick one TU which must set
+      TEASCRIPT_INCLUDE_DEFINITIONS to 1 and TEASCRIPT_DISABLE_HEADER_ONLY to 1
+      and include CoroutineScriptEngine.hpp there (Engine.hpp will follow).
+      All other TUs with teascript includes must set TEASCRIPT_DISABLE_HEADER_ONLY to 1.
+    - DEMO: changed project to opt-out header only for demonstration.
+      This saves a lot of includes, esp. CoreLibrary, Parser, StackMachine and ASTNode.
+    - PROJ: distinct ConfigEnums.hpp for eOptimize and config::eConfig.
+    BUILD: get rid of _SILENCE_CXX20_U8PATH_DEPRECATION_WARNING as well.
+    BUILD: dont need _CRT_SECURE_NO_WARNINGS for MSVC.
+    DEMO: added thread suspend demo.
+    DEMO: added test_code10() which will explicit compile and execute code with class Engine.
+    TEST: changed corelibrary to compile for StackVM test (except basic).
+    HOST: added dumping variables/functions of all present scopes intead only ...
+    - ... the global one. With this all variables/functions of a suspended
+      or halted program can be inspected with :ls vars or :search
+    - HOST: added :dbinfo <n> where n is the instruction index for which
+      the debug shall be obtained for.
+    TEST: added release_test and extended_test script.
+    TEST: added some basic, a mixed call + adopted Tuple Subscript tests.
+    STACKVM|HOST: improved current index handling and showing debug info.
+    HOST: fixed line numbers are off by one when use :parse <n>
+    STACKVM: added exception handling and injection of source location for ...
+    - ... all exceptions thrown actively by TeaScript during evaluation.
+    - COMPILER: added distinct compile_error exception.
+    - COMPILER: carry over more SourceLocations to instructions and fixed some.
+    - STACKVM: finding correct source location of the caller for too less and
+      too many arguments for a function call.
+    CLEAN: removed deprecated ApplyUnOp|ApplyBinOp
+    DIST: updated Known_Issues.txt
+    SHELL: added :callstack (showing callstack) and :pc (showing current instruction)
+    HOST|SHELL: updated help messages.
+    STACKVM: added FunctionPtr to CallStackEntry (makes parameter info available).
+    HOST: added a few ways for implicit launch interactve shell (e.g., --no-eval).
+    HOST: implemented showing best matching debug info of current program position.
+    - this only works if program is suspended or halted.
+    - COMPILER: filling most useful debug infos in Debug mode.
+    - PROGRAM: Query debug info and best matching debug info for a position.
+    STACKVM: implemented constant evaluation for unary and most binary operators ...
+    - ... for optimization >= O1. logical binary ops are missing as well as is/as.
+    STACKVM: implemented scope optimization for O2. Removes unnecessary scopes, except ...
+    - ... for early returns or loop related jumps (this still has to be done later.)
+    - This gives a great speedup for e.g., fib.tea, since variable searches are one
+      of the biggest performance bottlenecks actually. Each removed scope during
+      a (recursive) function call chain will reduce the time until the script finishes.
+    STACKVM: added timed and instruction count based constraint for exec.
+    - with this the script can be suspended at any amount of executed
+      instructions (one will be single step debugging).
+    - ... or after any amount of passed time
+      (currently in milliseconds with granularity of 10 instructions).
+    STACKVM: implemented yield instruction, now scripts can yield values lika a coroutine!
+    - AST: added ASTNode_Yield_Statement for have a layer from Parser to Compiler.
+    - SHELL: print yielded values of suspended scripts.
+    TEASCRIPT: added possibility to program in TeaScript Assembler directly for TSVM.
+    - PARSER: added ##tsvm_mode and ##tsvm INSTR CONSTANT for parse TeaScript asm code.
+    - ASTNODE: added ASTNode_TSVM for have a AstNode layer between Parser and Compiler.
+    - COMPILER: added handling for ASTNode_TSVM which directly contains the instruction.
+    HOST: added print TSVM instructions for .tsb files, added --info for ...
+    - ... print the header infos (compiler version, optimization level, name)
+      of a TeaScript binary file (.tsb)
+    - STACKVM: load header of program does not read the whole file content anymore.
+    STACKVM: implemented Save and Load of StackVM Programs (TeaScript Binary (.tsb))
+    - HOST: added --compile for compile+save a <file>.tea as <file>.tea.tsb
+    - HOST: added executing of .tsb files.
+    FIX: reject utf8 string if first char is a follow char.
+    ENGINE: added ExecuteProgram(), CompileScript|Content|Code, streamlined ...
+    - ... read script file a little by using CoreLibrary::ReadTextFile[Ex] and
+      util::utf8_path_to_str()
+    - CORELIB: added ReadTextFileEx/WriteTextFileEx with std::filesystem::path.
+    - added util::utf8_path_to_str, needed on windows to convert filesystem::path
+      back to utf8 string instead of code page string.
+    VALUE: made FunctionPtr and IntegerSequence first class citizen, ...
+    - ... avoid usage of GetValuePtr() in favor of InternalType() and GetTypeInfo()
+    - made ValueObject with Buffer always a shared one.
+    - fixed constructor with FunctionPtr for the case it shall not be shared.
+    ENGINE: using TeaStackVM now for execute scripts, changeble during ...
+    ... construction to Eval mode, which will still evaluate the AST.
+    - added script args can be passed as real ValueObjects instead of strings only.
+    HOST: use MoveResult() from StackMachine.
+    STACKVM: implemented subroutine execution. This enables to enter the ...
+    - ... compiled land from the eval world. Not only from the interactive
+      shell but also from, e.g., eval( "compiled_func()" ) it is possible
+      now to execute code of compiled TeaScript functions from any eval point.
+    - implemented ParamCount() and ParameterInfoStr() in CompiledFunc.
+    - had to introduce CompiledFuncBase as well as CompiledFuncFactory
+      in order to resolve mutual dependency between CompiledFunc and StackMachine.
+    - VALUE: slightly optimized move operations.
+    STACKVM: added subprogram/module like feature. A CompiledFunc may come from ...
+    - ... any program. Each callstack entry saves its program source as well.
+    - The program can be switched for every function call and back for every Ret.
+    - This enables to use a compiled CoreLibrary (and more) in (compiled) scripts.
+    - CORELIB: Bootstrap now compiles the core library (default), can be switched to eval.
+    - HOST: use compiled core library for Exec, and ast eval for Shell.
+    - HOST: added --no-eval for optionally use compiled core library in interactive shell.
+    - HOST: added --shell for explicit launch interactive shell together with other parameters.
+    - HOST: cleanup: use Config (parsed parameters) also in interactive shell, removed bools.
+    - STACKVM: fixed nested loops with same lables! :-O
+    - STACKVM: handle control::Exit_Script from function calls.
+    HOST: added :debug ast|tsvm and separated it from :debug, updated help message.
+    STACKVM: added Debug as NoOp in debug mode (debugging only)
+    DIST: added suspend + yield keywords to syntax highligthing.
+    STACKVM: added SubscriptGet/Set, fixed nested dot ops, fixed CallFunc with 0 params.
+    STACKVM: added SetElement, DefElement, ConstElement, IsDefElement
+    ... for manipulate Tuple elements.
+    STACKVM: added DotOp and Undef(Tuple)Element.
+    STACKVM: added and implemented MakeTuple instruction.
+    LINUX: full support of gcc 13 (no limitations left).
+    TEASCRIPT: added suspend and continue of scripts!
+    - added suspend keyword, ASTNode_Suspend_Statement + Suspend instruction.
+    - STACKVM: Suspend instruction will enter Suspended state of TeaStackVM.
+    - in eval mode suspend is not supported and will just throw.
+    - HOST: will auto continue suspended scripts if not launched with --interactive / -i,
+      otherwise the first reached suspend will launch interactive mode.
+    - SHELL: added :compile for compile a parsed script.
+    - SHELL: old :exec is :eval now (evaluates parsed ast).
+    - SHELL: new :exec will execute compiled script in TeaStackVM.
+    - SHELL: added :continue for continue a suspended script.
+    - SHELL: added :disasm for print TeaStackVM instructions of the script.
+    - HOST: refactored host to use PartialParseState when entering --interactive.
+    TEASCRIPT: added _Exit statement, Exit ASTNode and ExitProgram StackVM instruction.
+    - made ExitScript() and exit() deprecated, _exit accepts now any value.
+    - needed a distinct Exit ASTNode for easily create a compiled ExitProgram instruction.
+      (detect every _exit call and replace it is too dirty.)
+    - ExitProgram will exit the program from any point with scope cleanup.
+    - _Exit accepts any value. A script always has a result.
+      A separated exit code will not exist anymore.
+    STACKVM: added return statement (also from toplevel 'main') + Unittest
+    STACKVM: added default parameters for function definitions.
+    - If a parameter is on the stack it will be used and jumped over the default code.
+      Otherwise the default code will be executed.
+    - nested default parameters are possible, e.g. when using a lambda with default params
+      as default param:
+      func calc( a, b := func ( x := 1 ) { x * x } ) { a + b(a) + b() }
+    - added Unittest for function definitions and default parameters for StackVM.
+    STACKVM: added function definition with ParamSpec and FromParam, ...
+    - ... added ParamSpecClean and Ret instructions.
+    - added (not implemented yet) FromParam_Or instr.
+    - added CompiledFunc which actually just stores the jump address.
+    - Compiled TeaScript functions are actually working without frames,
+      they are just jumps and jump backs (ret).
+    - using a separate 'callstack' for save the return addresses (and function name).
+    TEST: added StackMachine Func Call Unittest.
+    STACKVM: added if with scoped conditions and implemented correct handling ...
+    - ... of comma operator (Expressions with more than one element) in if conditions.
+    - added StackVM Unittest for if conditions with scope, e.g. if( def a := 10, a > 9 ) { a }
+    STACKVM: slightly optimize by replacing consecutive Replace with NoOp
+    TEST: added basic, if and loop stack machine tests.
+    STACKVM: added forall loop (with help of ForallHead and ForallNext instr.)
+    - forall loop has full support for 'stop', 'loop' and lables.
+    - forall loop is more special than expected. It needs 2 entries on the stack
+      for the idx variable and the IntegerSequence. This actually requires
+      special stack cleanup for a result can be carried over to the caller
+      without let the stack in dirty state.
+      loop and stop statements must respect this as well.
+    STACKVM: added Repeat loop w. loop/stop "label" (incl. scope cleanup), ...
+    - ... detecting wrong labeled (not matching) stop/loop and produce a compile error.
+    - a 'stop' outside of a loop is a HALT (mimic intended behavior of old scripts)
+      (but with statement behavior is unspecified in such cases, means:
+      don't carry a result with a top-level stop! use return)
+    - a 'loop' outside of a loop is a compile error.
+    HOST: added --printTSVM mode for print compiled instructions, ...
+    - ... added -O0, -O1, -O2 option for specify compiler optimization mode.
+      (debug mode for compiler will be also set with --debug)
+    STACKVM: Instruction ToString/FromString, added threshold to DumpInstrTimes().
+    STACKVM: added compiler version to program.
+    STACKVM: introduced Replace for combine Pop+Push, introduced ...
+    - ... TestAndJumpRel_If[Not] for combine Test and JumpRel_If[Not]
+    - slightly optimized Push/Pop combinations.
+    STACKVM: optimized by using in-place operations for the stack.
+    - means that instead of pop + push there is a stack[s-1] = val.
+    STACKVM: removed exceptions from main loop, introduced mException and mError ...
+    - ... which can be obtained after Exec() if in Halted state with
+      ThrowPossibleErrorException() / HasError()
+    - the goal is that all eval and runtime exceptions are propagated
+      via this new mechanism.
+    VALUEOBJ: reduced overhead of move cosntr/assign.
+    STACKVM: added Test instruction setting current stack value to Bool, ...
+    - ... made logical expressions and if conditions clean (Test, Pop)
+    - added optional time measurement of last 256 executed instructions.
+    FIX: caught wrong exception in ASTNode_If.
+    HOST: added using of StackMachine (default), eval mode available with ...    
+    ... --eval or --no-compile
+    - added measurement of compile time for -T flag
+    STACKVM: experimental Suspend Request support from other threads, but ...
+    ... unfortunately this is not possible for clang since it does not
+        support std::stop_source/std::stop_request yet.
+        clang 18 has it as experimental feature, must be activated via
+        -fexperimental-library
+    - Stack Machine can now be configured with and without thread support
+      via template< bool >
+      If without thread support the used mutex is a no-op one.
+    - Suspend function is only callable if thread support is enabled.
+    - fixed compile for gcc / clang, removed new warnings.
+    STACKVM: created StackMachine, Compiler and Program classes from prototype, ...
+    - added StackVMInstructions, StackVMCompiler, StackVMProgram, StackMachine
+      headers and implementations.
+    - StackMachine is prepared from being suspended from a different thread!
+    - actually usable via the :compile command in interactive shell
+      (will be splitted to :compile and :exec)
+    ASTNODE: don't create a useless std::vector for ASTNode_ParamSpec.
+    VALUEOBJ: improved default constructor, fixed and improved move.
+    STACKVM: prototype of calling cpp and AstNode based functions.
+    - fixed Check overload for ParamList and Return
+    - use default ValueObejct constructor in NoOp ASTNode.
+    ASTNODE: refactored Unary_ and Binary_Operator ASTNode:
+    - added Operation enum and StringToEnum/EnumToString conversion.
+    - added StaticExec which will do a big switch.
+    - made a switch in Precedence as well.
+    - streamlined Typeof_Typename with Unary_Operator ASTNode
+    - added a StaticExec to Bit_Operator, Is_Type and As_Type as well.
+    - added BitOp, As, Is as instructions to TeaStackVM prototype.
+    - use StaticExec in TeaStackVM prototype for all binary and unary operators.
+    PROJECT: adoptions after VS update to 17.9.3
+    TEST: added Shared Return test.
+    CLEAN: Removed deprecated functions...
+    - Engine::ActivateDeprecatedDefaultMutableParameters()
+    - CoreLibrary::DoubleToLongLong()
+    CLEAN: Removed old storage layout from Context, ...
+    - ... removed deprecated BulkAdd + Context constructor
+    - removed old pre UTF-8 fix code path in CoreLibrary.
+    - use a lambda instead of macro for tea_add_var()
+    SHELL: fixed initial debug and 'mutable parameter' mode for all scenarios.
+    DEMO: added bigobj flag to VS compile.props.
+    DIST: added readme for Host source.
+
+
+================
 VERSION 0.13.0, Mon Feb 26 12:19:18 2024
 ================
     VERSION: 0.13.0 - Buffer, U8, U64, bit ops, UTF-8 Iterator, hex integrals, MPL-2.0

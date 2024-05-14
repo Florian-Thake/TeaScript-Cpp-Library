@@ -16,21 +16,36 @@
 #include "SourceLocation.hpp"
 
 /// \brief TeaScript Exceptions.
-/// The mainly used exceptions in TeaScript are divided in 2 sub categories:
-/// parsing error (during parsing) and evaluation error (during evaluation).
-/// Both have the teascript::exception::runtime_error as a common base. Thus,
-/// both of them have an optionally SourceLoction available.
-/// There is one more exception teascript::exception::bad_value_cast, which now
-/// has also runtime_error as a base.
-/// Another exception category is for control flow in the teascript::control::*
+/// All exceptions thrown by TeaScript are at least based on std::exception.
+/// The great majority of them have the teascript::exception::runtime_error
+/// as a common base (derived by std::runtime_error), which is able to carry
+/// a teascript::SourceLocation to indicate the (TeaScript) source location
+/// of the error.
+/// There are 5 sub categories of teascript::exception::runtime_error:
+///     1. parsing_error: can be thrown during parsing of the code.
+///        e.g., a syntax error was detected.
+///     2. eval_error: mainly thrown during AST evaluation, but might be 
+///        thrown as well during execution in TeaStackVM or during compilation.
+///     3. compile_error: can be thrown during compilation of the AST into a 
+///        TeaScript binary for the TeaStackVM.
+///     4. pure runtime_error: used for all other kind of errors, especially
+///        if a faulty state is detected or if another category cannot be
+///        clearly assigned.
+///     5. bad_value_cast: thrown if a teascript::ValueObject does not contain
+///        the expected/requested value type.
+/// Another exception category is for the control flow of the recursively 
+/// evaluated AST code in the teascript::control::*.
 /// Those exceptions are not meant for the user level, but might escape from
-/// the inner teascript library if either a user or library bug exists.
+/// the inner teascript library if either a user or library bug exists. These
+/// control flow exceptions are only used when the code is evaluated via
+/// recursive AST walking and _not_ when executing a compiled TeaScript code
+/// inside the TeaStackVM.
 
 namespace teascript {
 
 namespace exception {
 
-/// The base class for the most of all exceptions in TeaScript. \see teascript::exception::bad_value_cast for another exception.
+/// The base class for the most of all exceptions in TeaScript.
 class runtime_error : public std::runtime_error
 {
 protected:
@@ -152,7 +167,21 @@ public:
     }
 };
 
-/// The common base class for all kind of errors during evaluation which indicates broken/buggy code.
+/// The common base class / exception for all compilation related errors.
+class compile_error : public runtime_error
+{
+public:
+    compile_error( SourceLocation const &rLoc, std::string const &rText ) : runtime_error( rLoc, rText ) {}
+    compile_error( std::string const &rText ) : runtime_error( rText ) {}
+
+    std::string_view GetGategory() const override
+    {
+        using namespace std::string_view_literals;
+        return "Compile"sv;
+    }
+};
+
+/// The common base class for all kind of errors during evaluation/execution which indicates broken/buggy code.
 class eval_error : public runtime_error
 {
 public:
@@ -262,6 +291,13 @@ class load_file_error : public eval_error
 public:
     load_file_error( SourceLocation const &rLoc, std::string const &rFile ) : eval_error( rLoc, "Cannot open/read file \"" + rFile + "\"!" ) {}
     load_file_error( std::string const &rFile ) : load_file_error( SourceLocation(), rFile ) {}
+};
+
+/// Exception thrown if a suspend or yield statement is executed in eval mode (suspend/yield statement is only supported in compiled mode.)
+class suspend_statement : public eval_error
+{
+public:
+    explicit suspend_statement( SourceLocation const &rLoc = {} ) : eval_error( rLoc, "Suspend/Yield statement is only supported when executed via TeaStackVM (as a compiled script)!" ) {}
 };
 
 } // namespace exception

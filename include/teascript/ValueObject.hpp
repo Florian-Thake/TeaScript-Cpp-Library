@@ -76,7 +76,7 @@ class ValueConfig
 {
     eShared const mShared;
     eConst  const mConst;
-    
+
 public:
     //FIXME: Make better solution, but std::optional<std::reference_wrapper< TypeSystem const >> is too boilerplate in use, e.g. mTS.has_value() ? mTs.value().get().XXX ....
     TypeSystem const *const mpTypeSystem = nullptr;
@@ -133,6 +133,8 @@ public:
         TypeString,
         TypeTuple,
         TypeBuffer,
+        TypeIntSeq,   // IntegerSequence
+        TypeFunction,
         TypeAny,
 
         TypeLast = TypeAny,
@@ -143,7 +145,7 @@ private:
 
     //TODO [ITEM 98]: Think of a better storage layout. sizeof 64 would be great! Maybe we can get rid of the nested variant and also store any always as shared_ptr?
     // sizeof BareTypes == 72 (std::any == 64 + 8 for std::variant)
-    using BareTypes = std::variant< NotAValue, Bool, U8, I64, U64, F64, String, Tuple, Buffer, std::any >;
+    using BareTypes = std::variant< NotAValue, Bool, U8, I64, U64, F64, String, Tuple, Buffer, IntegerSequence, FunctionPtr, std::any >;
     // sizeof ValueVariant == 80 (BarTypes == 72 + 8 for std::variant)
     using ValueVariant = std::variant< BareTypes, std::shared_ptr<BareTypes> >;
 
@@ -163,6 +165,10 @@ private:
     BareTypes      *mpValue;
     TypeInfo const *mpType;  //TODO: Use something more smart to manage the pointer!
     TypeProperties  mProps;
+
+    // need this object for get a valid pointer for moved out objects. otherwise their pointer might dangle!
+    inline static ValueVariant const shared_nav   = ValueVariant( std::in_place_index_t<1>(), std::make_shared<BareTypes>( NotAValue{} ) );
+    inline static BareTypes   *const p_shared_nav = std::get<1>( shared_nav ).get();
 
     // overloaded idiom for variant visitor. inherit from each 'functor/lambda' so that the derived class contains an operator( T ) for each type which shall be dispatchable.
     template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
@@ -190,6 +196,10 @@ private:
             return std::get_if<Tuple>( mpValue );
         } else if constexpr( std::is_same_v<T, Buffer> ) {
             return std::get_if<Buffer>( mpValue );
+        } else if constexpr( std::is_same_v<T, IntegerSequence> ) {
+            return std::get_if<IntegerSequence>( mpValue );
+        } else if constexpr( std::is_same_v<T, FunctionPtr> ) {
+            return std::get_if<FunctionPtr>( mpValue );
         } else {
             std::any *any = std::get_if<std::any>( mpValue );
             if( any ) {
@@ -299,14 +309,17 @@ private:
 
 public:
     inline
-    ValueObject() noexcept // the non shared variant doesn't throw b/c no heap alloc done.
-        : ValueObject( NotAValue{} )
+    ValueObject() noexcept // doesn't throw b/c no heap alloc done.
+        : mValue()
+        , mpValue( &std::get<0>( mValue ) )
+        , mpType( &teascript::TypeNaV )
+        , mProps()
     {
 
     }
 
     inline
-    ValueObject( NotAValue, ValueConfig const &cfg = {} )
+    explicit ValueObject( NotAValue, ValueConfig const &cfg = {} )
         : mValue( create_helper( cfg.IsShared(), BareTypes( NaV ) ) )
         , mpValue( cfg.IsShared() ? std::get<1>( mValue ).get() : &std::get<0>( mValue ) )
         , mpType( &teascript::TypeNaV )
@@ -387,8 +400,8 @@ public:
 
     inline
     explicit ValueObject( Buffer &&rBuffer, ValueConfig const &cfg = {} )
-        : mValue( create_helper( cfg.IsShared(), BareTypes( std::move( rBuffer ) ) ) )
-        , mpValue( cfg.IsShared() ? std::get<1>( mValue ).get() : &std::get<0>( mValue ) )
+        : mValue( create_helper( true, BareTypes( std::move( rBuffer ) ) ) )
+        , mpValue( std::get<1>( mValue ).get() )
         , mpType( &teascript::TypeBuffer )
         , mProps( cfg.IsConst() )
     {
@@ -398,7 +411,7 @@ public:
     inline
     explicit ValueObject( FunctionPtr &&rFunc, ValueConfig const &cfg )
         : mValue( create_helper( cfg.IsShared(), BareTypes(std::move(rFunc)) ) ) 
-        , mpValue( std::get<1>( mValue ).get() )
+        , mpValue( cfg.IsShared() ? std::get<1>( mValue ).get() : &std::get<0>( mValue ) )
         , mpType( cfg.mpTypeSystem != nullptr 
                   ? cfg.mpTypeSystem->Find<FunctionPtr>()
                   : cfg.mpTypeInfo )
@@ -460,7 +473,6 @@ public:
 
     }
 
-    // note: Passthrough data is in experimental state for now
     inline
     explicit ValueObject( Passthrough /*tag*/, std::any &&any, ValueConfig const &cfg = {} )
         : mValue( create_helper( true, BareTypes(std::move(any) ) ) )
@@ -471,7 +483,6 @@ public:
     }
 
     /// Factory for create a ValueObject containing arbitrary passthrough data.
-    /// \note Passthrough data is in experimental state
     static ValueObject CreatePassthrough( std::any &&any )
     {
         return ValueObject( Passthrough{}, std::move( any ) );
@@ -479,7 +490,8 @@ public:
 
     ~ValueObject()
     {
-        if( mProps.IsTypeAllocated() ) {
+        // NOTE: actually there is not any build-in type which is allocated
+        if( mProps.IsTypeAllocated() ) [[unlikely]] {
             delete mpType; // we must manually delete it! //NOTE: a union with one unique_ptr will not help b/c we must call the destructor then manually as well!!!
         }
     }
@@ -491,7 +503,7 @@ public:
         , mpType( rOther.mpType )
         , mProps() // later for exception safety (potential double delete of mpType)
     {
-        if( rOther.mProps.IsTypeAllocated() ) {
+        if( rOther.mProps.IsTypeAllocated() ) [[unlikely]] {
             mpType = new TypeInfo( *rOther.mpType ); // must make a copy
         }
         mProps = rOther.mProps;
@@ -504,7 +516,7 @@ public:
             mValue = rOther.mValue;
             mpValue = mValue.index() == 1 ? rOther.mpValue : &std::get<0>( mValue );
             mpType = rOther.mpType; //NOTE: Be careful: assignment operator is able to change type!
-            if( rOther.mProps.IsTypeAllocated() ) {
+            if( rOther.mProps.IsTypeAllocated() ) [[unlikely]] {
                 mpType = new TypeInfo( *rOther.mpType ); // must make a copy
             }
             mProps = rOther.mProps;
@@ -519,10 +531,11 @@ public:
         , mpType( rOther.mpType )
         , mProps( rOther.mProps )
     {
-        if( rOther.mProps.IsTypeAllocated() ) { // must move out!
+        if( rOther.mProps.IsTypeAllocated() ) [[unlikely]] { // must move out!
             rOther.mProps.SetTypeAllocated( false );
-            rOther.mpType = nullptr;
         }
+        // rOther mValue is moved out and the mpValue may or may not be invalid. So, set it to a static NaV.
+        rOther.mpValue = p_shared_nav;
     }
 
     inline
@@ -533,10 +546,11 @@ public:
             mpValue = mValue.index() == 1 ? rOther.mpValue : &std::get<0>( mValue );
             mpType = rOther.mpType;
             mProps = rOther.mProps;
-            if( rOther.mProps.IsTypeAllocated() ) { // must move out!
+            if( rOther.mProps.IsTypeAllocated() ) [[unlikely]] { // must move out!
                 rOther.mProps.SetTypeAllocated( false );
-                rOther.mpType = nullptr;
             }
+            // rOther mValue is moved out and the mpValue may or may not be invalid. So, set it to a static NaV.
+            rOther.mpValue = p_shared_nav;
         }
         return *this;
     }
@@ -605,12 +619,12 @@ public:
         if( mValue.index() == 1 ) {
             if( ShareCount() < 2 ) { // TODO: THREAD!
                 // nothing to do if 'this' is the only one...
-            } // costruct a new shared again to avoid extra copies for classes without moves when calling MakeShared() as the next step!!
-            else if( GetTypeInfo()->IsSame<Tuple>() ) {
+            } else if( GetTypeInfo()->IsSame<Tuple>() ) {
                 auto new_val = tuple::deep_copy( *this, keep_const );
                 mValue = new_val.mValue;
                 mpValue = std::get<1>( mValue ).get();
             } else if( mpValue->index() == TypeAny ) {
+                // costruct a new shared again to avoid extra copies for classes without moves when calling MakeShared() as the next step!!
                 auto s = std::make_shared<BareTypes>( *mpValue ); // new copy with new (unshared) shared_ptr
                 mValue = std::move( s );
                 mpValue = std::get<1>( mValue ).get();
@@ -796,7 +810,7 @@ public:
         //return mValue.index() != TypeNaV && mValue.index() != TypeAny;
         //return mpValue->index() > TypeFirst && mpValue->index() < TypeLast;
         if( mpValue->index() == TypeAny ) {
-            return get_impl<IntegerSequence>() != nullptr || get_impl<TypeInfo>() != nullptr;
+            return mpType->IsSame<TypeInfo>();
         }
         return mpValue->index() > TypeFirst;
     }
@@ -881,9 +895,7 @@ public:
         return std::visit( overloaded{
             []( auto ) -> std::string { throw exception::bad_value_cast( "ValueObject not convertible to string!" ); },
             []( std::any const &a ) {
-                if( auto const *p_seq = std::any_cast<IntegerSequence>(&a); p_seq != nullptr ) {
-                    return seq::print( *p_seq ); // TODO: check if a Sequence should really be convertible to String? Remove (PrintValue is sufficiend then).
-                } else if( auto const *p_type = std::any_cast<TypeInfo>(&a); p_type != nullptr ) {
+                if( auto const *p_type = std::any_cast<TypeInfo>(&a); p_type != nullptr ) {
                     return p_type->GetName();
                 } else throw exception::bad_value_cast( "ValueObject not convertible to string!" ); },
             []( NotAValue ) -> std::string { throw exception::bad_value_cast( "ValueObject is NaV (Not A Value)!" ); },
@@ -894,7 +906,8 @@ public:
             []( F64 const d ) { return to_string( d ); },
             []( std::string const &rStr ) { return rStr; },
             []( Tuple const &rTuple ) { return print_tuple( rTuple ); },
-            []( Buffer const &rBuffer ) { return print_buffer( rBuffer, rBuffer.size() ); }
+            []( Buffer const &rBuffer ) { return print_buffer( rBuffer, rBuffer.size() ); },
+            []( IntegerSequence const &rSeq ) { return seq::print( rSeq ); } // TODO: check if a Sequence should really be convertible to String? Remove (PrintValue is sufficiend then).
         }, *mpValue );
     }
 
@@ -905,9 +918,7 @@ public:
         return std::visit( overloaded{
             []( auto ) { return std::string("<not printable>"); },
             []( std::any const &a ) { 
-                if( auto const *p_seq = std::any_cast<IntegerSequence>(&a); p_seq != nullptr ) {
-                    return seq::print( *p_seq );
-                } else if( auto const *p_type = std::any_cast<TypeInfo>(&a); p_type != nullptr ) {
+                if( auto const *p_type = std::any_cast<TypeInfo>(&a); p_type != nullptr ) {
                     return p_type->GetName();
                 } else return std::string( "<not printable>" ); },
             []( NotAValue ) { return std::string( "NaV (Not A Value)" ); },
@@ -918,7 +929,8 @@ public:
             []( F64 const d ) { return to_string( d ); },
             []( std::string const &rStr ) { return "\"" + rStr + "\""; },
             []( Tuple const &rTuple ) { return print_tuple( rTuple ); },
-            []( Buffer const &rBuffer ) { return print_buffer( rBuffer, 100 ); }
+            []( Buffer const &rBuffer ) { return print_buffer( rBuffer, 100 ); },
+            []( IntegerSequence const &rSeq ) { return seq::print( rSeq ); }
         }, *mpValue );
     }
 
@@ -1002,14 +1014,14 @@ inline std::strong_ordering operator<=>( teascript::ValueObject const &lhs, teas
 {
     using namespace teascript;
 
-    if( lhs.GetValuePtr<F64>() != nullptr || rhs.GetValuePtr<F64>() != nullptr ) {
+    if( lhs.InternalType() == ValueObject::eType::TypeF64 || rhs.InternalType() == ValueObject::eType::TypeF64 ) {
         F64 const *pd_lhs = lhs.GetValuePtr<F64>();
         F64 const *pd_rhs = rhs.GetValuePtr<F64>();
         F64 const d1 = pd_lhs != nullptr ? *pd_lhs : util::ArithmeticFactory::Convert<F64>( lhs ).GetValue<F64>();
         //F64 const d1 = pd_lhs != nullptr ? *pd_lhs : static_cast<F64>( lhs.GetAsInteger() );
         F64 const d2 = pd_rhs != nullptr ? *pd_rhs : util::ArithmeticFactory::Convert<F64>( rhs ).GetValue<F64>();
         //F64 const d2 = pd_rhs != nullptr ? *pd_rhs : static_cast<F64>(rhs.GetAsInteger());
-#if _MSC_VER || _LIBCPP_VERSION // libc++14 works here, libstdc++ of g++11 not.
+#if _MSC_VER || _LIBCPP_VERSION || (!defined(__clang__) && __GNUC__ >= 13 ) // libc++14 works here, libstdc++ of g++11 not, but g++13
         return std::strong_order( d1, d2 ); //TODO: check this! we could bail out on e.g., NaN instead or change return value to partial_odering.
 #else
         auto const c = d1 <=> d2;
@@ -1032,12 +1044,12 @@ inline std::strong_ordering operator<=>( teascript::ValueObject const &lhs, teas
     }
 
     // otherwise string and any will be converted to bool if any of the values is a bool
-    if( lhs.GetValuePtr<bool>() != nullptr || rhs.GetValuePtr<bool>() != nullptr ) {
+    if( lhs.InternalType() == ValueObject::eType::TypeBool || rhs.InternalType() == ValueObject::eType::TypeBool ) {
         return lhs.GetAsBool() <=> rhs.GetAsBool();
     }
 
     //FIXME: implement clean conversion rules!
-    if( lhs.GetValuePtr<std::string>() != nullptr && (lhs.GetValuePtr<std::string>() != nullptr || /*convertible*/ false) ) {
+    if( lhs.InternalType() == ValueObject::eType::TypeString && (lhs.InternalType() == ValueObject::eType::TypeString || /*convertible*/ false) ) {
 #if !_LIBCPP_VERSION // libc++14 fails here
         return lhs.GetAsString() <=> rhs.GetAsString();
 #else
@@ -1046,7 +1058,11 @@ inline std::strong_ordering operator<=>( teascript::ValueObject const &lhs, teas
 #endif
     }
 
-    if( lhs.GetValuePtr<TypeInfo>() != nullptr && rhs.GetValuePtr<TypeInfo>() != nullptr ) {
+    if( lhs.GetTypeInfo()->IsSame<Tuple>() && rhs.GetTypeInfo()->IsSame<Tuple>() ) {
+        return tuple::compare_values( lhs.GetValue<Tuple>(), rhs.GetValue<Tuple>() );
+    }
+
+    if( lhs.GetTypeInfo()->IsSame<TypeInfo>() && rhs.GetTypeInfo()->IsSame<TypeInfo>() ) {
 #if !_LIBCPP_VERSION // libc++14 fails here
         return lhs.GetValue<TypeInfo>().ToTypeIndex() <=> rhs.GetValue<TypeInfo>().ToTypeIndex();
 #else
@@ -1054,10 +1070,6 @@ inline std::strong_ordering operator<=>( teascript::ValueObject const &lhs, teas
         auto const i2 = rhs.GetValue<TypeInfo>().ToTypeIndex();
         return i1 < i2 ? std::strong_ordering::less : i2 < i1 ? std::strong_ordering::greater : std::strong_ordering::equal;
 #endif
-    }
-
-    if( lhs.GetTypeInfo()->IsSame<Tuple>() && rhs.GetTypeInfo()->IsSame<Tuple>() ) {
-        return tuple::compare_values( lhs.GetValue<Tuple>(), rhs.GetValue<Tuple>() );
     }
 
     //FIXME: Now need type info for check equal types or conversion

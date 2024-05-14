@@ -1,0 +1,165 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake, <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MIT
+ * see included file MIT_LICENSE.txt
+ */
+
+
+// This demo script is meant to be used for try the debugging possibilities of the TeaScript Host Application.
+// For this it uses the suspend statement similar like a breakpoint.
+// Beside that it shows the new form of script arguments passing as a Tuple and the usage of the _Exit statement.
+
+// If you want try the debugging capabilities of the TeaScript Host Application you have the 2 possibilities:
+
+// 1.) Invoke the TeaScript binary with -i (--interactive) and this script, optionally followed by the script arguments.
+//     I recommend to also use --debug for the best possible debug information.
+//     Examples:
+//     TeaScript -i --debug examples/example_v0.14.tea 
+//     TeaScript -i --debug examples/example_v0.14.tea  12  16
+//
+//     Then the script will be executed and either after it is finished or if the first suspend statement is reached,
+//     the interactive shell will be launched.
+//
+// 2.) Invoke the interactive shell of TeaScript with --no-eval  (for use a compiled Core Library), 
+//     then optionally prepare debugging, then load, parse, compile and debug this script.
+//     For this you need to use the commands of the interactive shell of TeaScript.
+//     E.g., use these commands in the same order (but without the appended comments!!)
+//     :debug                                    # enables debug mode
+//     :debug tsvm                               # enables printing of each executed TeaStackVM instruction of the compiled script.
+//     :load=examples/example_v0.14.tea          # loads the script file (now you could use :show, or :goto)
+//     :parse 200                                # just parse everything. After that you have the AST present (can be viewed w. :stmt )
+//     :compile                                  # will compile the AST to a TeaStackVM program. (use :disasm for display the instructions)
+//     :exec                                     # (or :x) will execute the compiled program until finished, suspended or error occured.
+
+// Good to know: If you also want have debug information for the integrated Core Library of TeaScript you actually
+//               need a 'Debug' build of the Host Application. Then in debug mode the Core Library will be compiled
+//               also with debug infos. Otherwise, in 'Release' Builds, always O1 optimization will be used (as of 0.14.0).
+
+
+// If the script is suspended inside the interactive shell, you may use (beside others) the following commands:
+// :pc                           # show instruction which will be executed next (program counter)
+// :callstack                    # prints current callstack
+// :dbinfo                       # tries to find the best matching debug info of current position.
+// :debinfo <number>             # shows debug info (if any) of position specified by <number>.
+// :disasm [start,end]           # prints the TeaStackVM instructions of the program, optionally only for given range.
+// :constraint <n>               # sets a max instruction constraint of <n>. Script will suspend if this amount of instructions is reached.
+// :constraint none              # clears any constraint.
+// :continue                     # (or :c) for continue execution.
+// :ls vars                      # lists all variables of all actually present scopes.
+// :search <str>                 # searches all present scopes for variables containing <str> in its name.
+//
+// In the interactive shell you can also use any valid TeaScript code, e.g., define a variable: def a := 16
+
+// NOTE: You can invoke the script also without debugging it.
+//       The TeaScript Host Application will automatically continue each suspend statement if not launched with -i.
+
+
+// we rely on the new features.
+##minimum_version 0.14
+
+
+
+// we will calculate Pythagoras' theorem or use it to check if it forms a right triangle.
+// if a and b are given we calculate c.
+// if a, b and c are given we check for a right triangle.
+
+
+
+func print_usage_and_exit()
+{
+    println( "The script must be called with 2 or 3 arguments." )
+    println( "With 2 arguments c will be calculated." )
+    println( "With 3 arguemnts it will be checked if a, b and c forming a right triangle." )
+    println( "Alternatively an a and b (or c) must be present in the script environment." )
+    _Exit "Please, try again"  // exit the script from here. can use arbitrary types/values (or void)
+}
+
+// compares f64 for equality using an epsilon.
+func about_equal( a, b, epsilon := 0.000001 )
+{
+    abs( a - b ) < epsilon
+}
+
+// these are the variables (of type f64) we use for calculation.
+def the_a := 0f64
+def the_b := 0f64
+def the_c := 0f64
+
+suspend // the first stop, you can check or set the environment or just continue.
+
+// check if somebody provide the arguments as named variables (a,b(,c)) for us, or if we need to use passed script arguments (args).
+def need_args := not is_defined a or not is_defined b
+if( need_args ) {
+    if( not is_defined argN or argN < 2 ) {
+        // somebody forget to pass arguments.
+        println( "Warning: Neither args nor an a and b variable present!" )
+        suspend // You can specify values for the script in the interactive shell by setting an a and b (and c)
+        // check again
+        if( is_defined a and is_defined b ) {
+            the_a := a as f64
+            the_b := b as f64
+            if( is_defined c ) {
+                the_c := c as f64
+            }
+        }
+    } else { // args are present!
+        the_a := _strtonumex( args[0] ) as f64
+        the_b := _strtonumex( args[1] ) as f64
+        if( argN > 2 ) {
+            the_c := _strtonumex( args[2] ) as f64
+        }
+    }
+} else { // we have an environment
+    the_a := a as f64
+    the_b := b as f64
+    if( is_defined c ) {
+        the_c := c as f64
+    }
+}
+
+println( "After argument evaluation we have the following values:" )
+println( "a = %(the_a)" )
+println( "b = %(the_b)" )
+println( "c = %(the_c)" )
+
+suspend // Now you have the chance to correct some values.
+
+// if we don't have a and b we can do nothing.
+if( the_a <= 0.0 or the_b <= 0.0 ) {
+    print_usage_and_exit()
+}
+
+
+print( "calculating the square of a" )
+suspend // use :constraint 10 (or less) and then :continue for stepwise continue...
+const a_squared := pow( the_a, 2 )   // we use pow intentionally. you can step inside and print the callstack.
+println( " = %(a_squared)" )
+print( "calculating the square of b" )
+const b_squared := pow( the_b, 2 )
+println( " = %(b_squared)" )
+
+// check for mode.
+const calc_c := the_c <= 0.0
+
+if( calc_c ) {
+    
+    the_c := sqrt( a_squared + b_squared )
+    
+    println( "\nResult:" )
+    println( "c = %(the_c)" )
+
+} else {
+    
+    print( "calculating the square of c" )
+    const c_squared := pow( the_c, 2 )
+    println( " = %(c_squared)" )
+
+    println( "\nResult:" )
+    suspend // chance for manually inspect the values / step through final calculation.
+    if( about_equal( c_squared, a_squared + b_squared ) ) {
+        println( "It is a right triangle." )
+    } else {
+        println( "It is not a right triangle." )
+    }
+}

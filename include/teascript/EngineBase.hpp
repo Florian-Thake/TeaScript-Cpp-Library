@@ -23,10 +23,11 @@ namespace teascript {
 class EngineBase
 {
 protected:
-    std::optional<teascript::Integer> mExitCode;
+    std::optional<teascript::Integer> mExitCode; // DEPRECATED: A separate exit code will be reomved. A script will always have a result regardless the way of exiting.
 
     /// Evaluates the given \param rContent as TeaScript.
-    /// Evaluation usually invokes parsing and then the (recursive or iterative) evaluation of the produced AST.
+    /// Evaluation usually invokes either parsing and then the recursive evaluation of the produced AST,
+    /// or a compilation of the produced AST followed by an execution of the binary program in the TeaStackVM.
     /// \param rContent The content to be evaluated.
     /// \param rName An arbitrary user defined name for referring to the content.
     /// \returns the result as ValueObject.
@@ -52,6 +53,8 @@ public:
 
     /// Returns whether the last executed script/code ended with exit code.
     /// This usually happens when one of the exit()-like functions is called.
+    /// DEPRECTATED: A separate exit code will be reomved. A script will always have a result regardless the way of exiting.
+    [[deprecated("A separate exit code will be reomved. A script will always have a result regardless the way of exiting.")]]
     inline
     bool HasExitCode() const noexcept
     {
@@ -59,6 +62,8 @@ public:
     }
 
     /// Returns the set exit code of last executed script/code or EXIT_FAILURE if there is none.
+    /// DEPRECTATED: A separate exit code will be reomved. A script will always have a result regardless the way of exiting.
+    [[deprecated( "A separate exit code will be reomved. A script will always have a result regardless the way of exiting." )]]
     inline
     teascript::Integer GetExitCode() const noexcept
     {
@@ -70,8 +75,9 @@ public:
     virtual ValueObject GetVar( std::string const &rName ) const = 0;
 
     /// Executes the script referenced by file path \param path with the (optional) script parameters \param args.
-    /// The script parameters will be available for the script as "arg1", "arg2", ..., "arg<N>". Additionally an "argN" variable indicating the parameter amount.
-    /// The user might be responsible to remove prior used arg<N> variables. Be aware of conflicts. A ResetState() will handle that.
+    /// The script parameters will be available for the script as a tuple "args[idx]". Additionally an "argN" variable indicating the parameter amount.
+    /// The user might be responsible to remove prior used arg variables. Be aware of conflicts. A ResetState() will handle that.
+    /// \note The legacy form of the arg variables "arg1", "arg2", ... is available via the compile setting TEASCRIPT_ENGINE_USE_LEGACY_ARGS=1
     /// \note It is implementation defined whether the content of the file or a further cached object (of a different form) will be used.
     /// \note Further it is implementation defined whether EvaluateContent() will be called or another way is used to execute the script.
     /// \throw May throw exception::load_file_error or any exception based on exception::parsing_error/eval_error/runtime_error.
@@ -99,12 +105,28 @@ public:
         return EvaluateContent( code, name );
     }
 
+    /// Invokes the TeaScript function with name rName with parameters in rParams.
+    /// \returns the ValueObject result from the called fuction.
+    /// \throw May throw exception::unknown_identifier or a different excection based on exception::eval_eror/runtime_error.
+    virtual ValueObject CallFunc( std::string const &rName, std::vector<ValueObject> &rParams ) = 0;
+
+    /// Invokes the TeaScript function with name rName with the additional parametes, which will be converted to ValueObjects.
+    /// \returns the ValueObject result from the called fuction.
+    /// \throw May throw exception::unknown_identifier or a different excection based on exception::eval_eror/runtime_error.
+    /// \note Every parameter t must be a type which can be passed to a public ValueObject consructor.
+    template< typename ...T> requires ((not std::is_same_v<T, ValueObject> && not std::is_same_v<T, std::vector<ValueObject>> && std::is_constructible_v<ValueObject, T, ValueConfig>) && ...)
+    ValueObject CallFuncEx( std::string const &rName, T ... t ) /* different name for overload resolution in derived classes! */
+    {
+        std::vector<ValueObject> params{ValueObject( std::forward<T>( t ), ValueConfig{ValueShared,ValueMutable} )...};
+        return CallFunc( rName, params );
+    }
+
     /// Registers the given callback function \param rCallback as name \param rName in the current scope.
     /// The callback function is then invocable from TeaScript code by using its name and the call operator (pair of round brackets.)
     /// Pro tip: Use std::bind or a capturing lmabda to bring any arbitrary context with the callback.
     /// \note Actually the callback can be called with any amount of parameters. The callback is responsible to handle that.
-    /// \warning EXPERIMENTAL: This interface and the general working and mechanics of user callbacks is experimental and may change often or be even removed.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \warning EXPERIMENTAL: This interface and the general working and mechanics of user callbacks is experimental and may change.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     virtual void RegisterUserCallback( std::string const &rName, CallbackFunc const &rCallback ) = 0;
 
     /// Adds the given value as a mutable Bool with name \param rName to the current scope.
@@ -213,8 +235,7 @@ public:
 
     /// Adds arbitrary data as std::any for passthrough with name \param rName to the current scope.
     /// Passthrough data can only be assigned to variables and used as function parameters. The user is responsible for the contained data stays valid.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
-    /// EXPERIMENTAL: This is an experimental inferface.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddPassthroughData( std::string const &rName, std::any &&any )
     {
@@ -224,7 +245,6 @@ public:
     /// Retrieves the passthrough data with name \praram rName as its concrete type. 
     /// This is a convenience function for GetVar(rName); some_cast<T>(var.GetPassthroughData());
     /// \throws exception::bad_value_cast or std::bad_any_cast if it is not passthrough data or the concrete type does not match.
-    /// EXPERIMENTAL: This is an experimental interface.
     template< typename T >
     inline
     T & GetPassthroughData( std::string const &rName ) const
@@ -326,8 +346,7 @@ public:
 
     /// Adds arbitrary const data as std::any for passthrough with name \param rName to the current scope.
     /// Passthrough data can only be assigned to variables and used as function parameters. The user is responsible for the contained data stays valid.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
-    /// EXPERIMENTAL: This is an experimental inferface.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddConstPassthroughData( std::string const &rName, std::any &&any )
     {

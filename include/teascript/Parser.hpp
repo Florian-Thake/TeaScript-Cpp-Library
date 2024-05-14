@@ -11,6 +11,7 @@
 #include "Content.hpp"
 #include "ParsingState.hpp"
 #include "ASTNode.hpp"
+#include "ASTNodeTSVM.hpp"
 #include "UtilContent.hpp"
 #include "Exception.hpp"
 #include "version.h"
@@ -53,11 +54,11 @@ class Parser
                 table.insert( "def" );
                 table.insert( "undef" );
                 table.insert( "const" );
-                table.insert( "mutable" );
+                table.insert( "mutable" );  // (reserved)
                 table.insert( "is_defined" );
                 table.insert( "debug" ); //?
                 //table.insert( "is" ); // binop, will be eaten before.
-                table.insert( "as" ); // binop (reserved)
+                table.insert( "as" ); // binop
                 table.insert( "in" ); // binop (reserved)
                 table.insert( "if" );
                 table.insert( "else" );
@@ -70,6 +71,8 @@ class Parser
                 table.insert( "func" );
                 table.insert( "typeof" );
                 table.insert( "typename" );
+                table.insert( "suspend" );
+                table.insert( "yield" );
             }
         };
 
@@ -254,7 +257,7 @@ public:
         return std::make_shared<ASTNode_File>( mState->GetFileName(), mState->MoveOutASTCollection() );
     }
 
-    /// EXPERIMENTAL interface for partial evaluation. Get available complete top level ASTNodes for partial evaluation.
+    /// Interface for partial evaluation. Get available complete top level ASTNodes for partial evaluation.
     /// This method can be called after 1 .. N calls to ParsePartial().
     /// \param want specifies the amount of wanted ASTNodes, 0 means all available.
     /// \throws exeception::out_of_range if want is greater than the available top level ast nodes.
@@ -263,11 +266,11 @@ public:
         return std::make_shared<ASTNode_FilePart>( mState->GetFileName(), mState->GetPartialASTNodes(want) );
     }
 
-    /// EXPERIMENTAL interface for partial evaluation. Gets the final part of the partial parsed ASTNodes (if any).
+    /// Interface for partial evaluation. Gets the final part of the partial parsed ASTNodes (if any).
     /// IMPORTANT: This method must be called instead of ParsePartialEnd() when it is clear that no further content to parse is present / will arrive.
     /// This method must be used in combination with ParsePartial() and GetPartialParsedASTNodes().
     /// \throws if there are left overs like not closed multi-line comments or inclomplete ast nodes.
-    ASTNode_FilePart_Ptr GetFinalPartialParsedASTNodes( )
+    ASTNode_FilePart_Ptr GetFinalPartialParsedASTNodes()
     {
         CheckPartialEnd();
         return std::make_shared<ASTNode_FilePart>( mState->GetFileName(), mState->MoveOutASTCollection() );
@@ -372,7 +375,37 @@ public:
                             }
                         }
                     }
-                }
+                } else if( CheckWordAndMove( "tsvm_mode", rHere ) ) {
+                    // just toggle
+                    mState->tsvm_mode = not mState->tsvm_mode;
+                } else if( CheckWordAndMove( "tsvm", rHere ) && mState->tsvm_mode ) {
+
+                    // add the tsvm ast node
+                    mState->AddASTNode( std::make_shared<ASTNode_TSVM>() );
+                    // then parse for its childs (id + Constant)
+                    SkipWhitespace( rHere );
+                    if( ID( rHere ) != IDResultID ) {
+                        util::throw_parsing_error( rHere, mState->GetFilePtr(), "expecting an identifier for the TSVM instruction." );
+                    }
+                    SkipWhitespace( rHere );
+                    // special case: unfinished RawString literal
+                    bool ok = RawString( rHere );
+                    if( ok && mState->is_in_rawstring > 0 ) {
+                        return true;
+                    }
+                    
+                    ok = ok || Num( rHere ) || String( rHere, false );
+
+                    if( not ok ) {
+                        auto const id_res = ID( rHere ); // for Bool!
+                        if( id_res == IDResultOperator ) { // the ASTNode_TSM should throw already...
+                            util::throw_parsing_error( rHere, mState->GetFilePtr(), "expecting an constant value for the TSVM payload." );
+                        } else if( id_res == IDNotFound ) {
+                            mState->AddASTNode( std::make_shared<ASTNode_Constant>(ValueObject()) );
+                        }
+                    }
+
+                } // if CheckWordAndMove
             }
 
             SkipToNextLine( rHere );
@@ -1013,12 +1046,29 @@ public:
         return NotFound;
     }
 
-    eFound Return( Content &rHere )
+    eFound Return_Exit( Content &rHere )
     {
         Content const start = rHere;
         if( CheckWordAndMove( "return", rHere ) ) {
             // for the time being a statement/expression is mandatory!
             mState->AddASTNode( std::make_shared<ASTNode_Return_Statement>( true, MakeSrcLoc( start ) ) );
+            return FoundWith;
+        } else if( CheckWordAndMove( "_Exit", rHere ) ) {
+            // for the time being a statement/expression is mandatory!
+            mState->AddASTNode( std::make_shared<ASTNode_Exit_Statement>( true, MakeSrcLoc( start ) ) );
+            return FoundWith;
+        }
+        return NotFound;
+    }
+
+    eFound Suspend_Yield( Content &rHere )
+    {
+        Content const start = rHere;
+        if( CheckWordAndMove( "suspend", rHere ) ) {
+            mState->AddASTNode( std::make_shared<ASTNode_Suspend_Statement>( MakeSrcLoc( start ) ) );
+            return FoundWith;
+        } else if( CheckWordAndMove( "yield", rHere ) ) {
+            mState->AddASTNode( std::make_shared<ASTNode_Yield_Statement>( MakeSrcLoc( start ) ) );
             return FoundWith;
         }
         return NotFound;
@@ -1139,8 +1189,8 @@ public:
                 }
             } else if( HashLine( rHere ) ) {
 
-            } else if( mState->disabled ) {
-                // in disabled mode we only parse hash lines until enabled again.
+            } else if( mState->disabled || mState->tsvm_mode ) {
+                // in disabled or tsvm mode we only parse hash lines until enabled again.
                 SkipToNextLine( rHere );
             } else {
                 SkipWhitespace( rHere );
@@ -1202,11 +1252,18 @@ public:
                     }
                 } else if( Typeof_Typename( rHere ) ) {
                     next_line_required.Unset();
-                } else if( eFound const found_return = Return( rHere ) ) {
+                } else if( eFound const found_return = Return_Exit( rHere ) ) {
                     if( next_line_required.HasViolation( rHere ) ) {
                         util::throw_parsing_error( rHere, mState->GetFilePtr(), "More than one statement/expression per line! '\\n' (line feed) missing!" );
                     }
                     if( found_return != FoundWith ) {
+                        next_line_required.Set( rHere );
+                    }
+                } else if( eFound const found_suspend = Suspend_Yield( rHere ) ) {
+                    if( next_line_required.HasViolation( rHere ) ) {
+                        util::throw_parsing_error( rHere, mState->GetFilePtr(), "More than one statement/expression per line! '\\n' (line feed) missing!" );
+                    }
+                    if( found_suspend != FoundWith ) {
                         next_line_required.Set( rHere );
                     }
                 } else if( eFound const found_control = Control_Stop_Loop( rHere ) ) {

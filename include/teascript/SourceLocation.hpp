@@ -42,7 +42,12 @@ class SourceLocation
     }
 
 public:
-    SourceLocation() : SourceLocation( -1LL, 0LL ) {}
+    SourceLocation()
+        : mStartLine( -1LL )
+        , mStartColumn( 0LL )
+        , mEndLine( -1LL )
+        , mEndColumn( 0LL )
+    {}
 
     explicit SourceLocation( std::shared_ptr<std::string> const &rFile, long long start_line = -1LL, long long start_column = 1LL )
         : SourceLocation( start_line, start_column )

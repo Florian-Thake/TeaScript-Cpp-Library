@@ -3,37 +3,25 @@ TeaScript Breaking Changes in the actual release
 
     Changes in CoreLibrary functionality
     ------------------------------------
-    strat() / CoreLibrary::StrAt() will now return strings of length [0..4] depending on the utf-8 code point char amount.
-    It will always return a full and complete utf-8 encoded glyph. If the wanted pos is in the middle
-    of an utf-8 code point this complete utf-8 code point will be returned.
+    _exit() now takes any type of argument, it will be the result value of the script.
+    A separated exit code is deprecated. A script will always have a result or NaV (Not A Value).
     
-    readtextfile / CoreLibrary::ReadTextFile() will now do a complete UTF-8 validation of the read input.
-    Also, it will not throw anymore but return Bool(false).
-
+    Script arguments are passed now as a Tuple "args" instead of "arg1", "arg2", ...
+    The legacy form is available in the TeaScript Host Application via --legacy-args 
+    or when class Engine is used at compile time via define TEASCRIPT_ENGINE_USE_LEGACY_ARGS=1
 
     Changes on C++ API level
     ------------------------------------
-    Util.hpp is splitted in 3 files: Util.hpp, UtilContent.hpp, UtilInternal.hpp.
-    Most likely you still only need Util.hpp.
+    Member mParser in class Engine is now in mBuildTools shared pointer.
+    (was required for make 'opt-out header only' possible!)
     
-    ASTNode::Eval() has been made const.
-    
-    Parser::Num() throws exception::parsing_error instead of std::out_of_range
-    
-    exception::bad_value_cast now inherits from exception::runtime_error (w. SoruceLocation) instead of std::bad_any_cast
-    
-    Engine::AddVar/AddConst w. unsigned int overload now adds a U64 instead of I64
-    (NOTE: If a future U32/I32 will be added this overloads (and those for int) will change again/as well!)
-    
-    Tuple is first class citizen now. 
+    Function and IntegerSequence are first class citizen now. 
     This must be taken into account for a visitor applied to ValueObject::Visit.
     
 
     Visibility of Core Library functions
     ------------------------------------
     The following Core Library functions moved up to Level CoreReduced:
-    
-    _f64toi64
     
     The following Core Library functions moved up to Level Core:
     
@@ -46,14 +34,6 @@ TeaScript list of deprecated parts
 =================================================
 
     The following deprecated parts have been finally removed from this release:
-    
-    bool Parser::Int( Content & )
-    use Integer( Content & ) or Num( Content &, bool ) instead.
-
-    func eval( sth_unspecified )  from TeaScript Core Library (use the not confusing _eval( code_string ) variant instead)
-
-    
-    The following parts are now deprecated and will be removed in some future release:
     
     Engine::ActivateDeprecatedDefaultMutableParameters()
     Please, change your script code to explicit mutable parameters with 'def' keyword.
@@ -70,3 +50,16 @@ TeaScript list of deprecated parts
     
     Context( VariableStorage const &init, TypeSystem && rMovedSys, bool const booting )
     Please, uses a different constructor instead.
+
+    
+    The following parts are now deprecated and will be removed in some future release:
+    
+    CoreLibrary::ExitScript()
+    directly issued control flow exceptions are deprecated, use either _exit() or the new _Exit statement instead.
+    
+    exit( exit_code )
+    use either _exit( Any ) or the new _Exit statement instead.
+    A separated exit code is deprecated. A script will always have a result or NaV (Not A Value).
+    
+    class Engine HasExitCode()/GetExitCode() and mExitCode
+    A separated exit code is deprecated. A script will always have a result or NaV (Not A Value).

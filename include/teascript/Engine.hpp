@@ -10,67 +10,67 @@
 
 #include "EngineBase.hpp"
 #include "Context.hpp"
-#include "Parser.hpp"
-#include "CoreLibrary.hpp"
+#include "ConfigEnums.hpp"
 #include "UserCallbackFunc.hpp"
+
 
 #include <fstream>
 
+// define TEASCRIPT_ENGINE_USE_LEGACY_ARGS to 1 for use script arguments in the legacy form "arg1", "arg2", ..., "arg<N>"
+// instead of a tuple "args[argN]" with all arguments as elements.
+#if !defined(TEASCRIPT_ENGINE_USE_LEGACY_ARGS)
+# define TEASCRIPT_ENGINE_USE_LEGACY_ARGS       0
+#endif
 
 namespace teascript {
 
+// forward declarations...
+namespace StackVM {
+class Program;
+using ProgramPtr = std::shared_ptr<Program>;
+} // namespace StackVM
+
+
 /// The TeaScript standard engine.
 /// This is a single-thread engine and this class is _not_ thread-safe.
-/// You cannot use the same instance in more than 1 thread the same time.
-/// However, it is safe to use one distinct instance per thread.
+/// However, it is safe to use one distinct instance per thread, but
+/// you cannot use the same instance in more than 1 thread the _same_ time.
+/// Furthermore, each instance has its own distinct context, which is not
+/// shared between other instances/engines.
+/// \note see class EngineBase for some more handy convenience functions.
 class Engine : public EngineBase
 {
+public:
+    enum class eMode
+    {
+        Compile,
+        Eval,
+    };
 protected:
-    config::eConfig  mCoreConfig;
-    Context          mContext;
-    Parser           mParser;
+    eMode             mMode        = eMode::Compile;    // default is compile
+    eOptimize         mOptLevel    = eOptimize::O0;     // actually default is O0, will be changed to O1 later!
+    config::eConfig   mCoreConfig;
+    Context           mContext;
+    struct BuildTools;  // separated in an extra struct and forward declare for safe includes of Parser, Compiler and StackMachine!
+    std::shared_ptr<BuildTools> mBuildTools;
+
 
     /// Constructs the engine without bootstrapping the Core Library if \param bootstrap is false.
     /// If \param bootstrap is true it will bootstrap the Core Library with specified config from \param config.
     /// \note This constructor is useful for derived classes which don't want the default bootstrapping, e.g.
     ///       using another CoreLibrary or a derived class. Don't forget to override ResetState() in such a case.
-    Engine( bool const bootstrap, config::eConfig const config )
-        : EngineBase()
-        , mCoreConfig( config )
-        , mContext()
-        , mParser()
-    {
-        if( bootstrap ) {
-            CoreLibrary().Bootstrap( mContext, mCoreConfig );
-        }
-    }
+    Engine( bool const bootstrap, config::eConfig const config, eMode const mode = eMode::Compile, eOptimize const opt_level = eOptimize::O0 );
 
-    /// Adds the given ValuObject \param val to the current scope as name \praam rName.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
-    void AddValueObject( std::string const &rName, ValueObject val ) override
-    {
-        (void)mContext.AddValueObject( rName, val );
-    }
+    /// Adds the given ValuObject \param val to the current scope as name \param rName.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
+    void AddValueObject( std::string const &rName, ValueObject val ) override;
 
     /// Evaluates the given \param rContent as TeaScript.
     /// This implementation invokes parsing and then evaluates the produced AST recursively.
     /// \param rContent The content to be evaluated.
     /// \param rName An arbitrary user defined name for referring to the content.
     /// \returns the result as ValueObject.
-    ValueObject EvaluateContent( Content const &rContent, std::string const &rName ) override
-    {
-        try {
-            auto ast = mParser.Parse( rContent, rName );
-            return ast->Eval( mContext );
-        } catch( teascript::control::Exit_Script const &ex ) {
-            if( nullptr != ex.GetResult().GetValuePtr<teascript::Integer>() ) {
-                mExitCode = ex.GetResult().GetAsInteger();
-            }
-            return ex.GetResult();
-        } catch( teascript::control::ControlBase const & ) {
-            throw exception::runtime_error( "A TeaScript control flow exception escaped. Check for wrong named loop labels!" );
-        }
-    }
+    ValueObject EvaluateContent( Content const &rContent, std::string const &rName ) override;
 
 public:
     /// The default Constructor constructs the engine with everything loaded and bootstrapped.
@@ -79,13 +79,7 @@ public:
     }
 
     /// Constructs the engine with the specified config. Use the helper funcions from config namespace to simplify the configuration.
-    explicit Engine( config::eConfig const config )
-        : EngineBase()
-        , mCoreConfig( config )
-        , mContext()
-    {
-        CoreLibrary().Bootstrap( mContext, mCoreConfig );
-    }
+    explicit Engine( config::eConfig const config, eMode const mode = eMode::Compile );
 
     /// Convenience constructor for specifying the loading level and the opt-out feature mask separately.
     Engine( config::eConfig const level, unsigned int const opt_out )
@@ -99,39 +93,22 @@ public:
     Engine &operator=( Engine const & ) = delete;
 
 
-    /// Resets the state of parser and context. Will do a fresh bootstrap of the CoreLibrary with the current saved configuration.
-    void ResetState() override
-    {
-        mParser.ClearState();
-        CoreLibrary().Bootstrap( mContext, mCoreConfig );
-    }
+    /// Resets the state of the context (+ parser and machine). Will do a fresh bootstrap of the CoreLibrary with the current saved configuration.
+    /// \note This should be done usually prior each execution of a script to not interfer with old variables/modified environment.
+    void ResetState() override;
 
-    /// enables or disables debug mode (default: off).
+    /// enables or disables debug mode (default: off). This will also set the optimization level to Debug.
     /// \note enabled debug mode will preserve the source code for the ASTNodes. Thus, the parsing will take slightly longer and the ASTNodes use more memory.
-    void SetDebugMode( bool const enabled ) noexcept
-    {
-        mParser.SetDebug( enabled );
-        mContext.is_debug = enabled;
-    }
-
-    /// Activates the old behavior of function parameters are mutable by default. 
-    /// This was changed in 0.12.0 where copy assigned parameters are now const by default and only shared assigned parameters are still mutable by default.
-    // \warning This function is only temporarily available (for transition) and will be marked deprecated in 0.13.0 and removed in 0.14.0.
-    /// Please modify your script code accordingly (or decide to use an inofficial legacy dialect \see Dialect.hpp.)
-    /// DEPRECATED: Please, change your script code to explicit mutable parameters with 'def' keyword.
-    [[deprecated( "Please, change your script code to explicit mutable parameters with 'def' keyword." )]]
-    void ActivateDeprecatedDefaultMutableParameters() noexcept
-    {
-        mContext.dialect.parameters_are_default_const = false;
-        mParser.OverwriteDialect( mContext.dialect );
-    }
+    void SetDebugMode( bool const enabled ) noexcept;
 
     /// Returns the stored variable with name \param rName starting search in the current scope up to toplevel scope.
     /// \throw May throw exception::unknown_identifier or a different excection based on exception::eval_eror/runtime_error.
-    ValueObject GetVar( std::string const &rName ) const override
-    {
-        return mContext.FindValueObject( rName );
-    }
+    ValueObject GetVar( std::string const &rName ) const override;
+
+    /// Invokes the TeaScript function with name rName with parameters in rParams. (see EngineBase for the nice convenience function CallFuncEx!)
+    /// \returns the ValueObject result from the called fuction.
+    /// \throw May throw exception::unknown_identifier or a different excection based on exception::eval_eror/runtime_error.
+    ValueObject CallFunc( std::string const &rName, std::vector<ValueObject> &rParams ) override;
 
 
     /// Registers the given callback function \param rCallback as name \param rName in the current scope.
@@ -148,38 +125,86 @@ public:
     }
 
     /// Executes the script referenced with file path \param path with the (optional) script parameters \param args.
-    /// The script parameters will be available for the script as "arg1", "arg2", ..., "arg<N>". Additionally an "argN" variable indicating the parameter amount.
-    /// The user might be responsible to remove prior used arg<N> variables. Be aware of conflicts. A ResetState() will handle that.
-    /// \note \see EngineBase::ExecuteScript for further important details.
-    /// \throw May throw exception::load_file_error or any exception based on exception::parsing_error/eval_error/runtime_error.
-    ValueObject ExecuteScript( std::filesystem::path const &path, std::vector<std::string> const &args ) override
+    /// \see the other overload and in class EngineBase for more details.
+    ValueObject ExecuteScript( std::filesystem::path const &path, std::vector<std::string> const &args = {} ) override
     {
-        // build utf-8 filename again... *grrr*
-#if defined(_WIN32)
-        auto const tmp_u8 = path.generic_u8string();
-        auto const filename = std::string( tmp_u8.begin(), tmp_u8.end() ); // must make a copy... :-(
-#else
-        // NOTE: On Windows it will be converted to native code page! Could be an issue when used as TeaScript string!
-        auto const filename = path.generic_string();
-#endif
-        std::ifstream file( path, std::ios::binary | std::ios::ate ); // ate jumps to end.
-        if( file ) {
-            auto size = file.tellg();
-            file.seekg( 0 );
-            std::vector<char> buf( static_cast<size_t>(size) + 1 ); // ensure zero terminating!
-            file.read( buf.data(), size );
-
-            if( not args.empty() ) {
-                mContext.SetScriptArgs( args );
-            }
-
-            Content  content{buf.data(), buf.size()};
-            return EvaluateContent( content, filename ); // TODO: absolute path or filename?
+        std::vector<ValueObject> val_args;
+        for( auto const &s : args ) {
+            val_args.emplace_back( ValueObject( s, ValueConfig{ValueShared, ValueMutable} ) );
         }
-
-        throw exception::load_file_error( filename );
+        return ExecuteScript( path, val_args );
     }
+
+    /// Executes the script referenced with file path \param path with the (optional) script parameters \param args.
+    /// The script parameters will be available for the script as a tuple "args[idx]". Additionally an "argN" variable indicating the parameter amount.
+    /// The user might be responsible to remove prior used arg variables. Be aware of conflicts. A ResetState() will handle that.
+    /// The ValueObjects for the parameters must be in shared state (created with ValueShared or a MakeShared() call issued).
+    /// \note The legacy form of the arg variables "arg1", "arg2", ... is available via the compile setting TEASCRIPT_ENGINE_USE_LEGACY_ARGS=1
+    /// \note \see EngineBase::ExecuteScript for further important details.
+    /// \throw May throw exception::load_file_error or any exception based on exception::parsing_error/compile_error/eval_error/runtime_error/bad_value_cast.
+    ValueObject ExecuteScript( std::filesystem::path const &path, std::vector<ValueObject> const &args );
+
+
+    /// Executes the given \param program in the TeaStackVM with the (optional) script parameters \param args.
+    /// The script parameters will be available for the script as a tuple "args[idx]". Additionally an "argN" variable indicating the parameter amount.
+    /// The user might be responsible to remove prior used arg variables. Be aware of conflicts. A ResetState() will handle that.
+    /// The ValueObjects for the parameters must be in shared state (created with ValueShared or a MakeShared() call issued).
+    /// \note The legacy form of the arg variables "arg1", "arg2", ... is available via the compile setting TEASCRIPT_ENGINE_USE_LEGACY_ARGS=1
+    /// \note \see EngineBase::ExecuteScript for further important details.
+    /// \throw May throw an exception based on exception::eval_error/runtime_error/bad_value_cast.
+    ValueObject ExecuteProgram( StackVM::ProgramPtr const &program, std::vector<ValueObject> const &args = {} );
+
+
+    /// Compiles the given \param rContent to a binary program for the TeaStackVM with the optimization level \param opt_level.
+    /// \throw May throw an exception based on exception::compile_error/eval_error/runtime_error.
+    StackVM::ProgramPtr CompileContent( Content const &rContent, eOptimize const opt_level = eOptimize::O0, std::string const &rName = "_USER_CODE_" );
+
+    /// Compiles the script referenced with file path \param path to a binary program for the TeaStackVM with the optimization level \param opt_level.
+    /// \throw May throw exception::load_file_error or any exception based on exception::parsing_error/compile_error/eval_error/runtime_error.
+    StackVM::ProgramPtr CompileScript( std::filesystem::path const &path, eOptimize const opt_level = eOptimize::O0 );
+
+    /// Compiles the TeaScript code in \param code to a binary program for the TeaStackVM with the optimization level \param opt_level.
+    /// \param name is arbitrary user defined name for referring to the code.
+    /// \throw May throw an exception based on exception::parsing_error/compile_error/eval_error/runtime_error.
+    StackVM::ProgramPtr CompileCode( std::string const &code, eOptimize const opt_level = eOptimize::O0, std::string const &name = "_USER_CODE_" )
+    {
+        return CompileContent( code, opt_level, name );
+    }
+
+    /// Compiles the TeaScript code in \param code to a binary program for the TeaStackVM with the optimization level \param opt_level.
+    /// \param name is arbitrary user defined name for referring to the code.
+    /// \throw May throw an exception based on exception::parsing_error/compile_error/eval_error/runtime_error.
+    StackVM::ProgramPtr CompileCode( std::string_view const &code, eOptimize const opt_level = eOptimize::O0, std::string const &name = "_USER_CODE_" )
+    {
+        return CompileContent( code, opt_level, name );
+    }
+
+    /// Compiles the TeaScript code in \param code to a binary program for the TeaStackVM with the optimization level \param opt_level.
+    /// \param name is arbitrary user defined name for referring to the code.
+    /// \throw May throw an exception based on exception::parsing_error/compile_error/eval_error/runtime_error.
+    template< size_t N >
+    StackVM::ProgramPtr CompileCode( char const (&code)[N], eOptimize const opt_level = eOptimize::O0, std::string const &name = "_USER_CODE_" )
+    {
+        return CompileContent( code, opt_level, name );
+    }
+        
 };
 
 } // namespace teascript
+
+#if !defined(TEASCRIPT_DISABLE_HEADER_ONLY)
+# define TEASCRIPT_DISABLE_HEADER_ONLY          0
+#endif
+
+// check for broken header only / not header only configurations.
+#if (0==TEASCRIPT_DISABLE_HEADER_ONLY) && defined(TEASCRIPT_INCLUDE_DEFINITIONS)
+# error header only config broken, TEASCRIPT_DISABLE_HEADER_ONLY is 0 but TEASCRIPT_INCLUDE_DEFINITIONS is defined.
+#endif
+
+#if (!TEASCRIPT_DISABLE_HEADER_ONLY)  || TEASCRIPT_INCLUDE_DEFINITIONS
+# define TEASCRIPT_ENGINE_IMPL        1    /* just a guard */
+# include "Engine_Impl.ipp"
+# undef TEASCRIPT_ENGINE_IMPL
+#endif
+
 

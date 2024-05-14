@@ -42,7 +42,8 @@ const green  := make_rgb( 0, 255, 0 ) as u64
 const width  := 1920
 const height := 1080
 
-is_defined arg1 or (def arg1 := cwd())
+// note: arg1 is legacy form of passing arguments, args the new form. if none is there, current working dir is used.
+is_defined arg1 or (def arg1 := if( is_defined args ) { args[0] } else { cwd() })
 if( _strat( arg1, _strlen(arg1) -1) != "/" ) {
     arg1 := arg1 % "/"
 }

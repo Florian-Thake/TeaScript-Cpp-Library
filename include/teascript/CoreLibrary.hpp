@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include "ConfigEnums.hpp"
 #include "Func.hpp"
 #include "Context.hpp"
 #include "Type.hpp"
@@ -16,6 +17,8 @@
 #include "TomlSupport.hpp"
 #include "Print.hpp"
 #include "Parser.hpp"
+#include "StackVMCompiler.hpp"
+#include "StackMachine.hpp"
 #include "version.h"
 
 #if TEASCRIPT_FMTFORMAT
@@ -28,64 +31,11 @@
 #include <chrono>
 #include <random>
 #include <thread>
+#include <algorithm>
 
-
-#define TEASCRIPT_STR_UTF8_FIX      1
 
 
 namespace teascript {
-
-namespace config {
-
-/// Config enum for specify what shall be loaded.
-enum eConfig : unsigned int
-{
-    LevelMask           = 0x00'00'00'0f,
-    FeatureOptOutMask   = 0xff'ff'ff'00,
-
-    // level numbers are not or'able, just have some spare room for future extensions.
-    LevelMinimal        = 0x00'00'00'00, /// loading only Types and version variables NOTE: The language and usage is very limited since even basic things like creation of empty tuple or length of string are not available.
-    LevelCoreReduced    = 0x00'00'00'01, /// this is a reduced variant of the Core level where not all string / tuple utilities are loaded. Not all language features / built-in types are fully usable in this mode.
-    LevelCore           = 0x00'00'00'02, /// loading full tuple / string utility and some other type utilities. Language and its built-in types are fully usable.
-    LevelUtil           = 0x00'00'00'04, /// loading more library utilities like clock, random, sleep, some math functions, etc.
-    LevelFull           = 0x00'00'00'08, /// loading all normal and standard stuff.
-
-    // optional feature disable (counts from Level >= LevelCoreReduced, below its always disabled)
-
-    NoStdIn             = 0x00'00'01'00,
-    NoStdErr            = 0x00'00'02'00,
-    NoStdOut            = 0x00'00'04'00,
-    NoFileRead          = 0x00'00'08'00,
-    NoFileWrite         = 0x00'00'10'00,
-    NoFileDelete        = 0x00'00'20'00,
-    NoEval              = 0x00'00'40'00,
-    NoEvalFile          = NoFileRead | NoEval,
-    //NoNetworkClient,
-    //NoNetworkServer,
-};
-
-/// helper function for build config, usage example: build( config::LevelFull, config::NoFileWrite | config::NoFileDelete )
-constexpr eConfig build( eConfig const level, unsigned int const opt_out = 0 ) noexcept
-{
-    return static_cast<eConfig>((static_cast<unsigned int>(level) & LevelMask) | (opt_out & FeatureOptOutMask));
-}
-
-// some convenience helper functions to build custom configs
-
-constexpr eConfig minimal() noexcept { return LevelMinimal; }
-constexpr eConfig core_reduced() noexcept { return LevelCoreReduced; }
-constexpr eConfig core() noexcept { return LevelCore; }
-constexpr eConfig util() noexcept { return LevelUtil; }
-constexpr eConfig full() noexcept { return LevelFull; }
-
-constexpr eConfig optout_everything( eConfig const in = static_cast<eConfig>(0) )  noexcept { return static_cast<eConfig>(in | FeatureOptOutMask); }
-
-constexpr eConfig no_stdio( eConfig const in = static_cast<eConfig>(0) )  noexcept { return static_cast<eConfig>(in | NoStdIn | NoStdOut | NoStdErr); }
-constexpr eConfig no_fileio( eConfig const in = static_cast<eConfig>(0) )  noexcept { return static_cast<eConfig>(in | NoFileRead | NoFileWrite | NoFileDelete); }
-constexpr eConfig no_eval( eConfig const in = static_cast<eConfig>(0) )  noexcept { return static_cast<eConfig>(in | NoEval); }
-
-} // namespace config
-
 
 namespace util {
 
@@ -94,10 +44,34 @@ std::filesystem::path utf8_path( std::string const &rUtf8 )
 {
 #if _LIBCPP_VERSION
     _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+#elif (defined(__GNUC__) && !defined(__clang__))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4996) // if you get an error here use /w34996 or use _SILENCE_CXX20_U8PATH_DEPRECATION_WARNING
 #endif
     return std::filesystem::u8path( rUtf8 );
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #if _LIBCPP_VERSION
     _LIBCPP_SUPPRESS_DEPRECATED_POP
+#elif (defined(__GNUC__) && !defined(__clang__))
+#pragma GCC diagnostic pop
+#endif
+}
+
+inline
+std::string utf8_path_to_str( std::filesystem::path const &rPath )
+{
+#if defined(_WIN32)
+    auto const tmp_u8 = rPath.generic_u8string();
+    return std::string( tmp_u8.begin(), tmp_u8.end() ); // must make a copy... :-(
+#else
+    // NOTE: On Windows this will be converted to native code page! Could be an issue when used as TeaScript string!
+    return rPath.generic_string();
 #endif
 }
 
@@ -380,13 +354,7 @@ public:
                 file.read( buf.data(), size );
                 content = Content( buf.data(), buf.size() );
                 // build utf-8 filename again... *grrr*
-#if defined(_WIN32)
-                auto const tmp_u8 = script.generic_u8string();
-                filename = std::string( tmp_u8.begin(), tmp_u8.end() ); // must make a copy... :-(
-#else
-                // NOTE: On Windows it will be converted to native code page! Could be an issue when used as TeaScript string!
-                filename = script.generic_string();
-#endif
+                filename = util::utf8_path_to_str( script );
             } else {
                 // TODO: Better return an error ?
                 throw exception::load_file_error( rLoc, str );
@@ -541,15 +509,10 @@ public:
         return line;
     }
 
+    [[deprecated("Control flow exit will not be supported anymore. Please, use _Exit val instead.")]]
     [[noreturn]] static void ExitScript( long long const code )
     {
         throw control::Exit_Script( code );
-    }
-
-    [[deprecated("Obsolete now! Please, use a static_cast.")]]
-    static long long DoubleToLongLong( double const d )
-    {
-        return static_cast<long long>(d);
     }
 
     static double Sqrt( double const d )
@@ -620,7 +583,6 @@ public:
         if( at < 0 || static_cast<size_t>(at) >= rStr.length() ) {
             return {};
         }
-#if TEASCRIPT_STR_UTF8_FIX
         // we must always return one complete valid utf-8 code point.
         // NOTE: this algorithm assumes that the string is a valid UTF-8 encoded string.
         auto         start = static_cast<std::size_t>(at);
@@ -643,9 +605,6 @@ public:
         }
 
         return rStr.substr( start, count );
-#else
-        return {rStr.at( static_cast<size_t>(at) )};
-#endif
     }
 
     /// \returns a substring of \param rStr for the range [from, from+count). 
@@ -655,11 +614,9 @@ public:
         if( from < 0 || static_cast<size_t>(from) >= rStr.length() || count < -1 ) { // -1 == npos == until end of string
             return {};
         }
-#if TEASCRIPT_STR_UTF8_FIX
         if( not util::is_complete_utf8_range( rStr, static_cast<std::size_t>(from), static_cast<std::size_t>(count) ) ) {
             return {};
         }
-#endif
         return rStr.substr( static_cast<size_t>(from), static_cast<size_t>(count) );
     }
 
@@ -679,14 +636,12 @@ public:
     /// If the range does not form a complete UTF-8 range or is out of range nothing will happen and the function will return false.
     static bool StrReplacePos( std::string &rStr, long long const start, long long const count, std::string const &rNew )
     {
-#if TEASCRIPT_STR_UTF8_FIX
         if( start < 0 || static_cast<size_t>(start) >= rStr.length() || count < -1 ) { // -1 == npos == until end of string
             return false;
         }
         if( not util::is_complete_utf8_range( rStr, static_cast<std::size_t>(start), static_cast<std::size_t>(count) ) ) {
             return false;
         }
-#endif
         try {
             rStr.replace( static_cast<size_t>(start), static_cast<size_t>(count), rNew );
             return true;
@@ -713,7 +668,7 @@ public:
     /// gets the local wall clock time in fractional seconds.
     static double GetLocalTimeInSecs()
     {
-#if _MSC_VER || __GNUC__ >= 13 // TODO: _LIBCPP_VERSION
+#if _MSC_VER || (!defined(__clang__) && __GNUC__ >= 13 ) // TODO: _LIBCPP_VERSION
         std::chrono::zoned_time const  now = {std::chrono::current_zone(), std::chrono::system_clock::now()};
         std::chrono::duration<double> const  timesecs = now.get_local_time() - std::chrono::floor<std::chrono::days>( now.get_local_time() );
         return timesecs.count();
@@ -736,7 +691,7 @@ public:
     /// gets the UTC time in fractional seconds (with leap seconds!).
     static double GetUTCTimeInSecs()
     {
-#if _MSC_VER || __GNUC__ >= 13 // TODO: _LIBCPP_VERSION
+#if _MSC_VER || (!defined(__clang__) && __GNUC__ >= 13 ) // TODO: _LIBCPP_VERSION
         auto const now = std::chrono::utc_clock::now(); // UTC with leap seconds.
 #else
         auto const now = std::chrono::system_clock::now(); // UTC without(!) leap seconds.
@@ -872,7 +827,7 @@ public:
 
     static std::string LastModifiedToString( std::filesystem::file_time_type const ftime )
     {
-#if _MSC_VER || __GNUC__ >= 13 // TODO: _LIBCPP_VERSION
+#if _MSC_VER || (!defined(__clang__) && __GNUC__ >= 13 ) // TODO: _LIBCPP_VERSION
         auto const tp = std::chrono::clock_cast<std::chrono::system_clock>(ftime);
         // must round down to seconds first, otherwise fractional seconds will be printed.
         auto const tp_secs = std::chrono::floor<std::chrono::seconds>( tp );
@@ -913,9 +868,15 @@ public:
     static ValueObject ReadTextFile( std::string const &rFile )
     {
         // TODO: THREAD path building per CoreLib / Context instance? make thread safe and use the internal current path for make absolute!
-        // TODO: error handling! return an Error instead of Bool / throw!
         auto const  path = std::filesystem::absolute( util::utf8_path( rFile ) );
-        std::ifstream  file( path, std::ios::binary | std::ios::ate ); // ate jumps to end.
+        return ReadTextFileEx( path );
+    }
+
+    static ValueObject ReadTextFileEx( std::filesystem::path const &rPath )
+    {
+        // TODO: error handling! return an Error instead of Bool / throw!
+        
+        std::ifstream  file( rPath, std::ios::binary | std::ios::ate ); // ate jumps to end.
         if( file ) {
             auto size = file.tellg();
             file.seekg( 0 );
@@ -967,20 +928,32 @@ public:
         return ValueObject( false );
     }
 
-    static bool WriteTextFile( std::string const &rFile, std::string const & rContent, bool const overwrite, bool const bom )
+    static bool WriteTextFile( std::string const &rFile, std::string const &rContent, bool const overwrite, bool const bom )
     {
         // TODO: THREAD path building per CoreLib / Context instance? make thread safe and use the internal current path for make absolute!
-        // TODO: error handling! return an Error instead of Bool / throw!
         auto const  path = std::filesystem::absolute( util::utf8_path( rFile ) );
+        return WriteTextFileEx( path, rContent, overwrite, bom );
+    }
+
+    static bool WriteTextFileEx( std::filesystem::path const &rPath, std::string const & rContent, bool const overwrite, bool const bom )
+    {
+        // TODO: error handling! return an Error instead of Bool / throw!
         if( !overwrite ) {
             // must use fopen w. eXclusive mode for ensure file did not exist before.
-            auto fp = fopen( path.string().c_str(), "w+x" );
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4996) // if you get an error here use /w34996 or disable sdl checks
+#endif
+            auto fp = fopen( rPath.string().c_str(), "w+x" );
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
             if( !fp ) {
                 return false; // file exist already (or access denied)
             }
             fclose( fp );
         }
-        std::ofstream  file( path, std::ios::binary | std::ios::trunc );
+        std::ofstream  file( rPath, std::ios::binary | std::ios::trunc );
         if( file ) {
             if( bom ) {
                 file.write( "\xEF\xBB\xBF", 3 );
@@ -991,14 +964,24 @@ public:
         return false;
     }
 
-
     static ValueObject ReadBinaryFile( std::string const &rFile )
     {
         // TODO: THREAD path building per CoreLib / Context instance? make thread safe and use the internal current path for make absolute!
-        // TODO: error handling! return an Error instead of Bool / throw!
         auto const  path = std::filesystem::absolute( util::utf8_path( rFile ) );
+        return ReadBinaryFileEx( path );
+    }
 
-        auto fp = fopen( path.string().c_str(), "rb" );
+    static ValueObject ReadBinaryFileEx( std::filesystem::path const &rPath )
+    {
+        // TODO: error handling! return an Error instead of Bool / throw!
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4996) // if you get an error here use /w34996 or disable sdl checks
+#endif
+        auto fp = fopen( rPath.string().c_str(), "rb" );
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
         if( !fp ) {
             return ValueObject( false );
         }
@@ -1027,15 +1010,27 @@ public:
     static bool WriteBinaryFile( std::string const &rFile, Buffer const &rContent, bool const overwrite )
     {
         // TODO: THREAD path building per CoreLib / Context instance? make thread safe and use the internal current path for make absolute!
-        // TODO: error handling! return an Error instead of Bool / throw!
         auto const  path = std::filesystem::absolute( util::utf8_path( rFile ) );
-        auto fp = fopen( path.string().c_str(), overwrite ? "wb" : "wbx");
+        return WriteBinaryFileEx( path, rContent, overwrite );
+    }
+
+    static bool WriteBinaryFileEx( std::filesystem::path const &rPath, Buffer const &rContent, bool const overwrite )
+    {
+        // TODO: error handling! return an Error instead of Bool / throw!
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4996) // if you get an error here use /w34996 or disable sdl checks
+#endif
+        auto fp = fopen( rPath.string().c_str(), overwrite ? "wb" : "wbx");
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
         if( !fp ) {
             return false;
         }
         if( rContent.size() != fwrite( rContent.data(), 1, rContent.size(), fp ) ) {
             fclose( fp );
-            ::remove( path.string().c_str() );
+            ::remove( rPath.string().c_str() );
             return false;
         }
         fclose( fp );
@@ -1666,8 +1661,7 @@ public:
         }
 
         // build utf-8 filename
-        auto name_utf8 = dir_it->path().filename().generic_u8string();
-        auto const name_str = std::string( name_utf8.begin(), name_utf8.end() ); // must make a copy... :-(
+        auto const name_str = util::utf8_path_to_str( dir_it->path().filename() );
 
         res.AppendKeyValue( "valid", ValueObject( true, cfg ) );
 
@@ -1716,8 +1710,7 @@ public:
         }
 
         // build utf-8 filename
-        auto name_utf8 = dir_it->path().filename().generic_u8string();
-        auto const name_str = std::string( name_utf8.begin(), name_utf8.end() ); // must make a copy... :-(
+        auto const name_str = util::utf8_path_to_str( dir_it->path().filename() );
 
         res.AppendKeyValue( "valid", ValueObject( true, cfg ) );
         res.AppendKeyValue( "name", ValueObject( name_str, cfg ) );
@@ -1746,21 +1739,11 @@ protected:
 
     virtual void BuildInternals( Context &rTmpContext, config::eConfig const config )
     {
-#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
         // using collection directly here for speed up add key value.
         Context::VariableCollection  res;
-        //rTmpContext.Reserve( 128 );
         res.Reserve( 128 );
 
-#define tea_add_var( s, v ) res.AppendKeyValue( s, v )
-// Unfortunately the extra checks consume all prior benefits...
-//#define tea_add_var( s, v ) rTmpContext.AddValueObject( s, v )
-#else
-        Context::VariableStorage  res; //TODO: add directly to context since it is the final context now.
-        res.reserve( 128 );
-
-#define tea_add_var( s, v ) res.push_back( std::make_pair( s, v ) )
-#endif
+        auto tea_add_var = [&res]( std::string const &s, ValueObject const &v ) { res.AppendKeyValue( s, v ); };
 
 #if 0 // Possible way to add teascript code with underscore _name
         {
@@ -1828,11 +1811,7 @@ protected:
 
         // for a minimal core lib this is all already...
         if( core_level == config::LevelMinimal ) {
-#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
             rTmpContext.InjectVars( std::move( res ) );
-#else
-            rTmpContext.BulkAdd( res );
-#endif
             return;
         }
 
@@ -1872,11 +1851,11 @@ protected:
             tea_add_var( "_exit_success", ValueObject( static_cast<long long>(EXIT_SUCCESS), cfg ) );
         }
 
-        // _exit : void (i64) --> exits the script (with stack unwinding/scope cleanup) with param1 exit code. (this function never returns!)
+        // _exit : void (any) --> exits the script (with stack unwinding/scope cleanup) with param1 exit value. (this function never returns!)
         {
-            auto func = std::make_shared< LibraryFunction1< decltype(ExitScript), long long > >( &ExitScript );
-            ValueObject val{std::move( func ), cfg};
-            tea_add_var( "_exit", std::move( val ) );
+            Parser p; //FIXME: We need a compiled version of it!!
+            auto func_node_val = p.Parse( "func ( val ) { _Exit val }", "Core" )->Eval( rTmpContext );
+            tea_add_var( "_exit", std::move( func_node_val ) );
         }
 
 
@@ -2124,11 +2103,6 @@ protected:
                 auto func = std::make_shared< LibraryFunction2< decltype(PrintColored), long long, ValueObject > >( &PrintColored );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "cprint", std::move( val ) ); // missing _ is intended for now.
-
-                Parser p;
-                // cprintln : void (i64, String)  --> same as cprint but adds a new line to the end.
-                auto func_node_val = p.Parse( "func ( rgb, s ) { cprint( rgb, s % \"\\n\" ) }", "Core" )->Eval( rTmpContext );
-                tea_add_var( "cprintln", std::move( func_node_val ) ); // missing _ is intended for now.
             }
 #endif
 
@@ -2543,46 +2517,15 @@ protected:
             }
         }
 
-// cleanup
-#undef tea_add_var
-
-#if TEASCRIPT_USE_COLLECTION_VARIABLE_STORAGE
         rTmpContext.InjectVars( std::move( res ) );
-#else
-        rTmpContext.BulkAdd( res );
-#endif
     }
 public:
     CoreLibrary() = default;
     virtual ~CoreLibrary() {}
 
+    // The source code parts of TeaScript Core Library.
 
-    /// Will bootstrap the standard Core Lib into the Context. \param config specifies what will be loaded.
-    /// IMPORTANT: Any previous data in rContext will be lost / overwritten.
-    virtual void Bootstrap( Context &rContext, config::eConfig const config )
-    {
-        {
-            //TODO: Move the internal type registration to a better place.
-            TypeSystem  sys;
-            sys.RegisterType<FunctionPtr>("Function");
-            sys.RegisterType<std::vector<ValueObject>>("ValueObjectVector");
-            sys.RegisterType<Tuple>( "Tuple" );
-
-            Context tmp{ std::move( sys ), true };
-            tmp.is_debug = rContext.is_debug; // take over from possible old instance.
-
-            BuildInternals( tmp, config );
-
-            rContext = std::move( tmp );
-            // finalize
-            rContext.SetBootstrapDone();
-        }
-
-        if( (config & config::LevelMask) < config::LevelUtil ) {
-            return;
-        }
-
-        static constexpr char core_lib_util[] = R"_SCRIPT_(
+    static constexpr char core_lib_util[] = R"_SCRIPT_(
 // convenience for can write 'return void' if function shall return nothing
 const void := () // void has value NaV (Not A Value)
 
@@ -2590,6 +2533,7 @@ const void := () // void has value NaV (Not A Value)
 const PI := 3.14159265358979323846
 
 // exits the script (with stack unwinding/scope cleanup) with given code, will do to number conversion of code.
+// DEPRECATED: Use _exit( val ) or _Exit val instead!
 func exit( code )
 {
     _exit( +code )
@@ -2717,7 +2661,7 @@ func buf_zero( buf @= )
 }
 )_SCRIPT_";
 
-        static constexpr char core_lib_stdout[] = R"_SCRIPT_(
+    static constexpr char core_lib_stdout[] = R"_SCRIPT_(
 // prints s to stdout, will do to string conversion of s
 func print( s )
 {
@@ -2729,9 +2673,15 @@ func println( s )
 {
     _out( s % "\n" )
 }
+
+// cprintln : void (i64, String)  --> same as cprint but adds a new line to the end.
+is_defined cprint and (func cprintln( rgb, s )
+{ 
+    cprint( rgb, s % "\n" ) 
+})
 )_SCRIPT_";
 
-        static constexpr char core_lib_stderr[] = R"_SCRIPT_(
+    static constexpr char core_lib_stderr[] = R"_SCRIPT_(
 // prints s + line feed to stderr, will do to string conversion of s
 func print_error( s )
 {
@@ -2747,7 +2697,7 @@ func fail_with_message( error_str, error_code := _exit_failure )
 }
 )_SCRIPT_";
 
-        static constexpr char core_lib_file[] = R"_SCRIPT_(
+    static constexpr char core_lib_file[] = R"_SCRIPT_(
 func file_exists( file )
 {
     file_size( file ) >= 0
@@ -2755,7 +2705,7 @@ func file_exists( file )
 )_SCRIPT_";
 
 #if TEASCRIPT_TOMLSUPPORT
-        static constexpr char core_lib_toml[] = R"_SCRIPT_(
+    static constexpr char core_lib_toml[] = R"_SCRIPT_(
 func readtomlfile( file )
 {
     const content := readtextfile( file )
@@ -2768,7 +2718,7 @@ func readtomlfile( file )
 )_SCRIPT_";
 #endif
 
-        static constexpr char core_lib_teascript[] = R"_SCRIPT_(
+    static constexpr char core_lib_teascript[] = R"_SCRIPT_(
 // checks whether the tuple contains the given name or index
 func tuple_contains( const tup @=, idx_or_name )
 {
@@ -3047,27 +2997,74 @@ func rolldice( eyes := 6 )
 
 )_SCRIPT_";
 
-        Parser p; //FIXME: for later versions: must use correct state with correct factory.
 
-        p.Parse( core_lib_util, "Core" )->Eval( rContext );
+    /// Will bootstrap the standard Core Lib into the Context. \param config specifies what will be loaded.
+    /// IMPORTANT: Any previous data in rContext will be lost / overwritten.
+    virtual void Bootstrap( Context &rContext, config::eConfig const config, bool const eval_only = false )
+    {
+        {
+            //TODO: Move the internal type registration to a better place.
+            TypeSystem  sys;
+            sys.RegisterType<FunctionPtr>("Function");
+            sys.RegisterType<std::vector<ValueObject>>("ValueObjectVector");
+            sys.RegisterType<Tuple>( "Tuple" );
+
+            Context tmp{ std::move( sys ), true };
+            tmp.is_debug = rContext.is_debug; // take over from possible old instance.
+            tmp.dialect  = rContext.dialect;  // take over from possible old instance.
+
+            BuildInternals( tmp, config );
+
+            rContext = std::move( tmp );
+            // finalize
+            rContext.SetBootstrapDone();
+        }
+
+        if( (config & config::LevelMask) < config::LevelUtil ) {
+            return;
+        }
+
+
+        Parser p; //FIXME: for later versions: must use correct state with correct factory.
+        //p.OverwriteDialect( rContext.dialect ); // internal core lib always shall use default dialect
+#if !defined(NDEBUG)  //TODO: Do we want this block always enabled for the internal core lib?
+        p.SetDebug( rContext.is_debug );
+        eOptimize opt_level = rContext.is_debug ? eOptimize::Debug : eOptimize::O0;
+#else
+        eOptimize opt_level = eOptimize::O1;
+#endif
+
+        p.ParsePartial( core_lib_util, "Core" );
         if( not (config & config::NoStdOut) ) {
-            p.Parse( core_lib_stdout, "Core" )->Eval( rContext );
+            p.ParsePartial( core_lib_stdout, "Core" );
         }
         if( not (config & config::NoStdErr) ) {
-            p.Parse( core_lib_stderr, "Core" )->Eval( rContext );
+            p.ParsePartial( core_lib_stderr, "Core" );
         }
 
         if( (config & config::LevelMask) >= config::LevelFull ) {
             if( (config::NoFileWrite | config::NoFileRead | config::NoFileDelete) !=
                 (config & (config::NoFileWrite | config::NoFileRead | config::NoFileDelete)) ) {
-                p.Parse( core_lib_file, "Core" )->Eval( rContext );
+                p.ParsePartial( core_lib_file, "Core" );
             }
 #if TEASCRIPT_TOMLSUPPORT
             if( not (config & config::NoFileRead) ) {
-                p.Parse( core_lib_toml, "Core" )->Eval( rContext );
+                p.ParsePartial( core_lib_toml, "Core" );
             }
 #endif
-            p.Parse( core_lib_teascript, "Core" )->Eval( rContext );
+            p.ParsePartial( core_lib_teascript, "Core" );
+        }
+
+        auto ast = p.ParsePartialEnd();
+
+        if( eval_only ) {
+            ast->Eval( rContext );
+        } else {
+            StackVM::Compiler  compiler;
+            auto program = compiler.Compile( ast, opt_level );
+            StackVM::Machine<false>  machine;
+            machine.Exec( program, rContext );
+            machine.ThrowPossibleErrorException();
         }
     }
 };

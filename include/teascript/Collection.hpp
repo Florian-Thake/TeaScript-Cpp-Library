@@ -44,7 +44,6 @@ enum class eOrder
 } // namespace col_policy
 
 
-// TODO: Make this a replacement for ValueObject storage in Context ?
 /// Container class with stable storage order, implements LIFO and provides
 /// access by index as well as by a key (optionally). The complexity is comparable
 /// with std::vector but removing elements others than the last adds some 

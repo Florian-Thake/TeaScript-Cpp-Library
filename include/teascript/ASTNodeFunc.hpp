@@ -53,7 +53,11 @@ public:
         }
 
         if( mChildren.size() < 2 || (mChildren[0]->GetName() == "Id" && mChildren.size() < 3) ) {
-            throw exception::eval_error( GetSourceLocation(), "Internal error! Parameter or Block for func def is missing!" );
+            throw exception::eval_error( GetSourceLocation(), "Parameter Spec or Block for func def is missing!" );
+        }
+
+        if( mChildren[mChildren.size() - 2]->GetName() != "ParamSpec" || mChildren[mChildren.size() - 1]->GetName() != "Block" ) {
+            throw exception::eval_error( GetSourceLocation(), "Wrong child ASTNodes for Func! Need ParamSpec and Block for func def!" );
         }
     }
 

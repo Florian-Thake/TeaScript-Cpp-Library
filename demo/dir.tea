@@ -7,7 +7,8 @@
 
 // this script prints all files of given dir (or current working dir if invoked without arguments)
 
-not is_defined arg1 and (def arg1 := ".")
+// note: arg1 is legacy form of passing arguments, args the new form. if none is there, current working dir is used.
+not is_defined arg1 and (def arg1 := if( is_defined args ) { args.0 } else { "." })
 
 def cur := readdirfirst( arg1 )
 println( "file listing of %(cur.path): ")

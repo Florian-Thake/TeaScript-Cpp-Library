@@ -282,12 +282,6 @@ class ArithmeticFactory
     }
 
 public:
-    [[deprecated( "Please, use ApplyBinaryOp instead!" )]]
-    inline static ValueObject ApplyBinOp( ValueObject const &o1, ValueObject const &o2, std::string const &op )
-    {
-        return ApplyBinaryOp( o1, o2, op );
-    }
-
     inline static ValueObject ApplyBinaryOp( ValueObject const &o1, ValueObject const &o2, std::string const &op )
     {
         switch( o1.InternalType() ) {
@@ -341,12 +335,6 @@ public:
         default:
             throw exception::type_mismatch( "Bitshift is only possible for U8, U64 and I64!" );
         }
-    }
-
-    [[deprecated("Please, use ApplyUnaryOp instead!")]]
-    inline static ValueObject ApplyUnOp( ValueObject const &o1, std::string const &op )
-    {
-        return ApplyUnaryOp( o1, op );
     }
 
     inline static ValueObject ApplyUnaryOp( ValueObject const &o1, std::string const &op )

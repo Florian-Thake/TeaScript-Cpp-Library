@@ -24,7 +24,7 @@ class FunctionBase;
 
 using FunctionPtr = std::shared_ptr<FunctionBase>; // must be shared_ptr for can use in std::any
 
-/// Callback function type usable at user level. \warning EXPERIMENTAL
+/// Callback function type usable at user level. \warning EXPERIMENTAL, the signature may change.
 using CallbackFunc = std::function< ValueObject( Context & ) >;
 
 /// Common base class for all functions in TeaScript
