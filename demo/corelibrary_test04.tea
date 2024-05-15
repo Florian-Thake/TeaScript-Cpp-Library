@@ -84,7 +84,7 @@ print( "testing strsplit ... " )
 {
     def   str :=  "1;2;3;10;18;103"
     const res :=  strsplit( str, ";" )
-    print( format( "\nres = {}\n", res)  )
+    print( "\nres = %(res)\n" )
     TEST_TRUE( res as Bool, "tuple is empty!" )
     TEST_EQ( _tuple_size( res ), 6, "tuple has not 6 elements! (size=%(_tuple_size(res)))" )
     TEST_EQ( res[0], 1, "res[0] != 1" )
@@ -96,7 +96,7 @@ print( "testing strsplit ... " )
     
     str :=  ";1;2;;3;10;;;18;103;"
     const res2 :=  strsplit( str, ";" )
-    print( format( "res2 = {}\n", res2)  )
+    print( "res2 = %(res2)\n" )
     TEST_TRUE( res2 as Bool, "tuple is empty!" )
     TEST_EQ( _tuple_size( res2 ), 11, "tuple has not 11 elements! (size=%(_tuple_size(res)))" )
     TEST_FALSE( res2[0], "Index 0 is not empty string" )
@@ -104,7 +104,7 @@ print( "testing strsplit ... " )
     TEST_FALSE( res2[3], "Index 3 is not empty string" )
     
     const res3 :=  strsplit( str, ";", true )
-    print( format( "res3 = {}\n", res3)  )
+    print( "res3 = %(res3)\n" )
     TEST_TRUE( res3 as Bool, "tuple is empty!" )
     TEST_EQ( _tuple_size( res3 ), 6, "tuple has not 6 elements! (size=%(_tuple_size(res3)))" )
     TEST_EQ( res3[0], 1, "res3[0] != 1" )
