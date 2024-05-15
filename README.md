@@ -16,10 +16,20 @@ https://tea-age.solutions/downloads/<br>
 Also, a Library bundle with more example scripts is available in the download section as well.
 
 # About TeaScript
-**What is new in TeaScript 0.13.0?** TeaScript 0.13 comes with Buffer, U8, U64, bit ops, UTF-8 Iterator, hex integrals, MPL-2.0 license and more.<br>
+**What is new in TeaScript 0.14.0?** TeaScript 0.14 comes with the Tea StackVM, a Compiler, Dis-/Assembler, Suspend+Continue, Yield, improved debugging and more.<br>
 <br>Get all infos in the **latest news** article:<br>
-https://tea-age.solutions/2024/03/04/release-of-teascript-0-13-0/ <br>
-<br>
+https://tea-age.solutions/2024/05/15/release-of-teascript-0-14-0/ <br>
+
+## Summary of the latest release
+- (automatically) **compile** and **execute** TeaScript files in the new **integrated Tea StackVM**.
+- **Save** and **Load** compiled TeaScript programs as TeaScript Binary files (*.tsb).
+- **Suspend** and **Continue** TeaScript programs at (nearly) any time by either themselves, by maximum time or instruction constraint or by an external request from another thread.
+- Use TeaScript code similar like a **coroutine** in your C++ Application by yielding values from any place and **co-operative / preemptive execution** possibilities.
+- Nerd feature: program directly in TeaScript **Assembler**.
+- improved debugging capabilities with single stepping, view the callstack, view corresponding source code and more.
+- Opt-out header only library for save includes and compile time
+
+## General information
 Get a very nice overview with the most **impressive highlights** here:<br>
 https://tea-age.solutions/teascript/overview-and-highlights/ <br>
 <br>
@@ -139,7 +149,7 @@ std::cout << "square is " << res.GetAsInteger() << std::endl;
 ```
 ## More C++ examples
 
-More examples are in the [teascript_demo.cpp](demo/teascript_demo.cpp) of this repo.
+More examples are in the [teascript_demo.cpp](demo/teascript_demo.cpp), [suspend_thread_demo.cpp](demo/suspend_thread_demo.cpp) and [coroutine_demo.cpp](demo/coroutine_demo.cpp) of this repo.
 
 # Example TeaScript Code
 
@@ -276,10 +286,10 @@ For details see on [StackOverflow](https://stackoverflow.com/questions/15110580/
 - Visual Studio 2019 also works (starting from 16.11.14)
 
 g++ 11.3
-- untested if g++ 10 or 9 could work as well.
+- Use g++ 13 for all linux specific known issues are solved (see Known_Issues.txt)
 
 clang 14 (with libstdc++ or libc++)
-- untested if clang 13 could work as well.
+- There are clang and/or libc++ specific known issues (see Known_Issues.txt)
 
 Newer compilers should work in general.<br>
 All compilers are compiling in **C++20** and for **x86_64**.<br>
@@ -290,7 +300,7 @@ All compilers are compiling in **C++20** and for **x86_64**.<br>
 
 **None** -- for fully C++20 supporting compilers / C++ standard libraries.
 
-**Libfmt (as header only)** -- for gcc 11 / clang 14 (tested with **libfmt 10.1.1** and **libfmt 9.1.0**)<br>
+**Libfmt (as header only)** -- for gcc 11 / clang 14 (tested with **libfmt 10.2.1** and **libfmt 10.1.1**)<br>
 - Libfmt can be downloaded here https://fmt.dev/latest/index.html <br>
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 
@@ -308,7 +318,7 @@ See Libfmt section above.
 # Building the demo app
 
 **Windows:** Use the provided VS-project or the settings in compile.props.
-If you make a new project, you only need to add the teascript_demo.cpp file and
+If you make a new project, you only need to add the files teascript_demo.cpp, suspend_thread_demo.cpp and coroutine_demo.cpp and
 set the include path to /include/
 
 **Linux:** Use the compile_gcc.sh or compile_clang.sh with prior updated include path to libfmt.
@@ -323,6 +333,14 @@ Linux:<br>
 `./teascript_demo gcd.tea 18 42`
 
 If you see **6** as the result everything is functional.
+
+## Opt-out header only usage
+
+The TeaScript C++ Library will be compiled as a header only library per default.
+For save includes and compile time it is possible to opt-out header only compilation.
+
+Please, read the instruction in the related release blog post here:
+https://tea-age.solutions/2024/05/15/release-of-teascript-0-14-0/#opt-out_header_only_usage
 
 # API stability
 
