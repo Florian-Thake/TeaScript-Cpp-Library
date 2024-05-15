@@ -65,8 +65,8 @@ protected:
     /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     void AddValueObject( std::string const &rName, ValueObject val ) override;
 
-    /// Evaluates the given \param rContent as TeaScript.
-    /// This implementation invokes parsing and then evaluates the produced AST recursively.
+    /// Evaluates/Executes the given content as TeaScript.
+    /// Depending on the mode the content will be either parsed and evaluated or parsed, compiled and executed.
     /// \param rContent The content to be evaluated.
     /// \param rName An arbitrary user defined name for referring to the content.
     /// \returns the result as ValueObject.
