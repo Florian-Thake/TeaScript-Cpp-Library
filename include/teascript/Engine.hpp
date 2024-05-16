@@ -115,7 +115,7 @@ public:
     /// The callback function is then invocable from TeaScript code by using its name and the call operator (pair of round brackets.)
     /// Pro tip: Use std::bind or a capturing lmabda to bring any arbitrary context with the callback.
     /// \note Actually the callback can be called with any amount of parameters. The callback is responsible to handle that.
-    /// \warning EXPERIMENTAL: This interface and the general working and mechanics of user callbacks is experimental and may change often or be even removed.
+    /// \warning EXPERIMENTAL: This interface and the general working and mechanics of user callbacks is experimental and may change.
     /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
     void RegisterUserCallback( std::string const &rName, CallbackFunc const &rCallback ) override
     {
