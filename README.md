@@ -110,7 +110,7 @@ auto const res = engine.ExecuteScript( std::filesystem::path( "/path/to/some/scr
 std::cout << "result: " << res.PrintValue() << std::endl;
 ```
 
-The last example shows how to use a C++ callback function from the script
+The next example shows how to use a C++ callback function from the script
 ```cpp
 // TeaScript includes
 #include "teascript/Engine.hpp"
@@ -147,6 +147,34 @@ auto const res = engine.ExecuteCode( "squared( 2 )" );
 // print the result.
 std::cout << "square is " << res.GetAsInteger() << std::endl;
 ```
+The last example is a code snippet from [coroutine_demo.cpp](demo/coroutine_demo.cpp) and shows one of the coroutine like usage possibilities.
+```cpp
+#include "teascript/CoroutineScriptEngine.hpp"
+
+// coroutine like TeaScript code
+// calculate faculty starting at 1!
+constexpr char faculty_code[] = R"_SCRIPT_(
+def fac := 1
+def n   := 2
+repeat {
+    yield fac
+    fac := fac * n
+    n   := n + 1
+}
+)_SCRIPT_";
+
+// somewhere in the code...
+// setup the Coroutine engine with the faculty calculation coroutine.
+teascript::CoroutineScriptEngine  coro_engine( teascript::CoroutineScriptEngine::Build( faculty_code, teascript::eOptimize::O1, "faculty" ) );
+
+// lets calculate some values and print them...
+std::cout << "next faculty number: " << coro_engine() << std::endl;
+std::cout << "next faculty number: " << coro_engine() << std::endl;
+std::cout << "next faculty number: " << coro_engine() << std::endl;
+std::cout << "next faculty number: " << coro_engine() << std::endl;
+std::cout << "next faculty number: " << coro_engine() << std::endl;
+```
+
 ## More C++ examples
 
 More examples are in the [teascript_demo.cpp](demo/teascript_demo.cpp), [suspend_thread_demo.cpp](demo/suspend_thread_demo.cpp) and [coroutine_demo.cpp](demo/coroutine_demo.cpp) of this repo.
