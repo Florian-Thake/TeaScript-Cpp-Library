@@ -152,8 +152,8 @@ The last example is a code snippet from [coroutine_demo.cpp](demo/coroutine_demo
 #include "teascript/CoroutineScriptEngine.hpp"
 
 // coroutine like TeaScript code
-// calculate faculty starting at 1!
-constexpr char faculty_code[] = R"_SCRIPT_(
+// calculate factorial starting at 1!
+constexpr char factorial_code[] = R"_SCRIPT_(
 def fac := 1
 def n   := 2
 repeat {
@@ -164,15 +164,15 @@ repeat {
 )_SCRIPT_";
 
 // somewhere in the code...
-// setup the Coroutine engine with the faculty calculation coroutine.
-teascript::CoroutineScriptEngine  coro_engine( teascript::CoroutineScriptEngine::Build( faculty_code, teascript::eOptimize::O1, "faculty" ) );
+// setup the Coroutine engine with the factorial calculation coroutine.
+teascript::CoroutineScriptEngine  coro_engine( teascript::CoroutineScriptEngine::Build( factorial_code, teascript::eOptimize::O1, "factorial" ) );
 
 // lets calculate some values and print them...
-std::cout << "next faculty number: " << coro_engine() << std::endl;
-std::cout << "next faculty number: " << coro_engine() << std::endl;
-std::cout << "next faculty number: " << coro_engine() << std::endl;
-std::cout << "next faculty number: " << coro_engine() << std::endl;
-std::cout << "next faculty number: " << coro_engine() << std::endl;
+std::cout << "next factorial number: " << coro_engine() << std::endl;
+std::cout << "next factorial number: " << coro_engine() << std::endl;
+std::cout << "next factorial number: " << coro_engine() << std::endl;
+std::cout << "next factorial number: " << coro_engine() << std::endl;
+std::cout << "next factorial number: " << coro_engine() << std::endl;
 ```
 
 ## More C++ examples
