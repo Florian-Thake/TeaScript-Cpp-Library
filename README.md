@@ -25,7 +25,7 @@ https://tea-age.solutions/2024/05/15/release-of-teascript-0-14-0/ <br>
 - **Save** and **Load** compiled TeaScript programs as TeaScript Binary files (*.tsb).
 - **Suspend** and **Continue** TeaScript programs at (nearly) any time by either themselves, by maximum time or instruction constraint or by an external request from another thread.
 - Use TeaScript code similar like a **coroutine** in your C++ Application by yielding values from any place and **co-operative / preemptive execution** possibilities.
-- Nerd feature: program directly in TeaScript **Assembler**.
+- Nerd feature: program directly in TeaScript **Assembly**.
 - improved debugging capabilities with single stepping, view the callstack, view corresponding source code and more.
 - Opt-out header only library for save includes and compile time
 
