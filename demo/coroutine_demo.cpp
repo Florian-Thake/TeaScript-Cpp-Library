@@ -25,8 +25,8 @@
 
 namespace {
 
-// calculate faculty starting at 1!
-constexpr char faculty_code[] = R"_SCRIPT_(
+// calculate factorial starting at 1!
+constexpr char factorial_code[] = R"_SCRIPT_(
 def fac := 1
 def n   := 2
 repeat {
@@ -72,15 +72,15 @@ yield fib( args[0] )   // in this particular case we could also use 'return' or 
 void teascript_coroutine_demo()
 {
     try {
-        // setup the Coroutine engine with the faculty calculation coroutine.
-        teascript::CoroutineScriptEngine  coro_engine( teascript::CoroutineScriptEngine::Build( faculty_code, teascript::eOptimize::O1, "faculty" ) );
+        // setup the Coroutine engine with the factorial calculation coroutine.
+        teascript::CoroutineScriptEngine  coro_engine( teascript::CoroutineScriptEngine::Build( factorial_code, teascript::eOptimize::O1, "factorial" ) );
 
         // lets calculate some values and print them...
-        std::cout << "next faculty number: " << coro_engine() << std::endl;
-        std::cout << "next faculty number: " << coro_engine() << std::endl;
-        std::cout << "next faculty number: " << coro_engine() << std::endl;
-        std::cout << "next faculty number: " << coro_engine() << std::endl;
-        std::cout << "next faculty number: " << coro_engine() << std::endl;
+        std::cout << "next factorial number: " << coro_engine() << std::endl;
+        std::cout << "next factorial number: " << coro_engine() << std::endl;
+        std::cout << "next factorial number: " << coro_engine() << std::endl;
+        std::cout << "next factorial number: " << coro_engine() << std::endl;
+        std::cout << "next factorial number: " << coro_engine() << std::endl;
 
         // change coroutine to a new one: print all parameters one by one.
         coro_engine.ChangeCoroutine( teascript::CoroutineScriptEngine::Build( print_input_code, teascript::eOptimize::O1, "print_input" ) );
