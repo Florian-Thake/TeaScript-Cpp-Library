@@ -182,7 +182,7 @@ private:
         // HEADER Section
         // ===
 
-        if( rNode->GetName() == "TSVM" ) { // TSVM assembler, just extract the instruction
+        if( rNode->GetName() == "TSVM" ) { // TSVM assembly, just extract the instruction
             auto const tsvm_node = std::static_pointer_cast<ASTNode_TSVM>(rNode);
             mInstructions.emplace_back( tsvm_node->GetInstruction() );
             return; // done!
@@ -767,7 +767,7 @@ private:
             for( auto it = rNode->begin(); it != rNode->end(); ++it ) {
                 RecursiveBuildTSVMCode( *it );
                 // all but the last top level scope must pop their results for not make the stack dirty
-                // but don't do this for TSVM assembler nodes. they must handle it manually!
+                // but don't do this for TSVM assembly nodes. they must handle it manually!
                 if( (*it)->GetName() == "TSVM" ) {
                     ; // nop
                 } else if( mState.node_level == mState.stack_node_level.top() ) {
