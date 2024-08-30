@@ -889,7 +889,7 @@ public:
     }
 
     /// Converts the value to std::string if possible, otherwise throws exception::bad_value_cast
-    /// \note unlike \see PrintValue the method will throw if value is NaV or any!
+    /// \note unlike \see PrintValue the function will throw if value is NaV or any!
     std::string GetAsString() const
     {
         return std::visit( overloaded{
@@ -912,7 +912,7 @@ public:
     }
 
     /// Returns a std::string for printing information of the value.
-    /// \note in contrast to \see GetAsString this method will always produce a printable result (if the std functions dont throw).
+    /// \note in contrast to \see GetAsString this function will always produce a printable result (if the std functions dont throw).
     std::string PrintValue() const
     {
         return std::visit( overloaded{
@@ -1009,12 +1009,47 @@ public:
 namespace teascript {
 
 
-/// Returns the order of the 2 ValueObjects. long long is preferred over bool. bool is preferred over string.
+/// Returns the order of the 2 ValueObjects.
 inline std::strong_ordering operator<=>( teascript::ValueObject const &lhs, teascript::ValueObject const &rhs )
 {
     using namespace teascript;
 
-    if( lhs.InternalType() == ValueObject::eType::TypeF64 || rhs.InternalType() == ValueObject::eType::TypeF64 ) {
+    if( lhs.GetTypeInfo()->IsNaV() && rhs.GetTypeInfo()->IsNaV() ) { // NOTE: Don't use InternalType() here. It might be set to NaV while the set TypeInfo is a different one.
+        return std::strong_ordering::equal;
+    }
+
+    // compare if rhs is NaV
+    if( lhs.GetTypeInfo()->IsNaV() ) {
+        if( rhs.InternalType() == ValueObject::TypeNaV ) {
+            return std::strong_ordering::equal;
+        } else { // NaV is always smaller
+            return std::strong_ordering::less;
+        }
+    }
+
+    // compare if lhs is NaV
+    if( rhs.GetTypeInfo()->IsNaV() ) {
+        if( lhs.InternalType() == ValueObject::TypeNaV ) {
+            return std::strong_ordering::equal;
+        } else { // NaV is always smaller
+            return std::strong_ordering::greater;
+        }
+    }
+
+    // same types but one (or both) is NaV?
+    if( lhs.GetTypeInfo()->IsSame( *rhs.GetTypeInfo() ) ) {
+        bool const lnav = lhs.InternalType() == ValueObject::TypeNaV;
+        bool const rnav = rhs.InternalType() == ValueObject::TypeNaV;
+        if( lnav && rnav ) {
+            return std::strong_ordering::equal;
+        } else if( lnav ) {
+            return std::strong_ordering::less;
+        } else if( rnav ) {
+            return std::strong_ordering::greater;
+        }
+    }
+
+    if( lhs.InternalType() == ValueObject::TypeF64 || rhs.InternalType() == ValueObject::TypeF64 ) {
         F64 const *pd_lhs = lhs.GetValuePtr<F64>();
         F64 const *pd_rhs = rhs.GetValuePtr<F64>();
         F64 const d1 = pd_lhs != nullptr ? *pd_lhs : util::ArithmeticFactory::Convert<F64>( lhs ).GetValue<F64>();
@@ -1037,19 +1072,19 @@ inline std::strong_ordering operator<=>( teascript::ValueObject const &lhs, teas
 #endif
     }
 
-    // bool, string and any will be converted to long long for comparison if any of the values is a long long
-    // NOTE: In C++ bool is also converted to long long when the bool is compared with a long long!
+    // the values will be converted to an arithmetic value for comparison if any of the values is an arithmetic value.
+    // NOTE: In C++ bool is also converted to an integer when the bool is compared with an integer!
     if( lhs.GetTypeInfo()->IsArithmetic() || rhs.GetTypeInfo()->IsArithmetic() ) {
         return util::ArithmeticFactory::Compare( lhs, rhs );
     }
 
-    // otherwise string and any will be converted to bool if any of the values is a bool
-    if( lhs.InternalType() == ValueObject::eType::TypeBool || rhs.InternalType() == ValueObject::eType::TypeBool ) {
+    // otherwise the values will be converted to bool if any of the values is a bool.
+    if( lhs.InternalType() == ValueObject::TypeBool || rhs.InternalType() == ValueObject::TypeBool ) {
         return lhs.GetAsBool() <=> rhs.GetAsBool();
     }
 
-    //FIXME: implement clean conversion rules!
-    if( lhs.InternalType() == ValueObject::eType::TypeString && (lhs.InternalType() == ValueObject::eType::TypeString || /*convertible*/ false) ) {
+    // otherwise the values will be converted to a string if any of the values is a string.
+    if( lhs.InternalType() == ValueObject::TypeString || rhs.InternalType() == ValueObject::TypeString ) {
 #if !_LIBCPP_VERSION // libc++14 fails here
         return lhs.GetAsString() <=> rhs.GetAsString();
 #else
@@ -1062,6 +1097,21 @@ inline std::strong_ordering operator<=>( teascript::ValueObject const &lhs, teas
         return tuple::compare_values( lhs.GetValue<Tuple>(), rhs.GetValue<Tuple>() );
     }
 
+    if( lhs.GetTypeInfo()->IsSame<Buffer>() && rhs.GetTypeInfo()->IsSame<Buffer>() ) {
+#if !_LIBCPP_VERSION // libc++14 fails here
+        return lhs.GetValue<Buffer>() <=> rhs.GetValue<Buffer>();
+#else
+        auto const &buf1 = lhs.GetValue<Buffer>();
+        auto const &buf2 = rhs.GetValue<Buffer>();
+        if( buf1.size() != buf2.size() ) {
+            return buf1.size() <=> buf2.size();
+        } else {
+            auto const res = ::memcmp( buf1.data(), buf2.data(), buf1.size() );
+            return res < 0 ? std::strong_ordering::less : res > 0 ? std::strong_ordering::greater : std::strong_ordering::equal;
+        }
+#endif 
+    }
+
     if( lhs.GetTypeInfo()->IsSame<TypeInfo>() && rhs.GetTypeInfo()->IsSame<TypeInfo>() ) {
 #if !_LIBCPP_VERSION // libc++14 fails here
         return lhs.GetValue<TypeInfo>().ToTypeIndex() <=> rhs.GetValue<TypeInfo>().ToTypeIndex();
@@ -1072,7 +1122,7 @@ inline std::strong_ordering operator<=>( teascript::ValueObject const &lhs, teas
 #endif
     }
 
-    //FIXME: Now need type info for check equal types or conversion
+    // unequal types are usually not comparable.
     throw exception::bad_value_cast( "types do not match for comparison!" );
 }
 

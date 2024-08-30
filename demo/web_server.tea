@@ -1,0 +1,99 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake, <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MIT
+ * see included file MIT_LICENSE.txt
+ */
+
+// This script demonstrates how to program a web server with TeaScript.
+// The corresponding client is web_client.tea.
+// Without arguments it will listen on 0.0.0.0:8080
+// This script will run forever!
+// In order to stop it gracefully, use: web_client.tea localhost 8080 stop
+
+##minimum_version 0.15
+
+// we need the web preview present as well as json support.
+// 
+// NOTE: The pre-build TeaScript Host Application has both enabled by default. 
+//       You can download and use it for free here: https://tea-age.solutions/downloads/
+//       Json support is an opt-out feature, so it will be enabled in the TeaScript C++ Library as well.
+//       However, the Web Preview Module is an opt-in. You must add WebPreview.cpp to your C++ project,
+//       and set include directories for TeaScript modules as well as for the Boost library.
+
+if( not is_defined features.json or features.json < 1 ) {
+    return "Json support is not present!"
+}
+
+if( not is_defined web_server_setup ) { // testing one function for web preview is enough.
+    return "Web Preview is not present!"
+}
+
+// helper function for (optional feature) color printing.
+// You need to add the {fmt} lib to your project in order to have color and format printing.
+// The pre-build TeaScript Host Application always has this feature enabled.
+func maybe_cprint( color, text )
+{
+    if( is_defined cprint ) {
+        cprint( color, text )
+    } else {
+        print( text )
+    }
+}
+
+// use build-in make_rgb function if available or quickly create it.
+is_defined make_rgb or (func make_rgb( r, g, b ) { r bit_lsh 16 bit_or g bit_lsh 8 bit_or b })
+
+// for error reporting
+func print_failure( text )
+{
+    // red color
+    maybe_cprint( make_rgb( 255, 0, 0 ), text )
+}
+
+is_defined argN or (const argN := 0)
+const host := if( argN > 0 ) { args[0] } else { "0.0.0.0" }  // IPv6 :: would be a better alternative.
+const port := if( argN > 1 ) { args[1] } else { 8080 }
+
+def server := web_server_setup( _tuple_named_create( ("host", host), ("port", port) ) )
+
+if( is_defined server.error ) {
+    print_failure( "Error during setup: " % server.what % "\n" )
+    return void
+}
+
+println( "Server up and running." )
+
+repeat {
+    println( "Waiting for client connection ..." )
+    def request := web_server_accept( server ) // blocks until client request
+    
+    if( is_defined request.error ) { // error during accepting
+        print_failure( "Error: " % request.what % "\n" )
+    } else {
+        maybe_cprint( make_rgb( 0, 100, 250 ), "[UTC:%(timetostr( clock_utc(), true ))] New client request:\n" )
+        tuple_print( request, "req", 20 ) // for debugging
+        
+        if( request.method == "GET" ) {
+            if( request.path != "/" ) {
+                web_server_reply( web_server_build_reply( request, 404 ) )
+            } else {
+                const time_str := timetostr( clock(), true )
+                web_server_reply( web_server_build_reply( request, 200, json_make_object( ("time", time_str) ) ) )
+            }
+        } else if( request.method == "POST" ) {
+            if( is_defined request.json and is_defined request.json.command ) {
+                if( request.json.command == "stop" or request.json.command == "quit" ) {
+                    maybe_cprint( make_rgb(220, 200, 0), "received stop command.\n" )
+                    web_server_reply( web_server_build_reply( request, 200 ) )
+                    stop // stop the repeat loop and end the server.
+                }
+            }
+            web_server_reply( web_server_build_reply( request, 400 ) )
+        } else {
+            web_server_reply( web_server_build_reply( request, 405 ) )
+        }
+    }    
+}
+
+maybe_cprint( make_rgb( 80, 200, 150 ), "Bye!" )

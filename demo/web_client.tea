@@ -1,0 +1,89 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake, <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MIT
+ * see included file MIT_LICENSE.txt
+ */
+
+
+// This script demonstrates how to program a web client with TeaScript.
+// The corresponding server is web_server.tea.
+// Without arguments it will connect to localhost:8080
+// If 3rd argument ist "stop", it will send a stop message to the server.
+// If 3rd argument is "loop", it will issue requests in a loop forever.
+
+##minimum_version 0.15
+
+// we need the web preview present as well as json support.
+// 
+// NOTE: The pre-build TeaScript Host Application has both enabled by default. 
+//       You can download and use it for free here: https://tea-age.solutions/downloads/
+//       Json support is an opt-out feature, so it will be enabled in the TeaScript C++ Library as well.
+//       However, the Web Preview Module is an opt-in. You must add WebPreview.cpp to your C++ project,
+//       and set include directories for TeaScript modules as well as for the Boost library.
+
+if( not is_defined features.json or features.json < 1 ) {
+    return "Json support is not present!"
+}
+
+if( not is_defined web_get ) { // testing one function for web preview is enough.
+    return "Web Preview is not present!"
+}
+
+// helper function for (optional feature) color printing.
+// You need to add the {fmt} lib to your project in order to have color and format printing.
+// The pre-build TeaScript Host Application always has this feature enabled.
+func maybe_cprint( color, text )
+{
+    if( is_defined cprint ) {
+        cprint( color, text )
+    } else {
+        print( text )
+    }
+}
+
+// use build-in make_rgb function if available or quickly create it.
+is_defined make_rgb or (func make_rgb( r, g, b ) { r bit_lsh 16 bit_or g bit_lsh 8 bit_or b })
+
+// for error reporting
+func print_failure( text )
+{
+    // red color
+    maybe_cprint( make_rgb( 255, 0, 0 ), text )
+}
+
+is_defined argN or (const argN := 0)
+// Don't use localhost as the default. It may slow down establishing the connection dramatically if the server
+// started at 0.0.0.0 and not :: (Ipv6)
+const host := if( argN > 0 ) { args[0] } else { "127.0.0.1" }
+const port := if( argN > 1 ) { args[1] } else { 8080 }
+
+const mode := if( argN > 2 ) { args[2] } else { "" }
+
+
+repeat {
+    
+    def result := if( mode != "stop" ) { 
+        web_get( host, "/", port )
+    } else {
+        web_post( host, json_make_object( ("command", "stop") ), "/", port )
+    }
+
+    if( is_defined result.error ) { // error during dispatching
+        print_failure( "Error: " % result.what % "\n" )
+    } else {
+        maybe_cprint( make_rgb( 0, 100, 250 ), "Response:\n" )
+        tuple_print( result, "res", 20 ) // for debugging
+        if( result.code == 200 and mode != "stop" ) { // success
+            maybe_cprint( make_rgb(220, 200, 0), "time: %(result.json.time)\n" )
+        } else { // error from server
+            maybe_cprint( make_rgb( 200, 0, 230 ), "Server response: %(result.code) (%(result.reason))\n" )
+        }
+    }
+    
+    if( mode != "loop" ) { stop }
+    
+    sleep( 2 )
+}
+
+maybe_cprint( make_rgb( 80, 200, 150 ), "Bye!" )

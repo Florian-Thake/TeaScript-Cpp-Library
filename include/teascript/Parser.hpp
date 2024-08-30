@@ -32,7 +32,8 @@ class Parser
 
     static inline bool is_whitespace( unsigned char const c ) noexcept
     {
-        // NEW Super Fast, if all values in a switch are in (0..63) then it can be tested with one CPU instruction!
+        // if all values in a switch are in (0..63) then it can be tested with one CPU instruction!
+        // -> x64 asm: 'bt 4294976000, c' will test if bit 32 (space), 13 (\r) or 9 (\t) is set.
         switch( c ) {
         case ' ':
         case '\t':
@@ -190,7 +191,7 @@ public:
     }
 
     /// Parses one complete code block / script file in once. It must be at least one complete toplevel block/statement/entity.
-    /// This method does not suppport partial parsing. The content is not allowed to end in the middle of one statement/expression/block. 
+    /// This function does not suppport partial parsing. The content is not allowed to end in the middle of one statement/expression/block. 
     /// For line-by-line parsing \see ParsePartial()
     /// \returns the moved out ASTNodes (if any) inside an ASTNodeFile instance. The shared pointer is always valid. 
     ASTNodePtr Parse( Content const &rContent, std::string const &rFile = "_EVAL_" )
@@ -201,7 +202,7 @@ public:
         return ParsePartialEnd();
     }
 
-    /// Line-By-Line parsing. The given content must consists of 1 to N complete lines including line ending or be completely empty. 
+    /// Line-By-Line parsing. The given content must consists of 1 to N complete lines including line ending (or be completely empty). 
     /// Parsing of incomplete lines is not supported. Line offsets are maintained by this function.
     /// \note If the last character of content is NUL it is not interpreted as script end, but as valid new line.
     void ParsePartial( Content const &rContent, std::string const &rFile = "_EVAL_PARTIAL_" )
@@ -249,7 +250,7 @@ public:
     }
 
     /// Checks for leftovers after several ParsePartial() calls, e.g. unfinished multi-line comments or incomplete ASTNode...
-    /// This method should be called after the complete content was passed to 1 to N ParsePartial() calls. \throws if there are leftovers.
+    /// This function should be called after the complete content was passed to 1 to N ParsePartial() calls. \throws if there are leftovers.
     /// \returns the moved out ASTNodes (if any) inside an ASTNodeFile instance. The shared pointer is always valid. 
     ASTNodePtr ParsePartialEnd()
     {
@@ -258,17 +259,19 @@ public:
     }
 
     /// Interface for partial evaluation. Get available complete top level ASTNodes for partial evaluation.
-    /// This method can be called after 1 .. N calls to ParsePartial().
+    /// This function can be called after 1 .. N calls to ParsePartial().
     /// \param want specifies the amount of wanted ASTNodes, 0 means all available.
     /// \throws exeception::out_of_range if want is greater than the available top level ast nodes.
+    /// IMPORTANT: You must use GetFinalPartialParsedASTNodes() instead of ParsePartialEnd() after the last ParsePartial()/GetPartialParsedASTNodes() call.
     ASTNode_FilePart_Ptr GetPartialParsedASTNodes( size_t const want = 0 )
     {
         return std::make_shared<ASTNode_FilePart>( mState->GetFileName(), mState->GetPartialASTNodes(want) );
     }
 
     /// Interface for partial evaluation. Gets the final part of the partial parsed ASTNodes (if any).
-    /// IMPORTANT: This method must be called instead of ParsePartialEnd() when it is clear that no further content to parse is present / will arrive.
-    /// This method must be used in combination with ParsePartial() and GetPartialParsedASTNodes().
+    /// This function must be used in combination with ParsePartial() and GetPartialParsedASTNodes().
+    /// Call this function after all content was passed to 1 .. N ParsePartial calls.
+    /// IMPORTANT: This function must be used instead of ParsePartialEnd() when GetPartialParsedASTNodes() was used.
     /// \throws if there are left overs like not closed multi-line comments or inclomplete ast nodes.
     ASTNode_FilePart_Ptr GetFinalPartialParsedASTNodes()
     {
@@ -284,16 +287,9 @@ public:
 
     static inline void SkipToNextLine( Content &rHere ) noexcept
     {
-        // Benchmarked: OLD needs nearly double of time in combination with OLD SkipWhiteSpace benchmark.
-#if 1 // NEW
         // advance to line feed
         rHere.MoveToLineFeed();
         ++rHere; // skip it.
-#else //OLD, the ++op also tests for 'has more' and LF and it conditional updates col for each iteration.
-        // advance to line feed
-        while( rHere.HasMore() && *rHere != LF ) ++rHere;
-        ++rHere; // skip it.
-#endif
     }
 
     static inline void SkipWhitespace( Content &rHere ) noexcept
@@ -821,7 +817,7 @@ public:
             return IDResultOperator;
         }
 
-        // NOTE: With the actual design kind of superfluous. Only for somebody calls this method from outside directly.
+        // NOTE: With the actual design kind of superfluous. Only for somebody calls this function from outside directly.
         if( is_keyword( id ) ) {
             util::throw_parsing_error( start, mState->GetFilePtr(), "Keyword not allowed as identifier!" );
         }

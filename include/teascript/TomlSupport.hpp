@@ -29,13 +29,15 @@
 #include "Context.hpp"
 
 #include <sstream> // std::ostringstream
+#include <optional>
 
 
 namespace teascript {
 
 class TomlSupport
 {
-    static void DispatchKeyValue( Context &rContext, Tuple &rParent, std::string_view const key, toml::node const &rNode )
+    // Toml value --> Tuple value
+    static void DispatchKeyValue( Context &rContext, Tuple &rParent, std::optional<std::string> const &key, toml::node const &rNode )
     {
         auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
 
@@ -44,10 +46,10 @@ class TomlSupport
             {
                 Tuple  table;
                 DispatchTable( rContext, table, *rNode.as_table() );
-                if( key.empty() ) {
+                if( not key ) {
                     rParent.AppendValue( ValueObject( std::move( table ), cfg ) );
                 } else {
-                    rParent.AppendKeyValue( std::string( key ), ValueObject( std::move( table ), cfg ) );
+                    rParent.AppendKeyValue( key.value(), ValueObject(std::move(table), cfg));
                 }
             }
             break;
@@ -55,39 +57,39 @@ class TomlSupport
             {
                 Tuple  arr;
                 DispatchArray( rContext, arr, *rNode.as_array() );
-                if( key.empty() ) {
+                if( not key ) {
                     rParent.AppendValue( ValueObject( std::move( arr ), cfg ) );
                 } else {
-                    rParent.AppendKeyValue( std::string( key ), ValueObject( std::move( arr ), cfg ) );
+                    rParent.AppendKeyValue( key.value(), ValueObject(std::move(arr), cfg));
                 }
             }
             break;
         case toml::node_type::integer:
-            if( key.empty() ) {
+            if( not key ) {
                 rParent.AppendValue( ValueObject( static_cast<I64>(rNode.as_integer()->get()), cfg ) );
             } else {
-                rParent.AppendKeyValue( std::string( key ), ValueObject( static_cast<I64>(rNode.as_integer()->get()), cfg ) );
+                rParent.AppendKeyValue( key.value(), ValueObject(static_cast<I64>(rNode.as_integer()->get()), cfg));
             }
             break;
         case toml::node_type::floating_point:
-            if( key.empty() ) {
+            if( not key ) {
                 rParent.AppendValue( ValueObject( rNode.as_floating_point()->get(), cfg ) );
             } else {
-                rParent.AppendKeyValue( std::string( key ), ValueObject( rNode.as_floating_point()->get(), cfg ) );
+                rParent.AppendKeyValue( key.value(), ValueObject(rNode.as_floating_point()->get(), cfg));
             }
             break;
         case toml::node_type::string:
-            if( key.empty() ) {
+            if( not key ) {
                 rParent.AppendValue( ValueObject( rNode.as_string()->get(), cfg));
             } else {
-                rParent.AppendKeyValue( std::string( key ), ValueObject( rNode.as_string()->get(), cfg ) );
+                rParent.AppendKeyValue( key.value(), ValueObject(rNode.as_string()->get(), cfg));
             }
             break;
         case toml::node_type::boolean:
-            if( key.empty() ) {
+            if( not key ) {
                 rParent.AppendValue( ValueObject( rNode.as_boolean()->get(), cfg ) );
             } else {
-                rParent.AppendKeyValue( std::string( key ), ValueObject( rNode.as_boolean()->get(), cfg ) );
+                rParent.AppendKeyValue( key.value(), ValueObject(rNode.as_boolean()->get(), cfg));
             }
             break;
         case toml::node_type::date_time:
@@ -114,10 +116,10 @@ class TomlSupport
 #endif
                 }
 
-                if( key.empty() ) {
+                if( not key ) {
                     rParent.AppendValue( ValueObject( os.str(), cfg));
                 } else {
-                    rParent.AppendKeyValue( std::string( key ), ValueObject( os.str(), cfg ) );
+                    rParent.AppendKeyValue( key.value(), ValueObject(os.str(), cfg));
                 }
             }
             break;
@@ -129,17 +131,113 @@ class TomlSupport
         }
     }
 
+    // Toml array --> Tuple
     static void DispatchArray( Context &rContext, Tuple &rParent, toml::array const &rArray )
     {
-        for( auto const &node : rArray ) {
-            DispatchKeyValue( rContext, rParent, "", node );
+        // special case: empty array!
+        // An empty Tuple cannot be distinguished whether it belongs to an empty object or empty array!
+        // for that reason we insert an empty Buffer, which is not a valid value for Toml.
+        // If the array is filled later, the empty buffer must be removed for show correct size.
+        if( rArray.empty() ) {
+            auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+            rParent.AppendValue( ValueObject( Buffer(), cfg ) );
+        } else for( auto const &node : rArray ) {
+            DispatchKeyValue( rContext, rParent, std::nullopt, node );
         }
     }
 
+    // Toml table --> Tuple
     static void DispatchTable( Context &rContext, Tuple &rParent, toml::table const &rTable )
     {
         for( auto const &kv : rTable ) {
-            DispatchKeyValue( rContext, rParent, kv.first, kv.second );
+            DispatchKeyValue( rContext, rParent, std::string(kv.first), kv.second);
+        }
+    }
+
+    static void DispatchTuple( Tuple const &rTuple, toml::array &rParent )
+    {
+        for( auto const &kv : rTuple ) {
+            if( not kv.first.empty() ) {
+                throw std::runtime_error( "toml arrays cannot have keys!" );
+            }
+            switch( kv.second.InternalType() ) {
+            case ValueObject::TypeTuple:
+                {
+                    Tuple const &tup = kv.second.GetValue<Tuple>();
+                    if( tuple::TomlJsonUtil::IsTupAnArray( tup ) ) { // array
+                        auto & res = rParent.emplace_back<toml::array>();
+                        DispatchTuple( tup, res );
+                    } else { // table
+                        auto & res = rParent.emplace_back<toml::table>();
+                        DispatchTuple( tup, res );
+                    }
+                }
+                break;
+            case ValueObject::TypeString:
+                std::ignore = rParent.emplace_back<std::string>( kv.second.GetValue<std::string>() );
+                break;
+            case ValueObject::TypeF64:
+                std::ignore = rParent.emplace_back<double>( kv.second.GetValue<double>() );
+                break;
+            case ValueObject::TypeU8:
+            case ValueObject::TypeI64:
+            case ValueObject::TypeU64:
+                std::ignore = rParent.emplace_back<int64_t>( kv.second.GetAsInteger() );
+                break;
+            case ValueObject::TypeBool:
+                std::ignore = rParent.emplace_back<bool>( kv.second.GetValue<bool>() );
+                break;
+            case ValueObject::TypeBuffer:
+                if( kv.second.GetValue<Buffer>().empty() ) { // special case: empty Buffer marks an empty array!
+                    break;
+                }
+                [[fallthrough]]; // non empty Buffer are an error!
+            default:
+                throw std::runtime_error( "unsupported ValueObject type for Toml!" );
+            }
+        }
+    }
+
+    // Tuple --> Toml table
+    static void DispatchTuple( Tuple const &rTuple, toml::table &rParent )
+    {
+        for( auto const &kv : rTuple ) {
+            switch( kv.second.InternalType() ) {
+            case ValueObject::TypeTuple:
+                {
+                    Tuple const &tup = kv.second.GetValue<Tuple>();
+                    if( tuple::TomlJsonUtil::IsTupAnArray( tup ) ) { // array
+                        auto res = rParent.emplace<toml::array>( kv.first );
+                        if( not res.second ) {
+                            throw std::runtime_error( "could not add new toml array with key " + kv.first );
+                        }
+                        DispatchTuple( tup, *res.first->second.as_array() );
+                    } else { // table
+                        auto res = rParent.emplace<toml::table>( kv.first );
+                        if( not res.second ) {
+                            throw std::runtime_error( "could not add new toml table with key " + kv.first );
+                        }
+                        DispatchTuple( tup, *res.first->second.as_table() );
+                    }
+                }
+                break;
+            case ValueObject::TypeString:
+                std::ignore = rParent.emplace<std::string>( kv.first, kv.second.GetValue<std::string>() );
+                break;
+            case ValueObject::TypeF64:
+                std::ignore = rParent.emplace<double>( kv.first, kv.second.GetValue<double>() );
+                break;
+            case ValueObject::TypeU8:
+            case ValueObject::TypeI64:
+            case ValueObject::TypeU64:
+                std::ignore = rParent.emplace<int64_t>( kv.first, static_cast<int64_t>(kv.second.GetAsInteger()) );
+                break;
+            case ValueObject::TypeBool:
+                std::ignore = rParent.emplace<bool>( kv.first, kv.second.GetValue<bool>() );
+                break;
+            default:
+                throw std::runtime_error( "unsupported ValueObject type for Toml!" );
+            }
         }
     }
 
@@ -159,6 +257,38 @@ public:
 
         auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
         return ValueObject( std::move(res), cfg);
+    }
+
+    /// Constructs a Tuple from a given toml::table object. \throw This function throws on error.
+    static void TomlToTuple( Context &rContext, Tuple &rOut, toml::table const &rTable )
+    {
+        rOut.Clear();
+        DispatchTable( rContext, rOut, rTable );
+    }
+
+    /// Constructs a Toml formatted string from the given Tuple.
+    /// \return the constructed string or false on error.
+    /// \note the Tuple must only contain supported types and layout for Toml.
+    static ValueObject WriteTomlString( Tuple const &rTuple )
+    {
+        toml::table  table;
+        try {
+            DispatchTuple( rTuple, table );
+        } catch( std::exception const & /*ex*/ ) {
+            //TODO better error handlung.//auto s = ex.what();
+            return ValueObject( false );
+        }
+        std::ostringstream  os;
+        os << table;
+        return ValueObject( os.str() );
+    }
+
+    /// Constructs a Toml table from given Tuple. \throw This function throws on error.
+    /// \note the Tuple must only contain supported types and layout for Toml.
+    static void TupleToToml( Tuple const &rTuple, toml::table &rOut )
+    {
+        rOut.clear();
+        DispatchTuple( rTuple, rOut );
     }
 };
 

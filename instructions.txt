@@ -3,6 +3,15 @@ Instructions for the TeaScript C++ Library (Standard version)
 
 Please, also read the COPYRIGHT.TXT for several licensing information.
 
+Table of Content
+=====================
+- Supported compiler
+- Dependencies
+- Optional features
+- Compiling demo app
+- Opt-out header only
+- Useful Links
+
 
 Supported compiler (tested with):
 
@@ -18,7 +27,7 @@ Dependencies:
 
 None - for fully C++20 supporting compilers / C++ standard libraries.
 
-Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 10.2.1 and 10.1.1)
+Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 11.0.2, 10.2.1 and 10.1.1)
 Libfmt can be downloaded here https://fmt.dev/latest/index.html
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 
@@ -30,6 +39,12 @@ for TeaScript as well by defining TEASCRIPT_DISABLE_FMT_HEADER_ONLY to 1 (projec
 
 Optional Features:
 
+Web Preview - In order to enable the Web Preview module the following steps have to be done:
+1.) Add include <TeaScriptRoot>/modules/include/
+2.) Add include to the Boost Library.
+3.) Add modules/WebPreview.cpp to your project compilation.
+4.) (Optional) If you want the default Engine loads the WebPreview module set the define TEASCRIPT_ENGINE_USE_WEB_PREVIEW to 1.
+
 TOML Support - for the integrated TOML Support you need the toml++ Library.
 You can find the toml++ library here: https://github.com/marzer/tomlplusplus (tested with 3.4.0)
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
@@ -37,6 +52,14 @@ See include/teascript/TomlSupport.hpp for some more details.
 
 Color and Format String Support - for colorful output and the format string feature you need the libfmt library.
 See Libfmt section above.
+
+JsonAdapter - You can change the Json library which is used by TeaScript to one of nlohmann::json, RapidJson or Boost.Json.
+Per default PicoJson is used and is enabled by default.
+For use a different adapter you must do the following steps:
+1.) Add include to <TeaScriptRoot>/extensions/include/.
+2.) Add the corresponding JsonAdapter.cpp to your project, e.g., extenstions/JsonAdapterNlohmann.cpp
+3.) Add include for the json library of use, e.g., <rootpath>/nlohmann_3.11.3/single_inlude/
+4.) Set the define TEASCRIPT_JSON_FLAVOR to the desired Json flavor, e.g., TEASCRIPT_JSON_NLOHMANN
 
 
 For building the demo app:

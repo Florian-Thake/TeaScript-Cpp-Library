@@ -10,11 +10,47 @@
 
 #include <string>
 #include <stdexcept>
-
+#include <filesystem>
 
 namespace teascript {
 
 namespace util {
+
+inline
+std::filesystem::path utf8_path( std::string const &rUtf8 )
+{
+#if _LIBCPP_VERSION
+    _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+#elif (defined(__GNUC__) && !defined(__clang__))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4996) // if you get an error here use /w34996 or use _SILENCE_CXX20_U8PATH_DEPRECATION_WARNING
+#endif
+    return std::filesystem::u8path( rUtf8 );
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+#if _LIBCPP_VERSION
+    _LIBCPP_SUPPRESS_DEPRECATED_POP
+#elif (defined(__GNUC__) && !defined(__clang__))
+#pragma GCC diagnostic pop
+#endif
+}
+
+inline
+std::string utf8_path_to_str( std::filesystem::path const &rPath )
+{
+#if defined(_WIN32)
+    auto const tmp_u8 = rPath.generic_u8string();
+    return std::string( tmp_u8.begin(), tmp_u8.end() ); // must make a copy... :-(
+#else
+    // NOTE: On Windows this will be converted to native code page! Could be an issue when used as TeaScript string!
+    return rPath.generic_string();
+#endif
+}
 
 // anonymous namespace for make the non-inline functions usable in more than one TU.
 namespace {

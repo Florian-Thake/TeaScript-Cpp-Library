@@ -31,6 +31,16 @@
 #include "teascript/Engine.hpp"
 #include "teascript/CoroutineScriptEngine.hpp"
 
+#if TEASCRIPT_ENGINE_USE_WEB_PREVIEW
+# include "teascript/JsonSupport.hpp" // we need Json for the web preview
+// For the kind of simplicity the demo code always use the build-in default Json support, which is PicoJson.
+// If your C++ project is using nlohmann::json, RapidJson or Boost.Json you can change the used JsonAdapter for TeaScript.
+// But this demo code needs to be adjusted then as well because it uses the C++ Json objects from the library directly.
+# if TEASCRIPT_JSONSUPPORT != TEASCRIPT_JSON_PICO
+#  error You must use the default PicoJson Adapter for the web preview demo code.
+# endif
+#endif
+
 // Std includes
 #include <cstdlib> // EXIT_SUCCESS
 #include <cstdio>
@@ -74,6 +84,80 @@ void teascript_coroutine_demo();
 void teascript_thread_suspend_demo();
 
 
+// web preview code (http client w. json). You must enable the WebPreview module in order to run this code.
+// Follow the instructions in instructions.txt or read the relase blog post on https://tea-age.solutions/ 
+// or watch out for a tutorial video on YouTube.
+void webpreview_code()
+{
+#if TEASCRIPT_ENGINE_USE_WEB_PREVIEW
+
+    // Imagine you have some Json C++ object and want to send it to a web server...
+    // note: This works also with nlohmann::json, RapidJson and Boost.Json. To do so, you need to add the corresponding JsonAdapter from the extensions directory.
+    picojson::value  json;
+    std::ignore = picojson::parse( json, "{\"name\":\"John\", \"age\":31, \"lottery\":[9,17,22,35,37,41,48]}" );
+
+    // we are building a little import helper engine for us wich will ease our life...
+    class WebJsonEngine : public teascript::Engine
+    {
+    public:
+        using teascript::Engine::Engine;  // same constructors as in base class.
+
+        // imports the Json object (JsonType equals picojson::value if PicoJson is used) as a Tuple object with given name.
+        void ImportJsonAsTuple( std::string const &name, teascript::JsonSupport<>::JsonType const &json )
+        {
+            teascript::ValueObject tuple;
+            teascript::JsonSupport<>::JsonToValueObject( mContext, tuple, json );
+            AddSharedValueObject( name, tuple );
+        }
+    };
+    
+    // create the engine
+    WebJsonEngine  engine;
+    
+    // import the json as variable 'payload'
+    engine.ImportJsonAsTuple( "payload", json );
+
+    // execute a script which will issue a webserver POST and returns the (json) payload of the reply
+    auto reply_payload = engine.ExecuteCode( R"_SCRIPT_(
+def reply := web_post( "postman-echo.com", payload, "/post" )
+if( is_defined reply.json ) { // we got a json object back from the server
+    reply.json
+} else {
+    if( is_defined reply.error ) {
+        reply.what
+    } else {
+        "Unknown error! No Json object present!"
+    }
+}
+)_SCRIPT_" );
+    if( reply_payload.GetTypeInfo()->IsSame< std::string >() ) { // error
+        std::cout << "Error: " << reply_payload.GetValue< std::string>() << std::endl;
+        return;
+    }
+
+    // here we have a Tuple build from the Json reply from the server.
+    // Lets make a C++ Json from it...
+    picojson::value  reply_json;
+    teascript::JsonSupport<>::JsonFromValueObject( reply_payload, reply_json );
+
+    if( reply_json.is<picojson::object>() ) {
+        // we just iterate through the top layer for this demo..
+        std::cout << "Json entries: " << std::endl;
+        for( auto const &[key, value] : reply_json.get<picojson::object>() ) {
+            std::cout << key << ": " << std::endl;
+            std::cout << value << "\n\n";
+        }
+    } else {
+        // just print it.
+        std::cout << reply_json << std::endl;
+    }
+
+#else
+    puts( "Web Preview module is disabled!\nFollow the instructions in instructions.txt to enable it\n"
+          "or read the relase blog post on https://tea-age.solutions/ \nor watch out for a tutorial video on YouTube." );
+#endif
+}
+
 
 // This test code will add some variables (mutable and const) to the script context
 // and then execute script code, which will use them.
@@ -86,7 +170,7 @@ void test_code1()
     engine.AddVar( "a", 2 );   // variable a is mutable with value 2
     engine.AddVar( "b", 3 );   // variable b is mutable with value 3
     engine.AddConst( "hello", "Hello, World!" );    // variable hello is a const string.
-    // For Bool exists different named methods because many types could be implicit converted to bool by accident.
+    // For Bool exists different named functions because many types could be implicit converted to bool by accident.
     // like char * for example.
     engine.AddBoolVar( "speak", true );   // variable speak is a Bool with value true.
     
@@ -210,7 +294,7 @@ class PartialEvalEngine : public teascript::Engine
 {
 public:
     // we keep this example simple and just make the Parser and Context public available.
-    // a full blown engine would provide new methods for partial evaluation.
+    // a full blown engine would provide new functions for partial evaluation.
     inline teascript::Parser &GetParser() noexcept { return mBuildTools->mParser; }
     inline teascript::Parser const &GetParser() const noexcept { return mBuildTools->mParser; }
     inline teascript::Context &GetContext() noexcept { return mContext; }
@@ -783,6 +867,8 @@ int main( int argc, char **argv )
         teascript_thread_suspend_demo();
     } else if( argc == 2 && args[1] == "coro" ) {
         teascript_coroutine_demo();
+    } else if( argc == 2 && args[1] == "web" ) {
+        webpreview_code();
     } else if( argc >= 2 ) {
         return exec_script_file( args );
     } else {
@@ -790,6 +876,7 @@ int main( int argc, char **argv )
         std::cout << teascript::copyright_info() << std::endl;
         std::cout << "\nUsage:\n"
                   << args[0] << " -<N>              --> execs test code N\n"
+                  << args[0] << " web               --> execs web preview\n"
                   << args[0] << " coro              --> execs coroutine demo\n"
                   << args[0] << " suspend           --> execs thread suspend demo\n"
                   << args[0] << " filename [args]   --> execs TeaScript \"filename\" with \"args\"" << std::endl;

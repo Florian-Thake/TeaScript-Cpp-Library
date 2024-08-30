@@ -251,7 +251,7 @@ public:
 
     /// Checks whether there is at least one more char available.
     /// This call is equivalent to Remaining() > 0
-    /// \note Even if this method returns false, the current char is always pointing to a valid part of the input content (e.g. the last char of the input).
+    /// \note Even if this function returns false, the current char is always pointing to a valid part of the input content (e.g. the last char of the input).
     inline bool HasMore() const noexcept
     {
         return cur != end;

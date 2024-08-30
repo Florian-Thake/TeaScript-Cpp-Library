@@ -16,10 +16,26 @@
 
 #include <fstream>
 
+// define TEASCRIPT_ENGINE_USE_WEB_PREVIEW to 1 for enabling and auto loading the web preview module for the default Engine.
+// You must add <TeaScriptRoot>/modules/include/ to your include dirs and <TeaScriptRoot>/modules/source/WebPreview.cpp to your project.
+#if !defined(TEASCRIPT_ENGINE_USE_WEB_PREVIEW)
+# define TEASCRIPT_ENGINE_USE_WEB_PREVIEW       0
+#endif
+
+
 // define TEASCRIPT_ENGINE_USE_LEGACY_ARGS to 1 for use script arguments in the legacy form "arg1", "arg2", ..., "arg<N>"
 // instead of a tuple "args[argN]" with all arguments as elements.
 #if !defined(TEASCRIPT_ENGINE_USE_LEGACY_ARGS)
 # define TEASCRIPT_ENGINE_USE_LEGACY_ARGS       0
+#endif
+
+
+#if TEASCRIPT_ENGINE_USE_WEB_PREVIEW
+# if __has_include( "teascript/modules/WebPreview.hpp" )
+#  include "teascript/modules/WebPreview.hpp"
+# else
+#  error You must add <TeaScriptRoot>/modules/include/ to your include directories
+# endif
 #endif
 
 namespace teascript {
@@ -32,11 +48,15 @@ using ProgramPtr = std::shared_ptr<Program>;
 
 
 /// The TeaScript standard engine.
-/// This is a single-thread engine and this class is _not_ thread-safe.
-/// However, it is safe to use one distinct instance per thread, but
-/// you cannot use the same instance in more than 1 thread the _same_ time.
+/// This is a single-thread engine. You can use an instance of this class in
+/// one thread. If you use the same(!) instance in more than one thread,
+/// the instance is not thrad-safe by design.
+/// However, in a multi-threaded environment it is safe to use one distinct
+/// instance per each thread.
 /// Furthermore, each instance has its own distinct context, which is not
-/// shared between other instances/engines.
+/// shared between other instances/engines. You should not share values
+/// between different Context/Engine instances, unless you take care of
+/// thread safety by yourself.
 /// \note see class EngineBase for some more handy convenience functions.
 class Engine : public EngineBase
 {

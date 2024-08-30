@@ -486,6 +486,40 @@ if( version_major >= 1 or version_minor >= 11 )
     print_success( "ok.\n" )
 }
 
+if( version_major >= 1 or version_minor >= 15 )
+{
+    print( "testing _tuple_named_create ... " )
+    
+    def tup1 := _tuple_named_create()
+    TEST_TRUE( tup1 is Tuple, "tup1 is not a Tuple" )
+    TEST_TRUE( _tuple_size( tup1 ) == 0, "_tuple_size( tup1 ) is not 0" )
+    
+    def tup2 := _tuple_named_create( ("name", "Jon"), ("age", 32), ("email", "jon@email.com") )
+    TEST_TRUE( tup2 is Tuple, "tup2 is not a Tuple" )
+    TEST_TRUE( _tuple_size( tup2 ) == 3, "_tuple_size( tup2 ) is not 3" )
+    
+    TEST_TRUE( is_defined tup2.name, "tup2.name not defined!" )
+    TEST_TRUE( is_defined tup2.age, "tup2.age not defined!" )
+    TEST_TRUE( is_defined tup2.email, "tup2.email not defined!" )
+    
+    TEST_EQ( tup2.name, "Jon", "unexpected value for tup2.name" )
+    TEST_EQ( tup2.age, 32, "unexpected value for tup2.age" )
+    TEST_EQ( tup2.email, "jon@email.com", "unexpected value for tup2.email" )
+    
+    def tup3 := _tuple_named_create( ("inner", (1,2,3,"4",()) ) )
+    TEST_TRUE( tup3 is Tuple, "tup3 is not a Tuple" )
+    TEST_TRUE( _tuple_size( tup3 ) == 1, "_tuple_size( tup3 ) is not 1" )
+    
+    TEST_TRUE( is_defined tup3.inner, "tup3.inner not defined!" )
+    TEST_TRUE( tup3.inner is Tuple, "tup3.inner is not a Tuple!" )
+    
+    TEST_EQ( _tuple_size( tup3.inner ), 5, "size of tup3.inner is not 5!" )
+    TEST_EQ( tup3.inner.2, 3, "tup3.inner.2 is not 3!" )
+    TEST_TRUE( tup3.inner.4 is typeof void, "tup3.inner.4 is not NaV!" )
+    
+    print_success( "ok.\n" )
+}
+
 
 print_success( "=== TEST PASSED ===\n" )
 

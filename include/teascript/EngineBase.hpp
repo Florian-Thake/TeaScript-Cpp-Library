@@ -23,8 +23,6 @@ namespace teascript {
 class EngineBase
 {
 protected:
-    std::optional<teascript::Integer> mExitCode; // DEPRECATED: A separate exit code will be reomved. A script will always have a result regardless the way of exiting.
-
     /// Evaluates the given \param rContent as TeaScript.
     /// Evaluation usually invokes either parsing and then the recursive evaluation of the produced AST,
     /// or a compilation of the produced AST followed by an execution of the binary program in the TeaStackVM.
@@ -50,25 +48,6 @@ public:
 
     /// Resets the state, e.g. clears all variables/functions and do a fresh bootstrap of the CoreLibrary
     virtual void ResetState() = 0;
-
-    /// Returns whether the last executed script/code ended with exit code.
-    /// This usually happens when one of the exit()-like functions is called.
-    /// DEPRECTATED: A separate exit code will be reomved. A script will always have a result regardless the way of exiting.
-    [[deprecated("A separate exit code will be reomved. A script will always have a result regardless the way of exiting.")]]
-    inline
-    bool HasExitCode() const noexcept
-    {
-        return mExitCode.has_value();
-    }
-
-    /// Returns the set exit code of last executed script/code or EXIT_FAILURE if there is none.
-    /// DEPRECTATED: A separate exit code will be reomved. A script will always have a result regardless the way of exiting.
-    [[deprecated( "A separate exit code will be reomved. A script will always have a result regardless the way of exiting." )]]
-    inline
-    teascript::Integer GetExitCode() const noexcept
-    {
-        return mExitCode.value_or( static_cast<teascript::Integer>(EXIT_FAILURE) );
-    }
 
     /// Returns the stored variable with name \param rName starting search in the current scope up to toplevel scope.
     /// \throw May throw exception::unknown_identifier or a different excection based on exception::eval_eror/runtime_error.

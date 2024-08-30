@@ -66,6 +66,98 @@ void foreach_named_element( std::string const &fullname, ValueObject &rVal, bool
     }
 }
 
+/// utility function collection for ease life with Tuple for/from Toml or Json.
+class TomlJsonUtil
+{
+public:
+    static bool IsAnArray( ValueObject const &rObj )
+    {
+        if( rObj.InternalType() != ValueObject::TypeTuple ) {
+            return false;
+        }
+        return IsTupAnArray( rObj.GetValue<Tuple>() );
+    }
+
+    static bool IsTupAnArray( Tuple const &rTuple )
+    {
+        if( rTuple.IsEmpty() ) {
+            return false; // empty tuples are always interpreted as josn objects/toml tables.
+        }
+        auto const &[key, _] = *rTuple.begin();
+        // For Toml and Json an empty string "" is allowed as key, so we must check that.
+        if( not key.empty() || rTuple.IndexOfKey( key ) != Tuple::npos ) {
+            return false; // only tables can have keys
+        }
+
+        return true;
+    }
+
+    static bool IsArrayEmpty( Tuple const &rTuple )
+    {
+        if( not IsTupAnArray( rTuple ) ) {
+            return false;
+        }
+        // here we know it is not empty.
+        auto const &[_, val] = *rTuple.begin();
+
+        // special case: For distinguish an empty Tuple whether it is an array or table,
+        // we mark empty arrays with an empty Buffer.
+        if( rTuple.Size() == 1 && val.InternalType() == ValueObject::TypeBuffer && val.GetValue<Buffer>().empty() ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    static void ArrayAppend( Tuple &rTuple, ValueObject &rVal )
+    {
+        // special case: For distinguish an empty Tuple whether it is an array or table,
+        // we mark empty arrays with an empty Buffer.
+        // This marker must be removed when the first element is appended.
+        if( IsArrayEmpty( rTuple ) ) {
+            rTuple.Clear(); // remove the buffer marker.
+        }
+        rTuple.AppendValue( rVal.MakeShared() );
+    }
+
+    static ValueObject ArrayInsert( Tuple &rTuple, long long const idx, ValueObject &rVal )
+    {
+        // special case: For distinguish an empty Tuple whether it is an array or table,
+        // we mark empty arrays with an empty Buffer.
+        // This marker must be removed when the first element is appended.
+        if( IsArrayEmpty( rTuple ) ) {
+            if( 0 == idx ) {
+                rTuple.Clear(); // remove the buffer marker.
+            } else {
+                return ValueObject( false ); // TODO: return Error once it exists.
+            }
+        }
+        try {
+            rTuple.InsertValue( static_cast<std::size_t>(idx), rVal.MakeShared() );
+        } catch( exception::out_of_range const & ) {
+            return ValueObject( false ); // TODO: return Error once it exists.
+        }
+        return ValueObject( true );
+    }
+
+    static ValueObject ArrayRemove( Tuple &rTuple, long long const idx )
+    {
+        if( not IsTupAnArray( rTuple ) || IsArrayEmpty( rTuple ) ) {
+            return ValueObject( false ); // TODO: return Error once it exists.
+        }
+        if( not rTuple.RemoveValueByIdx( static_cast<std::size_t>(idx) ) ) {
+            return ValueObject( false ); // TODO: return Error once it exists.
+        }
+        // special case: For distinguish an empty Tuple whether it is an array or table,
+        // we mark empty arrays with an empty Buffer.
+        if( rTuple.IsEmpty() ) {
+            auto const cfg = ValueConfig{ValueShared,ValueMutable,&TypeBuffer};
+            rTuple.AppendValue( ValueObject( Buffer(), cfg ) );
+        }
+        return ValueObject( true );
+    }
+};
+
 // needed for linking
 namespace {
 

@@ -2524,6 +2524,8 @@ public:
             }
         } catch( control::Return_From_Function &rReturn ) { // return from 'main' is possible
             res = rReturn.MoveResult();
+        } catch( control::Exit_Script &ex ) {
+            res = ex.MoveResult();
         }
         return res;
     }

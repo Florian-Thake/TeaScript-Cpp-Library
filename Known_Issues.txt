@@ -3,12 +3,7 @@ TeaScript Known Issues
 
 Beside feature incompleteness there are the following known issues which will be fixed in a later (pre-)release.
 NOTE: The numbers stay same, solved items will (usually) be removed in the next release from this list.
-     
 
-5.) [PLATFORM: Windows] Solved! 
-    Turns out the broken echo'ed Unicode output was a bug in the Windows Terminal application.
-    It is fixed in Windows Terminal 1.19.
-    
 
 6.) [PLATFORM: any]
     Parsing and/or Evaluation errors from inside in-string evaluation may show wrong source

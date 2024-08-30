@@ -6,6 +6,101 @@ NOTE: The dates are not the release dates, but a last commit date.
 
 
 ================
+VERSION 0.15.0, Thu Aug 29 13:00:21 2024
+================
+    VERSION: 0.15.0 - Web Server / Web Client module preview, JSON read/write, TOML write.
+
+    DEMO: added web preview demo to demo project.
+    DOCU: updated docu, readmes, comments and other texts.
+    HOST: added pretty_print error for :compile|:exec|:continue.
+
+    FUNC: introduced new and improved, one fits all, LibraryFunction.    
+    - the new incarnation will replace the old LibraryFunction0 ... LibraryFunction5.
+    - the new incarnation can handle arbitrary parameter amount as well as
+      supports an optional Context as the first parameter for all cases.
+    - the new incarnation is only used in the WebPreview module for now.
+    - tested WebPreview + LibraryFunction on Linux.
+
+    WEB: added optional time measurement for debugging (compile time switch), ...    
+    - web_client.tea: default to 127.0.0.1 instead of localhost
+      to reduce chance of slow connection establishing.
+
+    WEB: added Web preview module with web_get(), web_post(), web_server_setup(), ...    
+    ... web_server_accept(), web_server_reply(), web_server_build_reply(),
+        web_set_payload(), web_add_header() and web_build_request()
+    - this is the first Module based on (experimental) IModule interface.
+    - web preview must be enabled manually for the default Engine and cannot
+      be loaded on demand from the script (yet). If enabled, it will be always
+      loaded into the context.
+    - web preview has build-in support for json as payload. Any Content-Type
+      of "application/json" will be automatically transformed into a Tuple
+      structure representing the Json object.
+    - Tuples can be automatically send as a json string in web clients and
+      web server messages.
+    - added web_client.tea and web_server.tea as examples.
+    - splitted LibraryFunctions out of CoreLibrary into own header.
+    - moved utf8_path()/utf8_path_to_str() to UtilInternal.hpp
+
+    JSON: fixes for g++ and clang.
+    JSON: added Boost.Json as well as RapidJSON Adapter.
+
+    TEST: added corelibrary_test05 with JSON and extended TOML test.    
+    - extended corelibrary_test01 and corelibrary_test03 with new functions.
+    VALUEOBJ: explicitly handling NaV in threeway comparison operator.    
+    - need to distinguish between set TypeInfo and current(!) InternalType
+
+    JSON: implemented write support for nlohmann::json Adapter.    
+    - added GetAdapterName() to JsonSupport.
+    - added features.json_adapter string variable
+    - changed features.json to reflect the TEASCRIPT_JSONSUPPPRT value.
+
+    JSON: implemented writejsonstring|writejsonfile, implemented ...    
+    - ... JsonToValueObject()/JsonFromValueObject() on C++ level
+      The Json objects will be of the type of the unerlying Json library in use.
+    - added threeway comparison for ValueObject with Buffer type.
+
+    TOML|JSON: toml|json_make_array accept aribtrary params like _tuple_create    
+    - added _tuple_named_create for easy creating dictionaries.
+      this function accepts Tuples with size 2 and first element with String (Key)
+      as parameters, e.g.: _tuple_named_create( ("name", "John"), ("age", 31) )
+    - added toml_make_table and json_make_object based on _tuple_named_create
+    - added toml_table_size and toml_array_size
+    - added json_object_size and json_array_size
+
+    JSON|TOML: streamlined array support, added bunch of utility functions...    
+    - added toml_is_array, toml_array_empty, toml_array_append,
+      toml_array_insert, toml_array_remove, toml_make_array, toml_is_table
+    - added json_is_array, json_array_empty, json_array_append,
+      json_array_insert, json_array_remove, json_make_array, json_is_object
+    - added readjsonfile
+
+    JSON: allow all possible json values as root value.  
+    - therefore false cannot be returned as an error as well as NaV cannot.
+    - return TypeNaV instead to indicate an error until a real Error type exists.
+    - JSON/TOML: It cannot be distinguished whether an empty Tuple is an empty array
+      or an empty object/table. In order to do this an empty array is marked via an
+      empty Buffer as value. A Buffer is neither a valid value in Toml nor in Json,
+      so it can be used safely as a marker.
+    - TOML: distinguish whether an empty Tuple is an empy array or an empty table when
+      write a Toml string.
+    - JSON/TOML: correctly handle empty string keys.
+
+    TEASCRIPT: added built in JSON read support with Pico Json.
+    - added Pico Json header only lib to teascript/thirdparty/
+    - added JsonAdapterPico for adapt Pico Json to Tuple
+    - added JsonSupport and be prepared to use a different adapter,
+      e.g. for nlohmann, rapid or boost json.
+
+    CORELIB: added Toml write support (writetomlfile, writetomlstring)
+    - added TomlToTuple()/TupleToToml() for convert Tuple <--> toml::table on C++ level.
+    - added IsEmpty() to Collection
+    CLEAN: removed deprecated exit code and exit(), streamlined ...
+    - ... left over Exit_Script handling.
+    - CoreLibrary::ExitScript() will remain one more version before removal.
+    3RDPARTY: updated to fmt 11.0.2, set a hard minimum of 10.1.1
+
+
+================
 VERSION 0.14.0, Wed May 08 17:41:05 2024
 ================
     VERSION: 0.14.0 - TeaStackVM, Compiler, (Dis)Assembler, Suspend + Continue, Yield, improved debugging.

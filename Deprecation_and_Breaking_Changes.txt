@@ -3,20 +3,10 @@ TeaScript Breaking Changes in the actual release
 
     Changes in CoreLibrary functionality
     ------------------------------------
-    _exit() now takes any type of argument, it will be the result value of the script.
-    A separated exit code is deprecated. A script will always have a result or NaV (Not A Value).
-    
-    Script arguments are passed now as a Tuple "args" instead of "arg1", "arg2", ...
-    The legacy form is available in the TeaScript Host Application via --legacy-args 
-    or when class Engine is used at compile time via define TEASCRIPT_ENGINE_USE_LEGACY_ARGS=1
+
 
     Changes on C++ API level
     ------------------------------------
-    Member mParser in class Engine is now in mBuildTools shared pointer.
-    (was required for make 'opt-out header only' possible!)
-    
-    Function and IntegerSequence are first class citizen now. 
-    This must be taken into account for a visitor applied to ValueObject::Visit.
     
 
     Visibility of Core Library functions
@@ -35,31 +25,13 @@ TeaScript list of deprecated parts
 
     The following deprecated parts have been finally removed from this release:
     
-    Engine::ActivateDeprecatedDefaultMutableParameters()
-    Please, change your script code to explicit mutable parameters with 'def' keyword.
-    More deatails are available in the comment.
-    
-    CoreLibrary::DoubleToLongLong()
-    This was the implementation for _f64toi64. In C++ just use a static_cast<long long>!
-    
-    ArithmeticFactory::ApplyBinOp()|ApplyUnOp()
-    Please, use ArithmeticFactory::ApplyBinaryOp() and ArithmeticFactory::ApplyUnaryOp() instead.
-
-    Context::BulkAdd()
-    Please, use InjectVars() instead.
-    
-    Context( VariableStorage const &init, TypeSystem && rMovedSys, bool const booting )
-    Please, uses a different constructor instead.
-
-    
-    The following parts are now deprecated and will be removed in some future release:
-    
-    CoreLibrary::ExitScript()
-    directly issued control flow exceptions are deprecated, use either _exit() or the new _Exit statement instead.
-    
     exit( exit_code )
     use either _exit( Any ) or the new _Exit statement instead.
-    A separated exit code is deprecated. A script will always have a result or NaV (Not A Value).
-    
+    A script will always have a result or NaV (Not A Value).
+
     class Engine HasExitCode()/GetExitCode() and mExitCode
-    A separated exit code is deprecated. A script will always have a result or NaV (Not A Value).
+    A script will always have a result or NaV (Not A Value).
+
+
+    The following parts are now deprecated and will be removed in some future release:
+

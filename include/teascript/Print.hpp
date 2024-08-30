@@ -35,6 +35,9 @@
 #  endif
 # endif
 # include "fmt/format.h"
+# if FMT_VERSION < 100101
+#  error format lib must be at least 10.1.1
+# endif
 #elif __has_include( <format> )
 # include <format>
 # if defined( __cpp_lib_format ) && __cpp_lib_format > 202110L && __cplusplus > 202002L && !defined( TEASCRIPT_DISABLE_STDFORMAT_23 )

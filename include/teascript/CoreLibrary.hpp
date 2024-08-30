@@ -9,21 +9,19 @@
 #pragma once
 
 #include "ConfigEnums.hpp"
-#include "Func.hpp"
 #include "Context.hpp"
 #include "Type.hpp"
 #include "TupleUtil.hpp"
 #include "IntegerSequence.hpp"
 #include "TomlSupport.hpp"
+#include "JsonSupport.hpp"
 #include "Print.hpp"
 #include "Parser.hpp"
 #include "StackVMCompiler.hpp"
 #include "StackMachine.hpp"
+#include "LibraryFunctions.hpp"
 #include "version.h"
 
-#if TEASCRIPT_FMTFORMAT
-# include "fmt/args.h"
-#endif
 
 #include <filesystem>
 #include <fstream>
@@ -34,431 +32,7 @@
 #include <algorithm>
 
 
-
 namespace teascript {
-
-namespace util {
-
-inline
-std::filesystem::path utf8_path( std::string const &rUtf8 )
-{
-#if _LIBCPP_VERSION
-    _LIBCPP_SUPPRESS_DEPRECATED_PUSH
-#elif (defined(__GNUC__) && !defined(__clang__))
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable:4996) // if you get an error here use /w34996 or use _SILENCE_CXX20_U8PATH_DEPRECATION_WARNING
-#endif
-    return std::filesystem::u8path( rUtf8 );
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-#if _LIBCPP_VERSION
-    _LIBCPP_SUPPRESS_DEPRECATED_POP
-#elif (defined(__GNUC__) && !defined(__clang__))
-#pragma GCC diagnostic pop
-#endif
-}
-
-inline
-std::string utf8_path_to_str( std::filesystem::path const &rPath )
-{
-#if defined(_WIN32)
-    auto const tmp_u8 = rPath.generic_u8string();
-    return std::string( tmp_u8.begin(), tmp_u8.end() ); // must make a copy... :-(
-#else
-    // NOTE: On Windows this will be converted to native code page! Could be an issue when used as TeaScript string!
-    return rPath.generic_string();
-#endif
-}
-
-template< typename T >
-inline
-T & get_value( ValueObject &rObj )
-{
-    if constexpr( std::is_same_v<T, ValueObject> ) {
-        return rObj;
-    } else {
-        return rObj.GetValue<T>();
-    }
-}
-
-} // namespace util
-
-
-//TODO: During a rainy afternoon and after 2 cups of coffee, I will convert these LibraryFunctions to one generic one dealing with arbitrary parameter count
-//      by using variadic parameter pack... :-)
-
-template< typename F, typename RES = void >
-class LibraryFunction0 : public FunctionBase
-{
-    F *mpFunc;
-public:
-    LibraryFunction0( F *f )
-        : FunctionBase()
-        , mpFunc( f )
-    {
-    }
-
-    virtual ~LibraryFunction0() {}
-
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
-    {
-        if( 0u != rParams.size() ) {
-            throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 0)!" );
-        }
-        if constexpr( std::is_same_v<RES, ValueObject> ) {
-            return mpFunc();
-        } else if constexpr( not std::is_same_v<RES, void> ) {
-            auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
-            return ValueObject( mpFunc(), cfg );
-        } else {
-            mpFunc();
-            return {};
-        }
-    }
-
-    int ParamCount() const final
-    {
-        return 0;
-    }
-};
-
-
-// experimental variant with bool with_context. If true a first parameter is added to thw call: the Context.
-template< typename F, typename T1, typename RES = void, bool with_context = false>
-class LibraryFunction1 : public FunctionBase
-{
-    F *mpFunc;
-public:
-    LibraryFunction1( F *f )
-        : FunctionBase()
-        , mpFunc( f )
-    {
-    }
-
-    virtual ~LibraryFunction1() {}
-
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
-    {
-        if( 1u != rParams.size() ) {
-            throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 1)!" );
-        }
-        if constexpr( not with_context ) {
-            if constexpr( std::is_same_v<RES, ValueObject> ) {
-                return mpFunc( util::get_value<T1>( rParams[0] ) );
-            } else if constexpr( not std::is_same_v<RES, void> ) {
-                auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
-                return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ) ), cfg );
-            } else {
-                mpFunc( util::get_value<T1>( rParams[0] ) );
-                return {};
-            }
-        } else {
-            if constexpr( std::is_same_v<RES, ValueObject> ) {
-                return mpFunc( rContext, util::get_value<T1>( rParams[0] ) );
-            } else if constexpr( not std::is_same_v<RES, void> ) {
-                auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
-                return ValueObject( mpFunc( rContext, util::get_value<T1>( rParams[0] ) ), cfg );
-            } else {
-                mpFunc( rContext, util::get_value<T1>( rParams[0] ) );
-                return {};
-            }
-        }
-    }
-
-    int ParamCount() const final
-    {
-        return 1;
-    }
-};
-
-template< typename F, typename T1, typename T2, typename RES = void>
-class LibraryFunction2 : public FunctionBase
-{
-    F *mpFunc;
-public:
-    LibraryFunction2( F *f )
-        : FunctionBase()
-        , mpFunc( f )
-    {
-    }
-
-    virtual ~LibraryFunction2() {}
-
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
-    {
-        if( 2u != rParams.size() ) {
-            throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 2)!" );
-        }
-        if constexpr( std::is_same_v<RES, ValueObject> ) {
-            return mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>(rParams[1]) );
-        } else if constexpr( not std::is_same_v<RES, void> ) {
-            auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
-            return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ) ), cfg );
-        } else {
-            mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ) );
-            return {};
-        }
-    }
-
-    int ParamCount() const final
-    {
-        return 2;
-    }
-};
-
-template< typename F, typename T1, typename T2, typename T3, typename RES = void>
-class LibraryFunction3 : public FunctionBase
-{
-    F *mpFunc;
-public:
-    LibraryFunction3( F *f )
-        : FunctionBase()
-        , mpFunc( f )
-    {
-    }
-
-    virtual ~LibraryFunction3() {}
-
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
-    {
-        if( 3u != rParams.size() ) {
-            throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 3)!" );
-        }
-        if constexpr( std::is_same_v<RES, ValueObject> ) {
-            return mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>(rParams[2]) );
-        } else if constexpr( not std::is_same_v<RES, void> ) {
-            auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
-            return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ) ), cfg );
-        } else {
-            mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ) );
-            return {};
-        }
-    }
-
-    int ParamCount() const final
-    {
-        return 3;
-    }
-};
-
-template< typename F, typename T1, typename T2, typename T3, typename T4, typename RES = void>
-class LibraryFunction4 : public FunctionBase
-{
-    F *mpFunc;
-public:
-    LibraryFunction4( F *f )
-        : FunctionBase()
-        , mpFunc( f )
-    {
-    }
-
-    virtual ~LibraryFunction4() {}
-
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
-    {
-        if( 4u != rParams.size() ) {
-            throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 4)!" );
-        }
-        if constexpr( std::is_same_v<RES, ValueObject> ) {
-            return mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>(rParams[3]) );
-        } else if constexpr( not std::is_same_v<RES, void> ) {
-            auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
-            return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ) ), cfg );
-        } else {
-            mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ) );
-            return {};
-        }
-    }
-
-    int ParamCount() const final
-    {
-        return 4;
-    }
-};
-
-template< typename F, typename T1, typename T2, typename T3, typename T4, typename T5, typename RES = void>
-class LibraryFunction5 : public FunctionBase
-{
-    F *mpFunc;
-public:
-    LibraryFunction5( F *f )
-        : FunctionBase()
-        , mpFunc( f )
-    {
-    }
-
-    virtual ~LibraryFunction5() {}
-
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
-    {
-        if( 5u != rParams.size() ) {
-            throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 5)!" );
-        }
-        if constexpr( std::is_same_v<RES, ValueObject> ) {
-            return mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ), util::get_value<T5>( rParams[4] ) );
-        } else if constexpr( not std::is_same_v<RES, void> ) {
-            auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
-            return ValueObject( mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ), util::get_value<T5>( rParams[4] ) ), cfg );
-        } else {
-            mpFunc( util::get_value<T1>( rParams[0] ), util::get_value<T2>( rParams[1] ), util::get_value<T3>( rParams[2] ), util::get_value<T4>( rParams[3] ), util::get_value<T5>( rParams[4] ) );
-            return {};
-        }
-    }
-
-    int ParamCount() const final
-    {
-        return 5;
-    }
-};
-
-/// The function object for evaluate TeaScript code within TeaScript code.
-class EvalFunc : public FunctionBase
-{
-    bool mLoadFile;
-public:
-    explicit EvalFunc( bool file )
-        : mLoadFile( file )
-    {
-    }
-    virtual ~EvalFunc() {}
-
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
-    {
-        if( 1u != rParams.size() ) { // maybe can be relaxed (e.g. optional parameters, or list of expr)?
-            throw exception::eval_error( rLoc, "Func Call: Wrong amount of passed parameters (must be 1)!" );
-        }
-
-        //NOTE: since we don't open a new scope here, we can add/modify the scope of caller!
-        //TODO: This might have unwanted side effects. Must provide an optional way for a clean scope and/or clean environment.
-
-        Content content;
-        std::vector<char> buf;
-        std::string str;
-        std::string filename;
-        if( mLoadFile ) {
-            // TODO: parameter for script ? Can register args as real ValueObjects instead of string! But must avoid to override args of caller script!!!
-            str = rParams[0].GetValue<std::string>();
-            // NOTE: TeaScript strings are UTF-8
-            // TODO: apply include paths before try absolute()
-            std::filesystem::path const script = std::filesystem::absolute( util::utf8_path( str ) );
-            std::ifstream file( script, std::ios::binary | std::ios::ate ); // ate jumps to end.
-            if( file ) {
-                auto size = file.tellg();
-                file.seekg( 0 );
-                buf.resize( static_cast<size_t>(size) + 1 ); // ensure zero terminating!
-                file.read( buf.data(), size );
-                content = Content( buf.data(), buf.size() );
-                // build utf-8 filename again... *grrr*
-                filename = util::utf8_path_to_str( script );
-            } else {
-                // TODO: Better return an error ?
-                throw exception::load_file_error( rLoc, str );
-            }
-        } else {
-            str = rParams[0].GetValue<std::string>();
-            content = Content( str );
-            filename = "_EVALFUNC_";
-        }
-
-        Parser p; //FIXME: for later versions: must use correct state with correct factory.
-        p.OverwriteDialect( rContext.dialect ); // use eventually modified dialect.
-        p.SetDebug( rContext.is_debug );
-        try {
-            return p.Parse( content, filename )->Eval( rContext );
-        } catch( exception::eval_error const &/*ex*/ ) {
-            throw;
-            //return {}; // TODO: unified and improved error handling. Return an eval_error? or just dont catch?
-        } catch( exception::parsing_error const &/*ex*/ ) {
-            throw;
-            //return {}; // TODO: unified and improved error handling. Return an eval_error? or just dont catch?
-        }
-    }
-
-    int ParamCount() const final
-    {
-        return 1;
-    }
-};
-
-/// creates a (unamed) tuple object with arbiratry amount of elements, e.g., accepts 0..N parameters.
-class MakeTupleFunc : public FunctionBase
-{
-public:
-    MakeTupleFunc() {}
-    virtual ~MakeTupleFunc() {}
-
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &/*rLoc*/ ) override
-    {
-        Tuple  tuple;
-
-        if( rParams.size() > 1 ) {
-            tuple.Reserve( rParams.size() );
-        }
-        for( auto const &v : rParams ) {
-            tuple.AppendValue( v );
-        }
-
-        return ValueObject( std::move( tuple ), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} );
-    }
-};
-
-
-class FormatStringFunc : public FunctionBase
-{
-public:
-    FormatStringFunc() = default;
-    virtual ~FormatStringFunc() {}
-
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
-    {
-#if TEASCRIPT_FMTFORMAT
-        if( rParams.size() < 1 || not rParams[0].GetTypeInfo()->IsSame<std::string>() ) {
-            throw exception::eval_error( rLoc, "FormatStringFunc Call: Need first parameter as the format string!" );
-        }
-        std::string const & format_str = rParams[0].GetValue<std::string>();
-        fmt::dynamic_format_arg_store<fmt::format_context>  store;
-        // skip first, which is the format string.
-        for( size_t idx = 1; idx < rParams.size(); ++idx ) {
-            switch( rParams[idx].InternalType() ) {
-            case ValueObject::TypeBool:
-                store.push_back( rParams[idx].GetValue<Bool>() );
-                break;
-            case ValueObject::TypeI64:
-                store.push_back( rParams[idx].GetValue<I64>() );
-                break;
-            case ValueObject::TypeU64:
-                store.push_back( rParams[idx].GetValue<U64>() );
-                break;
-            case ValueObject::TypeU8:
-                store.push_back( rParams[idx].GetValue<U8>() );
-                break;
-            case ValueObject::TypeF64:
-                store.push_back( rParams[idx].GetValue<F64>() );
-                break;
-            case ValueObject::TypeString:
-                store.push_back( rParams[idx].GetValue<String>() );
-                break;
-            default:
-                // try as a String
-                store.push_back( rParams[idx].GetAsString() );
-            }
-        }
-
-        std::string res = fmt::vformat( format_str, store );
-
-        return ValueObject( std::move( res ), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} );
-#else
-        (void)rContext;
-        (void)rParams;
-        throw exception::runtime_error( rLoc, "FormatStringFunc Call: You must use libfmt to make this working!" );
-#endif
-    }
-};
 
 
 /// The CoreLibrary of TeaScript providing core functionality for the scripts.
@@ -509,7 +83,7 @@ public:
         return line;
     }
 
-    [[deprecated("Control flow exit will not be supported anymore. Please, use _Exit val instead.")]]
+    [[deprecated("Control flow exit from TeaScript code will not be supported anymore. Please, use _Exit val instead (or throw Exit_Script() directly from cpp code).")]]
     [[noreturn]] static void ExitScript( long long const code )
     {
         throw control::Exit_Script( code );
@@ -1775,7 +1349,11 @@ protected:
             feat.AppendKeyValue( "format", ValueObject( (TEASCRIPT_FMTFORMAT == 1), cfg ) );
             feat.AppendKeyValue( "color", ValueObject( (TEASCRIPT_FMTFORMAT == 1), cfg ) );
             feat.AppendKeyValue( "toml", ValueObject( (TEASCRIPT_TOMLSUPPORT == 1), cfg ) );
-            //TODO: feat.AppendKeyValue( "json", ValueObject( (TEASCRIPT_JSONSUPPORT == 1), cfg ) );
+            feat.AppendKeyValue( "json", ValueObject( static_cast<I64>(TEASCRIPT_JSONSUPPORT), cfg));
+#if TEASCRIPT_JSONSUPPORT
+            feat.AppendKeyValue( "json_adapter", ValueObject( std::string(JsonSupport<>::GetAdapterName()), cfg));
+
+#endif
             ValueObject val{std::move( feat ), cfg_mutable};
             tea_add_var( "features", std::move( val ) ); // missing _ is intended for now.
         }
@@ -2154,6 +1732,13 @@ protected:
             tea_add_var( "_tuple_create", std::move( val ) );
         }
 
+        // _tuple_named_create : Tuple ( ... ) --> creates a tuple from the passed parameters. parameter count is variable and MUST be of type Tuple( String, Any )
+        {
+            auto func = std::make_shared< MakeTupleFunc >( MakeTupleFunc::eFlavor::Dictionary );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_tuple_named_create", std::move( val ) );
+        }
+
         // _tuple_size : i64 ( Tuple ) --> returns the element count of the Tuple
         {
             auto func = std::make_shared< LibraryFunction1< decltype(TupleSize), Tuple, long long > >( &TupleSize );
@@ -2377,11 +1962,118 @@ protected:
             }
 
 #if TEASCRIPT_TOMLSUPPORT
-            // readtomlstring : Tuple ( String ) --> creates a named tuple from the given TOML formatted string (or false on error).
+            // readtomlstring : Tuple|Bool ( String ) --> creates a named tuple from the given TOML formatted string (or false on error).
             {
                 auto func = std::make_shared< LibraryFunction1< decltype(TomlSupport::ReadTomlString), std::string, ValueObject, true> >( &TomlSupport::ReadTomlString );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readtomlstring", std::move( val ) ); // missing _ is intended
+            }
+
+            // writetomlstring : String|Bool ( Tuple ) --> creates a TOML formatted string from the given tuple (or false on error).
+            {
+                auto func = std::make_shared< LibraryFunction1< decltype(TomlSupport::WriteTomlString), Tuple, ValueObject> >( &TomlSupport::WriteTomlString );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "writetomlstring", std::move( val ) ); // missing _ is intended
+            }
+
+            // toml_make_array : Tuple ( ... ) --> creates a compatible toml array from the passed parameters. parameter count is variable and type Any.
+            {
+                auto func = std::make_shared< MakeTupleFunc >( MakeTupleFunc::eFlavor::TomlJsonArray );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "toml_make_array", std::move( val ) ); // missing _ is intended
+            }
+
+            // toml_is_array : Bool ( Any ) --> checks if given parameter is an Toml compatible array.
+            {
+                auto func = std::make_shared< LibraryFunction1< decltype(tuple::TomlJsonUtil::IsAnArray), ValueObject, bool> >( &tuple::TomlJsonUtil::IsAnArray );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "toml_is_array", std::move( val ) ); // missing _ is intended
+            }
+
+            // toml_array_empty : Bool ( Tuple ) --> checks if given Tuple is an empty Toml array.
+            {
+                auto func = std::make_shared< LibraryFunction1< decltype(tuple::TomlJsonUtil::IsArrayEmpty), Tuple, bool> >( &tuple::TomlJsonUtil::IsArrayEmpty );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "toml_array_empty", std::move( val ) ); // missing _ is intended
+            }
+
+            // toml_array_append : void ( Tuple, Any ) --> appends value to Toml comaptible array (the Tuple must be compatible, e.g., toml_is_array returned true!)
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(tuple::TomlJsonUtil::ArrayAppend), Tuple, ValueObject > >( &tuple::TomlJsonUtil::ArrayAppend );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "toml_array_append", std::move( val ) ); // missing _ is intended
+            }
+
+            // toml_array_insert : Bool ( Tuple, I64, Any ) --> inserts value at idx to Toml comaptible array (the Tuple must be compatible, e.g., toml_is_array returned true!)
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(tuple::TomlJsonUtil::ArrayInsert), Tuple, long long, ValueObject, ValueObject > >( &tuple::TomlJsonUtil::ArrayInsert );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "toml_array_insert", std::move( val ) ); // missing _ is intended
+            }
+
+            // toml_array_remove : Bool ( Tuple, I64 ) --> removes value at idx from Toml comaptible array (the Tuple must be compatible, e.g., toml_is_array returned true!)
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(tuple::TomlJsonUtil::ArrayRemove), Tuple, long long, ValueObject > >( &tuple::TomlJsonUtil::ArrayRemove );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "toml_array_remove", std::move( val ) ); // missing _ is intended
+            }
+#endif
+
+#if TEASCRIPT_JSONSUPPORT
+            // readjsonstring : Any ( String ) --> creates a value of appropriate type from the given JSON formatted string (or a TypeInfo on error).
+            {
+                auto func = std::make_shared< LibraryFunction1< decltype(JsonSupport<>::ReadJsonString), std::string, ValueObject, true> >( &JsonSupport<>::ReadJsonString );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "readjsonstring", std::move( val ) ); // missing _ is intended
+            }
+
+            // writejsonstring : String|Bool ( Any ) --> creates a Json formatted string (or false on error).
+            {
+                auto func = std::make_shared< LibraryFunction1< decltype(JsonSupport<>::WriteJsonString), ValueObject, ValueObject> >( &JsonSupport<>::WriteJsonString );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "writejsonstring", std::move( val ) ); // missing _ is intended
+            }
+
+            // json_make_array : Tuple ( ... ) --> creates a compatible json array from the passed parameters. parameter count is variable and type Any.
+            {
+                auto func = std::make_shared< MakeTupleFunc >( MakeTupleFunc::eFlavor::TomlJsonArray );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "json_make_array", std::move( val ) ); // missing _ is intended
+            }
+
+            // jaon_is_array : Bool ( Any ) --> checks if given parameter is an Json compatible array.
+            {
+                auto func = std::make_shared< LibraryFunction1< decltype(tuple::TomlJsonUtil::IsAnArray), ValueObject, bool> >( &tuple::TomlJsonUtil::IsAnArray );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "json_is_array", std::move( val ) ); // missing _ is intended
+            }
+
+            // json_array_empty : Bool ( Tuple ) --> checks if given Tuple is an empty Json array.
+            {
+                auto func = std::make_shared< LibraryFunction1< decltype(tuple::TomlJsonUtil::IsArrayEmpty), Tuple, bool> >( &tuple::TomlJsonUtil::IsArrayEmpty );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "json_array_empty", std::move( val ) ); // missing _ is intended
+            }
+
+            // json_array_append : void ( Tuple, Any ) --> appends value to Json comaptible array (the Tuple must be compatible, e.g., json_is_array returned true!)
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(tuple::TomlJsonUtil::ArrayAppend), Tuple, ValueObject > >( &tuple::TomlJsonUtil::ArrayAppend );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "json_array_append", std::move( val ) ); // missing _ is intended
+            }
+
+            // json_array_insert : Bool ( Tuple, I64, Any ) --> inserts value at idx to Json comaptible array (the Tuple must be compatible, e.g., json_is_array returned true!)
+            {
+                auto func = std::make_shared< LibraryFunction3< decltype(tuple::TomlJsonUtil::ArrayInsert), Tuple, long long, ValueObject, ValueObject > >( &tuple::TomlJsonUtil::ArrayInsert );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "json_array_insert", std::move( val ) ); // missing _ is intended
+            }
+
+            // json_array_remove : Bool ( Tuple, I64 ) --> removes value at idx from Json comaptible array (the Tuple must be compatible, e.g., json_is_array returned true!)
+            {
+                auto func = std::make_shared< LibraryFunction2< decltype(tuple::TomlJsonUtil::ArrayRemove), Tuple, long long, ValueObject > >( &tuple::TomlJsonUtil::ArrayRemove );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "json_array_remove", std::move( val ) ); // missing _ is intended
             }
 #endif
         }
@@ -2532,12 +2224,6 @@ const void := () // void has value NaV (Not A Value)
 // constant number PI
 const PI := 3.14159265358979323846
 
-// exits the script (with stack unwinding/scope cleanup) with given code, will do to number conversion of code.
-// DEPRECATED: Use _exit( val ) or _Exit val instead!
-func exit( code )
-{
-    _exit( +code )
-}
 
 // exits the script (with stack unwinding/scope cleanup) with code EXIT_FAILURE
 func fail()
@@ -2706,11 +2392,77 @@ func file_exists( file )
 
 #if TEASCRIPT_TOMLSUPPORT
     static constexpr char core_lib_toml[] = R"_SCRIPT_(
+func toml_is_table( const val @= )
+{
+    not toml_is_array( val ) and val is Tuple
+}
+
+def toml_table_size := _tuple_size
+
+def toml_make_table := _tuple_named_create
+
+func toml_array_size( const arr @= )
+{
+    if( toml_array_empty( arr ) ) { 0 } else { _tuple_size( arr ) }
+}
+)_SCRIPT_";
+    static constexpr char core_lib_toml_read[] = R"_SCRIPT_(
 func readtomlfile( file )
 {
     const content := readtextfile( file )
     if( content is String ) {
         readtomlstring( content )
+    } else {
+        false
+    }
+}
+)_SCRIPT_";
+    static constexpr char core_lib_toml_write[] = R"_SCRIPT_(
+func writetomlfile( tuple, file, overwrite := false )
+{
+    const content := writetomlstring( tuple )
+    if( content is String ) {
+        writetextfile( file, content, overwrite, false )
+    } else {
+        false
+    }
+}
+)_SCRIPT_";
+#endif
+
+#if TEASCRIPT_JSONSUPPORT
+    static constexpr char core_lib_json[] = R"_SCRIPT_(
+func json_is_object( const val @= )
+{
+    not json_is_array( val ) and val is Tuple
+}
+
+def json_object_size := _tuple_size
+
+def json_make_object := _tuple_named_create
+
+func json_array_size( const arr @= )
+{
+    if( json_array_empty( arr ) ) { 0 } else { _tuple_size( arr ) }
+}
+)_SCRIPT_";
+    static constexpr char core_lib_json_write[] = R"_SCRIPT_(
+func writejsonfile( tuple, file, overwrite := false )
+{
+    const content := writejsonstring( tuple )
+    if( content is String ) {
+        writetextfile( file, content, overwrite, false )
+    } else {
+        false
+    }
+}
+)_SCRIPT_";
+    static constexpr char core_lib_json_read[] = R"_SCRIPT_(
+func readjsonfile( file )
+{
+    const content := readtextfile( file )
+    if( content is String ) {
+        readjsonstring( content )
     } else {
         false
     }
@@ -3042,6 +2794,13 @@ func rolldice( eyes := 6 )
             p.ParsePartial( core_lib_stderr, "Core" );
         }
 
+#if TEASCRIPT_TOMLSUPPORT
+        p.ParsePartial( core_lib_toml, "Core" );
+#endif
+#if TEASCRIPT_JSONSUPPORT
+        p.ParsePartial( core_lib_json, "Core" );
+#endif
+
         if( (config & config::LevelMask) >= config::LevelFull ) {
             if( (config::NoFileWrite | config::NoFileRead | config::NoFileDelete) !=
                 (config & (config::NoFileWrite | config::NoFileRead | config::NoFileDelete)) ) {
@@ -3049,7 +2808,18 @@ func rolldice( eyes := 6 )
             }
 #if TEASCRIPT_TOMLSUPPORT
             if( not (config & config::NoFileRead) ) {
-                p.ParsePartial( core_lib_toml, "Core" );
+                p.ParsePartial( core_lib_toml_read, "Core" );
+            }
+            if( not (config & config::NoFileWrite) ) {
+                p.ParsePartial( core_lib_toml_write, "Core" );
+            }
+#endif
+#if TEASCRIPT_JSONSUPPORT
+            if( not (config & config::NoFileRead) ) {
+                p.ParsePartial( core_lib_json_read, "Core" );
+            }
+            if( not (config & config::NoFileWrite) ) {
+                p.ParsePartial( core_lib_json_write, "Core" );
             }
 #endif
             p.ParsePartial( core_lib_teascript, "Core" );

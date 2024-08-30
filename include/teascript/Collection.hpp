@@ -111,6 +111,12 @@ public:
     }
 
     inline
+    bool IsEmpty() const noexcept
+    {
+        return mStorage.empty();
+    }
+
+    inline
     bool ContainsIdx( std::size_t const idx ) const noexcept // convenience
     {
         return idx < Size();
@@ -300,7 +306,7 @@ public:
         return RemoveValue( it->second, it );
     }
 
-    /// This method might be useful when speed is preferred a lot over memory consumption.
+    /// This function might be useful when speed is preferred a lot over memory consumption.
     /// The key \param rKey will be removed from lookup but the value in the storage will only be replaced by the given \param rVal.
     /// With that the storage will stay stable and a lookup data update is not needed. But the storage never shrinks, only grows!
     /// \return the original value or std::nullopt.

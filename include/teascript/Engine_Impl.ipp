@@ -41,6 +41,9 @@ Engine::Engine( bool const bootstrap, config::eConfig const config, eMode const 
 {
     if( bootstrap ) {
         CoreLibrary().Bootstrap( mContext, mCoreConfig, mMode == eMode::Eval );
+#if TEASCRIPT_ENGINE_USE_WEB_PREVIEW
+        WebPreviewModule().Load( mContext, mCoreConfig, mMode == eMode::Eval );
+#endif
     }
 }
 
@@ -65,11 +68,6 @@ ValueObject Engine::EvaluateContent( Content const &rContent, std::string const 
             }
             return {}; // NaV (Not a Value)
         }
-    } catch( teascript::control::Exit_Script const &ex ) {
-        if( nullptr != ex.GetResult().GetValuePtr<teascript::Integer>() ) {
-            mExitCode = ex.GetResult().GetAsInteger();
-        }
-        return ex.GetResult();
     } catch( teascript::control::ControlBase const & ) {
         throw exception::runtime_error( "A TeaScript control flow exception escaped. Check for wrong named loop labels!" );
     }
@@ -83,6 +81,9 @@ Engine::Engine(config::eConfig const config, eMode const mode )
     , mBuildTools( std::make_shared<BuildTools>() )
 {
     CoreLibrary().Bootstrap( mContext, mCoreConfig, mMode == eMode::Eval );
+#if TEASCRIPT_ENGINE_USE_WEB_PREVIEW
+    WebPreviewModule().Load( mContext, mCoreConfig, mMode == eMode::Eval );
+#endif
 }
 
 void Engine::ResetState()
@@ -90,6 +91,9 @@ void Engine::ResetState()
     mBuildTools->mMachine->Reset();
     mBuildTools->mParser.ClearState();
     CoreLibrary().Bootstrap( mContext, mCoreConfig, mMode == eMode::Eval );
+#if TEASCRIPT_ENGINE_USE_WEB_PREVIEW
+    WebPreviewModule().Load( mContext, mCoreConfig, mMode == eMode::Eval );
+#endif
 }
 
 void Engine::SetDebugMode( bool const enabled ) noexcept
