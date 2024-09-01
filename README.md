@@ -44,9 +44,10 @@ tuple_print( reply.header, "header", 1 )
 // header.Server: "Google Frontend"
 // header.Content-Length: "236"
  
-// If the payload was sent as Content-Type "application/json" TeaScript automatically builds a Tuple out of it.
-// Then all elements/objects can be accessed directly. In this example the server just echoed the header of
-// the request back as a json formatted string and TeaScript created a Json compatible Tuple from it:
+// If the payload was sent as Content-Type "application/json" TeaScript automatically
+// builds a Tuple out of it. Then all elements/objects can be accessed directly.
+// In this example the server just echoed the header of the request back as a json
+// formatted string and TeaScript created a Json compatible Tuple from it:
      
 // print the Host value
 println( reply.json.Host )
