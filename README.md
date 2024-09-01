@@ -28,6 +28,8 @@ https://tea-age.solutions/2024/09/01/release-of-teascript-0-15-0/ <br>
 - Import/export of C++ JSON / TOML objects from/to ValueObject of TeaScript (as a Named Tuple)
 
 ## Example HTTP GET
+**Please, note:** The pre-compiled Windows and Linux packages of the TeaScript Host Application have this feature enabled by default (download link abve).<br>
+For the TeaScript C++ Library it is an opt-in feature and must be enabled first before compilation (see optional feature section below).
 ```cpp
 // issue a http GET request (here to a test page for JSON as payload)
 def reply := web_get( "headers.jsontest.com" )
@@ -356,13 +358,19 @@ All compilers are compiling in **C++20** and for **x86_64**.<br>
 
 **None** -- for fully C++20 supporting compilers / C++ standard libraries.
 
-**Libfmt (as header only)** -- for gcc 11 / clang 14 (tested with **libfmt 10.2.1** and **libfmt 10.1.1**)<br>
+**Libfmt (as header only)** -- for gcc 11 / clang 14 (tested with **libfmt 11.0.2**, **libfmt 10.2.1** and **libfmt 10.1.1**)<br>
 - Libfmt can be downloaded here https://fmt.dev/latest/index.html <br>
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 
 HINT: For Windows with C++20 it is also recommended to use libfmt for the best possible Unicode support for print to stdout.
 
 **Optional Features:** <br>
+**Web Preview** - In order to enable the Web Preview module the following steps have to be done:<br>
+1.) Add include <TeaScriptRoot>/modules/include/<br>
+2.) Add include to the Boost Library.<br>
+3.) Add modules/WebPreview.cpp to your project compilation.<br>
+4.) (Optional) If you want the default Engine loads the WebPreview module set the define TEASCRIPT_ENGINE_USE_WEB_PREVIEW to 1.<br>
+
 **TOML Support** - for the integrated TOML Support you need the toml++ Library. (tested with **3.4.0**) <br>
 You can find the toml++ library here: https://github.com/marzer/tomlplusplus <br>
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically. <br>
@@ -370,6 +378,14 @@ See include/teascript/TomlSupport.hpp for some more details.
 
 **Color and Format String Support** - for colorful output and the format string feature you need the libfmt library.<br>
 See Libfmt section above.
+
+**JsonAdapter** - You can change the Json library which is used by TeaScript to one of nlohmann::json, RapidJson or Boost.Json.
+Per default PicoJson is used and is enabled by default.<br>
+For use a different adapter you must do the following steps:<br>
+1.) Add include to <TeaScriptRoot>/extensions/include/.<br>
+2.) Add the corresponding JsonAdapter.cpp to your project, e.g., extenstions/JsonAdapterNlohmann.cpp<br>
+3.) Add include for the json library of use, e.g., <rootpath>/nlohmann_3.11.3/single_inlude/<br>
+4.) Set the define TEASCRIPT_JSON_FLAVOR to the desired Json flavor, e.g., TEASCRIPT_JSON_NLOHMANN<br>
 
 # Building the demo app
 
