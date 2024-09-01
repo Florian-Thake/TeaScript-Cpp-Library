@@ -16,18 +16,45 @@ https://tea-age.solutions/downloads/<br>
 Also, a Library bundle with more example scripts is available in the download section as well.
 
 # About TeaScript
-**What is new in TeaScript 0.14.0?** TeaScript 0.14 comes with the Tea StackVM, a Compiler, Dis-/Assembler, Suspend+Continue, Yield, improved debugging and more.<br>
+**What is new in TeaScript 0.15.0?** TeaScript 0.15 comes with a Web Server / Web Client module preview, full JSON read/write support and more.<br>
 <br>Get all infos in the **latest news** article:<br>
-https://tea-age.solutions/2024/05/15/release-of-teascript-0-14-0/ <br>
+https://tea-age.solutions/2024/09/01/release-of-teascript-0-15-0/ <br>
 
 ## Summary of the latest release
-- (automatically) **compile** and **execute** TeaScript files in the new **integrated Tea StackVM**.
-- **Save** and **Load** compiled TeaScript programs as TeaScript Binary files (*.tsb).
-- **Suspend** and **Continue** TeaScript programs at (nearly) any time by either themselves, by maximum time or instruction constraint or by an external request from another thread.
-- Use TeaScript code similar like a **coroutine** in your C++ Application by yielding values from any place and **co-operative / preemptive execution** possibilities.
-- Nerd feature: program directly in TeaScript **Assembly**.
-- improved debugging capabilities with single stepping, view the callstack, view corresponding source code and more.
-- Opt-out header only library for save includes and compile time
+- **Web module** as a preview for **http client / server** functionality with enhanced build-in **JSON** support.
+- Full **JSON** support for read and write operations (String/File ⟷ (Named) Tuple).
+- Provided C++ JSON adapter for nlohmann::json, RapidJSON, Boost.Json and PicoJson.
+- Added missing write support for TOML (now TOML is complete as well).
+- Import/export of C++ JSON / TOML objects from/to ValueObject of TeaScript (as a Named Tuple)
+
+## Example HTTP GET
+```cpp
+// issue a http GET request (here to a test page for JSON as payload)
+def reply := web_get( "headers.jsontest.com" )
+ 
+// access http status code and its reason (may print "200: OK")
+println( reply.code % ": " % reply.reason )
+ 
+// print all header entries of the reply
+tuple_print( reply.header, "header", 1 )
+ 
+// the above may print:
+// [...]
+// header.Date: "Sat, 31 Aug 2024 13:34:26 GMT"
+// header.Server: "Google Frontend"
+// header.Content-Length: "236"
+ 
+// If the payload was sent as Content-Type "application/json" TeaScript automatically builds a Tuple out of it.
+// Then all elements/objects can be accessed directly. In this example the server just echoed the header of
+// the request back as a json formatted string and TeaScript created a Json compatible Tuple from it:
+     
+// print the Host value
+println( reply.json.Host )
+// print the User-Agent
+println( reply.json["User-Agent"] )
+// dot access possible as well!
+println( reply.json."User-Agent" )
+```
 
 ## General information
 Get a very nice overview with the most **impressive highlights** here:<br>
