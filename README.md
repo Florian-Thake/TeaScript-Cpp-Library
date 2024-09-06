@@ -364,10 +364,11 @@ You only need to set the include path in your project(s) / for compilation. Dete
 
 HINT: For Windows with C++20 it is also recommended to use libfmt for the best possible Unicode support for print to stdout.
 
-**Optional Features:** <br>
+## Optional Features
+
 **Web Preview** - In order to enable the Web Preview module the following steps have to be done:<br>
 1.) Add include <TeaScriptRoot>/modules/include/<br>
-2.) Add include to the Boost Library.<br>
+2.) Add include to the Boost Library. *(You don’t need to compile Boost, TeaScript is using only header only libs from there)*<br>
 3.) Add modules/WebPreview.cpp to your project compilation.<br>
 4.) (Optional) If you want the default Engine loads the WebPreview module set the define TEASCRIPT_ENGINE_USE_WEB_PREVIEW to 1.<br>
 
