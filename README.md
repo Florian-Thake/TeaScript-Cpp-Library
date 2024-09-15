@@ -17,7 +17,9 @@ Also, a Library bundle with more example scripts is available in the download se
 
 # About TeaScript
 **What is new in TeaScript 0.15.0?** TeaScript 0.15 comes with a Web Server / Web Client module preview, full JSON read/write support and more.<br>
-<br>Get all infos in the **latest news** article:<br>
+<br>**Watch the web feature demo on YouTube:** <br>
+https://youtu.be/31_5-IrHcaE <br>
+<br>Get all infos in the **latest blog post**:<br>
 https://tea-age.solutions/2024/09/01/release-of-teascript-0-15-0/ <br>
 
 ## Summary of the latest release
@@ -27,8 +29,11 @@ https://tea-age.solutions/2024/09/01/release-of-teascript-0-15-0/ <br>
 - Added missing write support for TOML (now TOML is complete as well).
 - Import/export of C++ JSON / TOML objects from/to ValueObject of TeaScript (as a Named Tuple)
 
+### Example Files for the latest release
+[web_client.tea](demo/web_client.tea), [web_server.tea](demo/web_server.tea), [JSON Support UniTest](demo/corelibrary_test05.tea), [Json C++ Import/Export](https://github.com/Florian-Thake/TeaScript-Cpp-Library/blob/6a7f348a7d8c959187b6f7ddcb5ed0c4e0e092c9/demo/teascript_demo.cpp#L90)
+
 ## Example HTTP GET
-**Please, note:** The pre-compiled Windows and Linux packages of the TeaScript Host Application have this feature enabled by default (download link abve).<br>
+**Please, note:** The pre-compiled Windows and Linux packages of the TeaScript Host Application have this feature enabled by default (download link above).<br>
 For the TeaScript C++ Library it is an opt-in feature and must be enabled first before compilation (see optional feature section below).
 ```cpp
 // issue a http GET request (here to a test page for JSON as payload)
