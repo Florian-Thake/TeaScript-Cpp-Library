@@ -154,7 +154,7 @@ if( is_defined reply.json ) { // we got a json object back from the server
 
 #else
     puts( "Web Preview module is disabled!\nFollow the instructions in instructions.txt to enable it\n"
-          "or read the relase blog post on https://tea-age.solutions/ \nor watch out for a tutorial video on YouTube." );
+          "or read the release blog post on https://tea-age.solutions/ \nor watch the how-to video on YouTube: https://youtu.be/SeRO21U1vMk" );
 #endif
 }
 
