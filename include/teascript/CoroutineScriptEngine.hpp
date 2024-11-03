@@ -27,6 +27,21 @@ using ProgramPtr = std::shared_ptr<Program>;
 } // namespace StackVM
 
 
+// header only and non-header only compile mode handling.
+#if !defined(TEASCRIPT_DISABLE_HEADER_ONLY)
+# define TEASCRIPT_DISABLE_HEADER_ONLY          0
+#endif
+// depending on the mode we need to declare member functions inline or not for resolve linker issues.
+#if !defined( TEASCRIPT_COMPILE_MODE_INLINE )
+# if TEASCRIPT_DISABLE_HEADER_ONLY
+#  define TEASCRIPT_COMPILE_MODE_INLINE
+# else
+#  define TEASCRIPT_COMPILE_MODE_INLINE    inline 
+# endif
+#endif
+
+
+
 /// The class CoroutineScriptEngine can be used for execute TeaScript code similar
 /// like coroutines. The scripts can be suspended (by themselves, by constraints or 
 /// by request) and they are able to yield values at any point and continue execution
@@ -55,34 +70,34 @@ protected:
 
 public:
     /// Default constructor will bootstrap the full Core Library into the context. No coroutine loaded yet.
-    CoroutineScriptEngine();
+    TEASCRIPT_COMPILE_MODE_INLINE CoroutineScriptEngine();
     /// Will use the given context as the context for the coroutine (see class teascript::ContextFactory for a handy helper.)
     /// \note any prior existing local scope will be removed from the context.
-    explicit CoroutineScriptEngine( Context &&rContext );
+    TEASCRIPT_COMPILE_MODE_INLINE explicit CoroutineScriptEngine( Context &&rContext );
     /// Will prepare to execute the given program as coroutine and bootstrap the full Core Library into the context.
-    explicit CoroutineScriptEngine( StackVM::ProgramPtr const &coroutine );
+    TEASCRIPT_COMPILE_MODE_INLINE explicit CoroutineScriptEngine( StackVM::ProgramPtr const &coroutine );
     /// Will prepare to execute the given program as coroutine and use the given context as the context for the coroutine.
     /// \note any prior existing local scope will be removed from the context.
-    CoroutineScriptEngine( StackVM::ProgramPtr const &coroutine, Context &&rContext );
+    TEASCRIPT_COMPILE_MODE_INLINE CoroutineScriptEngine( StackVM::ProgramPtr const &coroutine, Context &&rContext );
 
     /// builds a coroutine program from given source. 
     /// \see also teascript::StackVM::Program::Load()
     /// \see also class teascript::Engine for more possibilities to compile a program.
-    static StackVM::ProgramPtr Build( Content const &rContent, eOptimize const opt_level = eOptimize::O0, std::string const &name = "_USER_CORO_" );
+    TEASCRIPT_COMPILE_MODE_INLINE static StackVM::ProgramPtr Build( Content const &rContent, eOptimize const opt_level = eOptimize::O0, std::string const &name = "_USER_CORO_" );
 
     /// Will prepare to execute the given program as coroutine, the old coroutine will be removed.
     /// The current coroutine must not be running actually!
-    void ChangeCoroutine( StackVM::ProgramPtr const &coroutine );
+    TEASCRIPT_COMPILE_MODE_INLINE void ChangeCoroutine( StackVM::ProgramPtr const &coroutine );
 
     /// Resets state and prepares actual set coroutine for execution. same as ChangeCoroutine( old_coroutine ).
-    void Reset();
+    TEASCRIPT_COMPILE_MODE_INLINE void Reset();
 
     /// \returns whether the coroutine is neither running, nor yet finished and no error occurred, so that in can be continued (e.g., for yielding more values)
-    bool CanBeContinued() const;
+    TEASCRIPT_COMPILE_MODE_INLINE bool CanBeContinued() const;
 
     /// \returns whether the coroutine is completely finished (no more values can be yielded / no instruction left to be executed).
     /// \note depending on the coroutine code this state might be never reached!
-    bool IsFinished() const;
+    TEASCRIPT_COMPILE_MODE_INLINE bool IsFinished() const;
 
     /// \returns whether the actual set coroutine is running, i.e. a thread is inside Run()/operator()/RunFor() or ChangeCoroutine().
     inline
@@ -94,18 +109,18 @@ public:
 
     /// \returns whether on this platform it is possible to send a suspend request to a running coroutine from another thread.
     /// \note: see class teascript::StackVM::Machine for details.
-    bool IsSuspendRequestPossible() const;
+    TEASCRIPT_COMPILE_MODE_INLINE bool IsSuspendRequestPossible() const;
 
     /// sends a suspend request to the (running) coroutine from (most likely) a different thread.
     /// \returns true if it make sense to wait for coroutine is suspeneded, false if a request could not be sent (error).
     /// \see class teascript::StackVM::Machine::Suspend() for details.
-    bool Suspend() const;
+    TEASCRIPT_COMPILE_MODE_INLINE bool Suspend() const;
 
     /// Runs the coroutine until yield, suspend, finished or error occurred.
     /// \returns the yielded value if any, or NaV (Not A Value).
     /// \throws exception::runtime_error or a derived class, or (rarely) only a std::exception based exception.
     /// \note A running coroutine can be suspended from another thread via Suspend() if IsSuspendRequestPossible() returns true.
-    ValueObject Run();
+    TEASCRIPT_COMPILE_MODE_INLINE ValueObject Run();
 
     /// Runs the coroutine until yield, suspend, finished or error occurred.
     /// \returns the yielded value if any, or NaV (Not A Value).
@@ -120,12 +135,12 @@ public:
     /// \returns the yielded value if any, or NaV (Not A Value).
     /// \throws exception::runtime_error or a derived class, or (rarely) only a std::exception based exception.
     /// \note A running coroutine can be suspended from another thread via Suspend() if IsSuspendRequestPossible() returns true.
-    ValueObject RunFor( StackVM::Constraints const &constraint );
+    TEASCRIPT_COMPILE_MODE_INLINE ValueObject RunFor( StackVM::Constraints const &constraint );
 
     /// Adds given ValueObjects as a tuple "args[idx]". Additionally adding an "argN" variable indicating the parameter amount. The coroutine must be suspended.
     /// The ValueObjects for the parameters must be in shared state (created with ValueShared or a MakeShared() call issued).
     /// \note this function is _not_ thread safe. Only one thread is allowed to call this function the _same_ time and the coroutine must not be running!
-    void SetInputParameters( std::vector<ValueObject> const &params );
+    TEASCRIPT_COMPILE_MODE_INLINE void SetInputParameters( std::vector<ValueObject> const &params );
 
     /// Adds given parameters as ValueObjects as a tuple "args[idx]". Additionally adding an "argN" variable indicating the parameter amount. The coroutine must be suspended.
     /// \note this function is _not_ thread safe. Only one thread is allowed to call this function the _same_ time and the coroutine must not be running!
@@ -139,10 +154,6 @@ public:
 
 } // namespace teascript
 
-
-#if !defined(TEASCRIPT_DISABLE_HEADER_ONLY)
-# define TEASCRIPT_DISABLE_HEADER_ONLY          0
-#endif
 
 // check for broken header only / not header only configurations.
 #if (0==TEASCRIPT_DISABLE_HEADER_ONLY) && defined(TEASCRIPT_INCLUDE_DEFINITIONS)

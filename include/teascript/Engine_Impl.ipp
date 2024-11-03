@@ -31,6 +31,7 @@ struct Engine::BuildTools
     inline BuildTools() : mParser(), mCompiler(), mMachine( std::make_shared<StackVM::Machine<true>>() ) {}
 };
 
+TEASCRIPT_COMPILE_MODE_INLINE
 Engine::Engine( bool const bootstrap, config::eConfig const config, eMode const mode, eOptimize const opt_level )
     : EngineBase()
     , mMode( mode )
@@ -47,11 +48,13 @@ Engine::Engine( bool const bootstrap, config::eConfig const config, eMode const 
     }
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 void Engine::AddValueObject( std::string const &rName, ValueObject val )
 {
     (void)mContext.AddValueObject( rName, val );
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 ValueObject Engine::EvaluateContent( Content const &rContent, std::string const &rName )
 {
     try {
@@ -73,6 +76,7 @@ ValueObject Engine::EvaluateContent( Content const &rContent, std::string const 
     }
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 Engine::Engine(config::eConfig const config, eMode const mode )
     : EngineBase()
     , mMode( mode )
@@ -86,6 +90,7 @@ Engine::Engine(config::eConfig const config, eMode const mode )
 #endif
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 void Engine::ResetState()
 {
     mBuildTools->mMachine->Reset();
@@ -96,6 +101,7 @@ void Engine::ResetState()
 #endif
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 void Engine::SetDebugMode( bool const enabled ) noexcept
 {
     mBuildTools->mParser.SetDebug( enabled );
@@ -103,11 +109,13 @@ void Engine::SetDebugMode( bool const enabled ) noexcept
     mOptLevel = enabled ? eOptimize::Debug : eOptimize::O0;
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 ValueObject Engine::GetVar(std::string const &rName) const
 {
     return mContext.FindValueObject( rName );
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 ValueObject Engine::CallFunc( std::string const &rName, std::vector<ValueObject> &rParams )
 {
     auto funcval = GetVar( rName );
@@ -115,6 +123,7 @@ ValueObject Engine::CallFunc( std::string const &rName, std::vector<ValueObject>
     return func->Call( mContext, rParams, SourceLocation() );
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 ValueObject Engine::ExecuteScript( std::filesystem::path const &path, std::vector<ValueObject> const &args )
 {
     // build utf-8 filename again... *grrr*
@@ -132,6 +141,7 @@ ValueObject Engine::ExecuteScript( std::filesystem::path const &path, std::vecto
     throw exception::load_file_error( filename );
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 ValueObject Engine::ExecuteProgram( StackVM::ProgramPtr const &program, std::vector<ValueObject> const &args )
 {
     if( not args.empty() ) {
@@ -146,12 +156,14 @@ ValueObject Engine::ExecuteProgram( StackVM::ProgramPtr const &program, std::vec
     return {}; // NaV (Not a Value)
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 StackVM::ProgramPtr Engine::CompileContent( Content const &rContent, eOptimize const opt_level, std::string const &rName )
 {
     auto const ast = mBuildTools->mParser.Parse( rContent, rName );
     return mBuildTools->mCompiler.Compile( ast, opt_level );
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 StackVM::ProgramPtr Engine::CompileScript( std::filesystem::path const &path, eOptimize const opt_level )
 {
     // build utf-8 filename again... *grrr*

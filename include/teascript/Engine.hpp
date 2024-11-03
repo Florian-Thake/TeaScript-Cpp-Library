@@ -47,6 +47,20 @@ using ProgramPtr = std::shared_ptr<Program>;
 } // namespace StackVM
 
 
+// header only and non-header only compile mode handling.
+#if !defined(TEASCRIPT_DISABLE_HEADER_ONLY)
+# define TEASCRIPT_DISABLE_HEADER_ONLY          0
+#endif
+// depending on the mode we need to declare member functions inline or not for resolve linker issues.
+#if !defined( TEASCRIPT_COMPILE_MODE_INLINE )
+# if TEASCRIPT_DISABLE_HEADER_ONLY
+#  define TEASCRIPT_COMPILE_MODE_INLINE
+# else
+#  define TEASCRIPT_COMPILE_MODE_INLINE    inline 
+# endif
+#endif
+
+
 /// The TeaScript standard engine.
 /// This is a single-thread engine. You can use an instance of this class in
 /// one thread. If you use the same(!) instance in more than one thread,
@@ -79,18 +93,18 @@ protected:
     /// If \param bootstrap is true it will bootstrap the Core Library with specified config from \param config.
     /// \note This constructor is useful for derived classes which don't want the default bootstrapping, e.g.
     ///       using another CoreLibrary or a derived class. Don't forget to override ResetState() in such a case.
-    Engine( bool const bootstrap, config::eConfig const config, eMode const mode = eMode::Compile, eOptimize const opt_level = eOptimize::O0 );
+    TEASCRIPT_COMPILE_MODE_INLINE Engine( bool const bootstrap, config::eConfig const config, eMode const mode = eMode::Compile, eOptimize const opt_level = eOptimize::O0 );
 
     /// Adds the given ValuObject \param val to the current scope as name \param rName.
     /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
-    void AddValueObject( std::string const &rName, ValueObject val ) override;
+    TEASCRIPT_COMPILE_MODE_INLINE void AddValueObject( std::string const &rName, ValueObject val ) override;
 
     /// Evaluates/Executes the given content as TeaScript.
     /// Depending on the mode the content will be either parsed and evaluated or parsed, compiled and executed.
     /// \param rContent The content to be evaluated.
     /// \param rName An arbitrary user defined name for referring to the content.
     /// \returns the result as ValueObject.
-    ValueObject EvaluateContent( Content const &rContent, std::string const &rName ) override;
+    TEASCRIPT_COMPILE_MODE_INLINE ValueObject EvaluateContent( Content const &rContent, std::string const &rName ) override;
 
 public:
     /// The default Constructor constructs the engine with everything loaded and bootstrapped.
@@ -99,10 +113,10 @@ public:
     }
 
     /// Constructs the engine with the specified config. Use the helper funcions from config namespace to simplify the configuration.
-    explicit Engine( config::eConfig const config, eMode const mode = eMode::Compile );
+    TEASCRIPT_COMPILE_MODE_INLINE explicit Engine( config::eConfig const config, eMode const mode = eMode::Compile );
 
     /// Convenience constructor for specifying the loading level and the opt-out feature mask separately.
-    Engine( config::eConfig const level, unsigned int const opt_out )
+    TEASCRIPT_COMPILE_MODE_INLINE Engine( config::eConfig const level, unsigned int const opt_out )
         : Engine( config::build( level, opt_out ) )
     {
     }
@@ -115,20 +129,20 @@ public:
 
     /// Resets the state of the context (+ parser and machine). Will do a fresh bootstrap of the CoreLibrary with the current saved configuration.
     /// \note This should be done usually prior each execution of a script to not interfer with old variables/modified environment.
-    void ResetState() override;
+    TEASCRIPT_COMPILE_MODE_INLINE void ResetState() override;
 
     /// enables or disables debug mode (default: off). This will also set the optimization level to Debug.
     /// \note enabled debug mode will preserve the source code for the ASTNodes. Thus, the parsing will take slightly longer and the ASTNodes use more memory.
-    void SetDebugMode( bool const enabled ) noexcept;
+    TEASCRIPT_COMPILE_MODE_INLINE void SetDebugMode( bool const enabled ) noexcept;
 
     /// Returns the stored variable with name \param rName starting search in the current scope up to toplevel scope.
     /// \throw May throw exception::unknown_identifier or a different excection based on exception::eval_eror/runtime_error.
-    ValueObject GetVar( std::string const &rName ) const override;
+    TEASCRIPT_COMPILE_MODE_INLINE ValueObject GetVar( std::string const &rName ) const override;
 
     /// Invokes the TeaScript function with name rName with parameters in rParams. (see EngineBase for the nice convenience function CallFuncEx!)
     /// \returns the ValueObject result from the called fuction.
     /// \throw May throw exception::unknown_identifier or a different excection based on exception::eval_eror/runtime_error.
-    ValueObject CallFunc( std::string const &rName, std::vector<ValueObject> &rParams ) override;
+    TEASCRIPT_COMPILE_MODE_INLINE ValueObject CallFunc( std::string const &rName, std::vector<ValueObject> &rParams ) override;
 
 
     /// Registers the given callback function \param rCallback as name \param rName in the current scope.
@@ -162,7 +176,7 @@ public:
     /// \note The legacy form of the arg variables "arg1", "arg2", ... is available via the compile setting TEASCRIPT_ENGINE_USE_LEGACY_ARGS=1
     /// \note \see EngineBase::ExecuteScript for further important details.
     /// \throw May throw exception::load_file_error or any exception based on exception::parsing_error/compile_error/eval_error/runtime_error/bad_value_cast.
-    ValueObject ExecuteScript( std::filesystem::path const &path, std::vector<ValueObject> const &args );
+    TEASCRIPT_COMPILE_MODE_INLINE ValueObject ExecuteScript( std::filesystem::path const &path, std::vector<ValueObject> const &args );
 
 
     /// Executes the given \param program in the TeaStackVM with the (optional) script parameters \param args.
@@ -172,16 +186,16 @@ public:
     /// \note The legacy form of the arg variables "arg1", "arg2", ... is available via the compile setting TEASCRIPT_ENGINE_USE_LEGACY_ARGS=1
     /// \note \see EngineBase::ExecuteScript for further important details.
     /// \throw May throw an exception based on exception::eval_error/runtime_error/bad_value_cast.
-    ValueObject ExecuteProgram( StackVM::ProgramPtr const &program, std::vector<ValueObject> const &args = {} );
+    TEASCRIPT_COMPILE_MODE_INLINE ValueObject ExecuteProgram( StackVM::ProgramPtr const &program, std::vector<ValueObject> const &args = {} );
 
 
     /// Compiles the given \param rContent to a binary program for the TeaStackVM with the optimization level \param opt_level.
     /// \throw May throw an exception based on exception::compile_error/eval_error/runtime_error.
-    StackVM::ProgramPtr CompileContent( Content const &rContent, eOptimize const opt_level = eOptimize::O0, std::string const &rName = "_USER_CODE_" );
+    TEASCRIPT_COMPILE_MODE_INLINE StackVM::ProgramPtr CompileContent( Content const &rContent, eOptimize const opt_level = eOptimize::O0, std::string const &rName = "_USER_CODE_" );
 
     /// Compiles the script referenced with file path \param path to a binary program for the TeaStackVM with the optimization level \param opt_level.
     /// \throw May throw exception::load_file_error or any exception based on exception::parsing_error/compile_error/eval_error/runtime_error.
-    StackVM::ProgramPtr CompileScript( std::filesystem::path const &path, eOptimize const opt_level = eOptimize::O0 );
+    TEASCRIPT_COMPILE_MODE_INLINE StackVM::ProgramPtr CompileScript( std::filesystem::path const &path, eOptimize const opt_level = eOptimize::O0 );
 
     /// Compiles the TeaScript code in \param code to a binary program for the TeaStackVM with the optimization level \param opt_level.
     /// \param name is arbitrary user defined name for referring to the code.
@@ -212,9 +226,6 @@ public:
 
 } // namespace teascript
 
-#if !defined(TEASCRIPT_DISABLE_HEADER_ONLY)
-# define TEASCRIPT_DISABLE_HEADER_ONLY          0
-#endif
 
 // check for broken header only / not header only configurations.
 #if (0==TEASCRIPT_DISABLE_HEADER_ONLY) && defined(TEASCRIPT_INCLUDE_DEFINITIONS)

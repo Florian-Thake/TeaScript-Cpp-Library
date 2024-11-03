@@ -23,18 +23,21 @@
 
 namespace teascript {
 
+TEASCRIPT_COMPILE_MODE_INLINE
 CoroutineScriptEngine::CoroutineScriptEngine()
     : mMachine( std::make_shared<teascript::StackVM::Machine<true>>() )
 {
     CoreLibrary().Bootstrap( mContext, config::full() ); // we always use the complete core library by default.
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 CoroutineScriptEngine::CoroutineScriptEngine( Context &&rContext )
     : mContext( std::move( rContext ) )
     , mMachine( std::make_shared<teascript::StackVM::Machine<true>>() )
 {
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 CoroutineScriptEngine::CoroutineScriptEngine( StackVM::ProgramPtr const &coroutine )
     : mMachine( std::make_shared<teascript::StackVM::Machine<true>>() )
 {
@@ -42,6 +45,7 @@ CoroutineScriptEngine::CoroutineScriptEngine( StackVM::ProgramPtr const &corouti
     ChangeCoroutine( coroutine );
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 CoroutineScriptEngine::CoroutineScriptEngine( StackVM::ProgramPtr const &coroutine, Context &&rContext )
     : mContext( std::move( rContext ) )
     , mMachine( std::make_shared<teascript::StackVM::Machine<true>>() )
@@ -50,6 +54,7 @@ CoroutineScriptEngine::CoroutineScriptEngine( StackVM::ProgramPtr const &corouti
 }
 
 /*static*/
+TEASCRIPT_COMPILE_MODE_INLINE
 StackVM::ProgramPtr CoroutineScriptEngine::Build( Content const &rContent, eOptimize const opt_level, std::string const &name )
 {
     Parser p;
@@ -58,6 +63,7 @@ StackVM::ProgramPtr CoroutineScriptEngine::Build( Content const &rContent, eOpti
     return c.Compile( p.Parse( rContent, name ), opt_level );
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 void CoroutineScriptEngine::ChangeCoroutine( StackVM::ProgramPtr const &coroutine )
 {
     bool expected = false;
@@ -78,12 +84,14 @@ void CoroutineScriptEngine::ChangeCoroutine( StackVM::ProgramPtr const &coroutin
     mMachine->ThrowPossibleErrorException();
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 void CoroutineScriptEngine::Reset()
 {
     auto current = mMachine->GetMainProgram(); // copy is intended!
     ChangeCoroutine( current );
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 bool CoroutineScriptEngine::CanBeContinued() const
 {
     // NOTE: the potential race between && is ok, the state may change after the call anyway.
@@ -91,6 +99,7 @@ bool CoroutineScriptEngine::CanBeContinued() const
     return not IsRunning() && mMachine->IsSuspended();
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 bool CoroutineScriptEngine::IsFinished() const
 {
     // NOTE: the potential race between && is ok, the state may change after the call anyway.
@@ -98,21 +107,25 @@ bool CoroutineScriptEngine::IsFinished() const
     return not IsRunning() && mMachine->IsFinished();
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 bool CoroutineScriptEngine::IsSuspendRequestPossible() const
 {
     return mMachine->SuspendRequestPossible();
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 bool CoroutineScriptEngine::Suspend() const
 {
     return mMachine->Suspend();
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 ValueObject CoroutineScriptEngine::Run()
 {
     return RunFor( StackVM::Constraints::None() );
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 ValueObject CoroutineScriptEngine::RunFor( StackVM::Constraints const &constraint )
 {
     bool expected = false;
@@ -130,6 +143,7 @@ ValueObject CoroutineScriptEngine::RunFor( StackVM::Constraints const &constrain
     return {};
 }
 
+TEASCRIPT_COMPILE_MODE_INLINE
 void CoroutineScriptEngine::SetInputParameters( std::vector<ValueObject> const &params )
 {
     // NOTE: This checks don't make the call threadsafe, it is just to potentially detect wrong usage.
