@@ -6,6 +6,12 @@ NOTE: The dates are not the release dates, but a last commit date.
 
 
 ================
+VERSION 0.15.1, Sun Nov 03 13:25:32 2024
+================
+    VERSION: 0.15.1 - fixed header only compile for Engine and CoroutineScriptEngine.
+
+
+================
 VERSION 0.15.0, Thu Aug 29 13:00:21 2024
 ================
     VERSION: 0.15.0 - Web Server / Web Client module preview, JSON read/write, TOML write.
