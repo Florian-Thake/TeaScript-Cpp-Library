@@ -6,6 +6,15 @@ NOTE: The dates are not the release dates, but a last commit date.
 
 
 ================
+VERSION 0.16.0 (not released yet, pre-release)
+================
+    CORELIB: clock_utc() now returns always the UTC time in system clock representation.
+    - this is a breaking change on Windows and Linux with gcc >= 13.
+      The leap seconds are not counted anymore. Thus, the annoying offset to the system time is gone.
+    ASTNODE: as operator - optimized the ifs to a switch.
+    HOST: changed copyright year to 2025
+
+================
 VERSION 0.15.1, Sun Nov 03 13:25:32 2024
 ================
     VERSION: 0.15.1 - fixed header only compile for Engine and CoroutineScriptEngine.
