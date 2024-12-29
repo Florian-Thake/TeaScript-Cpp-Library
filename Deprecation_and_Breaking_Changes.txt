@@ -3,6 +3,11 @@ TeaScript Breaking Changes in the actual release
 
     Changes in CoreLibrary functionality
     ------------------------------------
+    clock_utc() has a breaking change on Windows and Linux with gcc >= 13.
+    clock_utc() now returns always the UTC time in system clock representation.
+    On Windows and on Linux with GCC >= 13 this is a breaking change since the leap seconds are not counted anymore.
+    The previous wrong behavior resulted due to a misunderstanding of the underlying C++ API.
+    Now there isn't an annoying offset to the system clock time anymore.
 
 
     Changes on C++ API level
@@ -24,13 +29,6 @@ TeaScript list of deprecated parts
 =================================================
 
     The following deprecated parts have been finally removed from this release:
-    
-    exit( exit_code )
-    use either _exit( Any ) or the new _Exit statement instead.
-    A script will always have a result or NaV (Not A Value).
-
-    class Engine HasExitCode()/GetExitCode() and mExitCode
-    A script will always have a result or NaV (Not A Value).
 
 
     The following parts are now deprecated and will be removed in some future release:

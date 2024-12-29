@@ -21,9 +21,8 @@ NOTE: The numbers stay same, solved items will (usually) be removed in the next 
     a total strong ordering will be performed and the values can be compared.
 
     
-8.) [PLATFORM: Linux with clang or gcc < 13]
-    CoreLibrary function clock_utc() will return UTC time _without_ leap seconds.
-    WORKAROUND: Use gcc >= 13 on Linux.
+8.) Solved! This issue was a misunderstanding of std::chrono::utc_clock.
+    Now, on all platforms clock_utc() returns the UTC time in system_clock representation.
 
     
 10.) [PLATFORM: any]

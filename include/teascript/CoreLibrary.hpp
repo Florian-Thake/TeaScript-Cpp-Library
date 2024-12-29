@@ -262,14 +262,11 @@ public:
 #endif
     }
 
-    /// gets the UTC time in fractional seconds (with leap seconds!).
+    /// gets the UTC time in fractional seconds.
     static double GetUTCTimeInSecs()
     {
-#if _MSC_VER || (!defined(__clang__) && __GNUC__ >= 13 ) // TODO: _LIBCPP_VERSION
-        auto const now = std::chrono::utc_clock::now(); // UTC with leap seconds.
-#else
+        // NOTE: std::chrono::utc_clock::now() is with(!) leap seconds. If use this for time representation it will be in the 'future' of the system clock!
         auto const now = std::chrono::system_clock::now(); // UTC without(!) leap seconds.
-#endif
         std::chrono::duration<double> const  timesecs = now - std::chrono::floor<std::chrono::days>( now );
         return timesecs.count();
     }
@@ -1940,7 +1937,7 @@ protected:
                 tea_add_var( "clock", std::move( val ) ); // missing _ is intended for now.
             }
 
-            // clock_utc : f64 ( void ) --> gets the UTC time of the current day in (fractional) seconds as f64. (note: This UTC time is with leap seconds!)
+            // clock_utc : f64 ( void ) --> gets the UTC time of the current day in (fractional) seconds as f64.
             {
                 auto func = std::make_shared< LibraryFunction0< decltype(GetUTCTimeInSecs), double > >( &GetUTCTimeInSecs );
                 ValueObject val{std::move( func ), cfg_mutable};
