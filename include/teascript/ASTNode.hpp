@@ -1767,18 +1767,36 @@ public:
 
         auto const &ti = rhs.GetValue<TypeInfo>();
 
-        if( ti.IsSame<Integer>() ) {
-            return util::ArithmeticFactory::Convert<Integer>( lhs );
-        } else if( ti.IsSame<Decimal>() ) {
-            return util::ArithmeticFactory::Convert<Decimal>( lhs );
-        } else if( ti.IsSame<U8>() ) {
-            return util::ArithmeticFactory::Convert<U8>( lhs );
-        } else if( ti.IsSame<U64>() ) {
-            return util::ArithmeticFactory::Convert<U64>( lhs );
-        } else if( ti.IsSame<Bool>() ) {
-            return ValueObject( lhs.GetAsBool(), ValueConfig( ValueUnshared, ValueMutable ) );
-        } else if( ti.IsSame<String>() ) {
-            return ValueObject( lhs.GetAsString(), ValueConfig( ValueUnshared, ValueMutable ) );
+        switch( ti.GetName()[0] ) {
+        case 'i': // i64
+            if( ti.IsSame<Integer>() ) [[likely]] {
+                return util::ArithmeticFactory::Convert<Integer>( lhs );
+            }
+            break;
+        case 'f': // f64
+            if( ti.IsSame<Decimal>() ) [[likely]] {
+                return util::ArithmeticFactory::Convert<Decimal>( lhs );
+            }
+            break;
+        case 'u': // u8 or u64
+            if( ti.IsSame<U8>() ) {
+                return util::ArithmeticFactory::Convert<U8>( lhs );
+            } else if( ti.IsSame<U64>() ) {
+                return util::ArithmeticFactory::Convert<U64>( lhs );
+            }
+            break;
+        case 'B': // Bool
+            if( ti.IsSame<Bool>() ) [[likely]] {
+                return ValueObject( lhs.GetAsBool(), ValueConfig( ValueUnshared, ValueMutable ) );
+            }
+            break;
+        case 'S': // String
+            if( ti.IsSame<String>() ) [[likely]] {
+                return ValueObject( lhs.GetAsString(), ValueConfig( ValueUnshared, ValueMutable ) );
+            }
+            break;
+        default:
+            break;
         }
         return {}; // NaV
     }
