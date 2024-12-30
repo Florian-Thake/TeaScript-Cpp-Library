@@ -35,6 +35,7 @@ enum class eTSVM_Instr : unsigned int
     Stor,           // store (set) variable (shared/unshared is in payload)
     DefVar,         // define mutable variable (shared/unshared is in payload)
     ConstVar,       // define const variable (shared/unshared is in payload)
+    AutoVar,        // define variable which takes const/mutable from origin (shared/unshared is in payload)
     UndefVar,       // undefine variable
     IsDef,          // is_defined variable
     MakeTuple,      // creates a tuple from N elements from the working stack.
@@ -109,6 +110,7 @@ struct Instruction
         case eTSVM_Instr::Stor:                  return "Stor";
         case eTSVM_Instr::DefVar:                return "DefVar";
         case eTSVM_Instr::ConstVar:              return "ConstVar";
+        case eTSVM_Instr::AutoVar:               return "AutoVar";
         case eTSVM_Instr::UndefVar:              return "UndefVar";
         case eTSVM_Instr::IsDef:                 return "IsDef";
         case eTSVM_Instr::MakeTuple:             return "MakeTuple";
@@ -190,6 +192,8 @@ struct Instruction
             return eTSVM_Instr::DefVar;
         } else if( str == "ConstVar" ) {
             return eTSVM_Instr::ConstVar;
+        } else if( str == "AutoVar" ) {
+            return eTSVM_Instr::AutoVar;
         } else if( str == "UndefVar" ) {
             return eTSVM_Instr::UndefVar;
         } else if( str == "IsDef" ) {

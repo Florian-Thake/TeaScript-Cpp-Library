@@ -32,11 +32,22 @@
 # define TEASCRIPT_DECLARE_IDENTIFIERS_WITHOUT_ASSIGN_ALLOWED false
 #endif
 
-// if true parameters of functions are const by default if they don't use shared assign (@=). (default: true (since 0.12.0, before was false))
+// if true parameters of functions are const by default. (default: true (since 0.12.0, before was false))
+// NOTE: before 0.16.0 this rule applied only to copy assign (:=).
 #ifndef TEASCRIPT_DEFAULT_CONST_PARAMETERS
 # define TEASCRIPT_DEFAULT_CONST_PARAMETERS                   true
 #endif
 
+// if true parameters of functions are shared by default (@=). (default: true (since 0.16.0, before it was implicit set to false))
+#ifndef TEASCRIPT_DEFAULT_SHARED_PARAMETERS
+# define TEASCRIPT_DEFAULT_SHARED_PARAMETERS                  true
+#endif
+
+// if true explicit(!) shared parameters without explicit def/const will be automatically set to same as origin.
+// E.g. with a hypothetical auto keyword an 'id @=' will become 'auto id @=' and id will be either 'const' or 'def' depending on the rhs variable.
+#ifndef TEASCRIPT_DEFAULT_SHARED_AUTO_PARAMETERS
+# define TEASCRIPT_DEFAULT_SHARED_AUTO_PARAMETERS             true
+#endif
 
 namespace teascript {
 
@@ -50,6 +61,8 @@ public:
     bool undefine_unknown_idenitifiers_allowed      = TEASCRIPT_UNDEFINE_UNKNOWN_IDENTIFIERS_ALLOWED;
     bool declare_identifiers_without_assign_allowed = TEASCRIPT_DECLARE_IDENTIFIERS_WITHOUT_ASSIGN_ALLOWED;
     bool parameters_are_default_const               = TEASCRIPT_DEFAULT_CONST_PARAMETERS;
+    bool parameters_are_default_shared              = TEASCRIPT_DEFAULT_SHARED_PARAMETERS;
+    bool shared_parameters_are_default_auto         = TEASCRIPT_DEFAULT_SHARED_AUTO_PARAMETERS;
 };
 
 } // namespace teascript

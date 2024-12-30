@@ -1,6 +1,30 @@
 TeaScript Breaking Changes in the actual release
 =================================================
 
+    Changes in TeaScript language
+    ------------------------------------
+    Function parameters without assign specifier are shared assign by default now.
+    Furthermore, explicit shared function parameters without 'const' or 'def' specifier are set
+    implicit to 'auto' now. They will be either 'const' or 'def' depending on the rhs argument/passed parameter.
+    
+    This behavior is experimental but activated by default. You can switch it of by
+    - define TEASCRIPT_DEFAULT_SHARED_PARAMETERS and/or TEASCRIPT_DEFAULT_SHARED_AUTO_PARAMETERS to false. (see Dialect.hpp)
+    - set parameters_are_default_shared and/or shared_parameters_are_default_auto in the relevant Dialect class instance. (see Dialect.hpp)
+    - for TeaScript Host App use --old-deepcopy-parameters (this option will be removed in the future)
+    
+    Quick examples:
+    func test( a ) {}          will result in: func test( const a @= ) {}     //NEW
+    func test( const a ) {}    will result in: func test( const a @= ) {}     //NEW
+    func test( def a ) {}      will result in: func test( def a @= ) {}       //NEW
+    func test( a := ) {}       will result in: func test( const a := ) {}
+    // important:
+    func test( a @= ) {}       will result in: func test( auto a @= ) {}      //NEW
+    //note: auto is not a keyword yet!
+    
+    With this e.g., the stack utility function func stack_push( stack @=, val @= ) { /**/ } can handle const and mutable values
+    correctly. values which are const can be passed and keep the constness. mutable values can still be passed and keep the 
+    mutability as well.
+    
     Changes in CoreLibrary functionality
     ------------------------------------
     clock_utc() has a breaking change on Windows and Linux with gcc >= 13.
@@ -29,6 +53,10 @@ TeaScript list of deprecated parts
 =================================================
 
     The following deprecated parts have been finally removed from this release:
+    
+    --old-mutable-parameters command line option has been finnaly removed.
+    For the case you want use a legacy dialect of TeaScript with default mutable parameters you need
+    to change the used Dialect instance, see Dialect.hpp    
 
 
     The following parts are now deprecated and will be removed in some future release:

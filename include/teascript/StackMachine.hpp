@@ -597,6 +597,7 @@ private:
                     mStack.pop_back();
                 }
                 break;
+            // TODO: Streamline DefVar, ConstVar and AutoVar!
             case eTSVM_Instr::ConstVar:
                 if( stack_error( 2 ) ) [[unlikely]] {
                     continue;
@@ -612,6 +613,29 @@ private:
                     }
                     try {
                         mStack[s - 2] = rContext.AddValueObject( id.GetValue<std::string>(), val.MakeShared().MakeConst() );
+                    } catch( ... ) {
+                        HandleException( std::current_exception() );
+                        run = false;
+                        continue;
+                    }
+                    mStack.pop_back();
+                }
+                break;
+            case eTSVM_Instr::AutoVar:
+                if( stack_error( 2 ) ) [[unlikely]] {
+                    continue;
+                } else {
+                    auto const s = mStack.size();
+                    auto       &val = mStack[s - 1];
+                    auto const &id  = mStack[s - 2];
+                    // TODO: Handle rContext.dialect.auto_define_unknown_identifiers on throw unknown_identifier
+                    // TODO: can this be merged with ASTNode_Assign ?
+                    bool const shared = current_instr.payload.template GetValue<bool>();
+                    if( !shared && val.ShareCount() > 1 ) { // only make copy for values living on some store already.
+                        val.Detach( true ); // make copy
+                    }
+                    try {
+                        mStack[s - 2] = rContext.AddValueObject( id.GetValue<std::string>(), val.MakeShared() );
                     } catch( ... ) {
                         HandleException( std::current_exception() );
                         run = false;

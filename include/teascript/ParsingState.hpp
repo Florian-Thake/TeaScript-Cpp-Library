@@ -658,32 +658,34 @@ public:
             auto cur = mWorkingAST[i];
             if( cur->GetName() == "Id" ) {
                 // 1. case: we have a simple identifier.
-                //          make it to a const (or def) assign: const ID := <from param list>
+                //          default: make it to a const shared assign: const ID @= <from param list> 
                 auto const def_type = dialect.parameters_are_default_const ? ASTNode_Var_Def_Undef::eType::Const : ASTNode_Var_Def_Undef::eType::Def;
                 auto def_node = std::make_shared<ASTNode_Var_Def_Undef>( def_type );
                 def_node->AddChildNode( std::move( cur ) );
-                auto assign_node = std::make_shared<ASTNode_Assign>( );
+                auto assign_node = std::make_shared<ASTNode_Assign>( dialect.parameters_are_default_shared );
                 assign_node->AddChildNode( std::move( def_node ) );
                 assign_node->AddChildNode( std::make_shared<ASTNode_FromParamList>() );
                 cur = assign_node;
             } else if( nullptr != dynamic_cast<ASTNode_Var_Def_Undef *>(cur.get()) ) {
-                // 2. case: we have a def + identifier.
-                //          make it to a def assign: DEF+ID := <from param list>
-                auto assign_node = std::make_shared<ASTNode_Assign>();
+                // 2. case: we have a DEF + identifier.
+                //          default: make it to a DEF shared assign: DEF ID @= <from param list>
+                auto assign_node = std::make_shared<ASTNode_Assign>( dialect.parameters_are_default_shared );
                 assign_node->AddChildNode( std::move( cur ) );
                 assign_node->AddChildNode( std::make_shared<ASTNode_FromParamList>() );
                 cur = assign_node;
             } else if( ASTNode_Assign *pAssign = dynamic_cast<ASTNode_Assign *>(cur.get()); nullptr != pAssign ) {
-                // 3. case: we have a def assign already, either with or without default value/expr.
-                //          make it to a def assign: DEF ASSIGN <from param list>, or DEF ASSIGN <from param list or>
+                // 3. case: we have a ASSIGN already, either with or without DEF, and either with or without default value/expr.
+                //          make it to a DEF assign: DEF ASSIGN <from param list>, or DEF ASSIGN <from param list or>
                 auto rhs = cur->PopChild();
                 auto lhs = cur->PopChild(); 
-                // if the assign node contains the def already, we can just use it. //FIXME: don't pop and add!
+                // if the assign node contains the DEF already, we can just use it. //FIXME: don't pop and add!
                 if( pAssign->IsAssignWithDef() ) {
                     cur->AddChildNode( std::move( lhs ) );
                 } else {
-                    // default const only for not shared assign :=, shared assign @= is always mutable by default.
-                    auto const def_type = dialect.parameters_are_default_const && not pAssign->IsSharedAssign() 
+                    // Default Rule: ID @= will become AUTO ID @= ..., ID := will become const ID := 
+                    // NOTE: The rule for the case when shared_parameters_are_default_auto is set to false and pAssign is shared is a legacy rule for not break old code!
+                    auto const def_type = dialect.shared_parameters_are_default_auto and pAssign->IsSharedAssign() ? ASTNode_Var_Def_Undef::eType::Auto
+                                        : dialect.parameters_are_default_const && not pAssign->IsSharedAssign()
                                         ? ASTNode_Var_Def_Undef::eType::Const : ASTNode_Var_Def_Undef::eType::Def;
                     auto def_node = std::make_shared<ASTNode_Var_Def_Undef>( def_type );
                     def_node->AddChildNode( std::move( lhs ) );

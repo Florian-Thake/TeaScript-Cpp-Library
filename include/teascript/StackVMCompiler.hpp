@@ -256,6 +256,8 @@ private:
                     mInstructions.emplace_back( eTSVM_Instr::Stor, teascript::ValueObject( pAssign->IsSharedAssign() ) );
                 } else if( pAssign->IsConstAssign() ) {
                     mInstructions.emplace_back( eTSVM_Instr::ConstVar, teascript::ValueObject( pAssign->IsSharedAssign() ) );
+                } else if( pAssign->IsAutoAssign() ) {
+                    mInstructions.emplace_back( eTSVM_Instr::AutoVar, teascript::ValueObject( pAssign->IsSharedAssign() ) );
                 } else {
                     mInstructions.emplace_back( eTSVM_Instr::DefVar, teascript::ValueObject( pAssign->IsSharedAssign() ) );
                 }

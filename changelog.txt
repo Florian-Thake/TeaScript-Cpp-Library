@@ -8,6 +8,22 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.16.0 (not released yet, pre-release)
 ================
+    TEASCRIPT: Function parameters without assign specifier are shared assign by default now.
+    - Furthermore, explicit shared function parameters without 'const' or 'def' specifier are set
+      implicit to 'auto' now. They will be either 'const' or 'def' depending on the rhs argument/passed parameter.
+      Quick examples:
+      func test( a ) {}          will result in: func test( const a @= ) {}     //NEW
+      func test( const a ) {}    will result in: func test( const a @= ) {}     //NEW
+      func test( def a ) {}      will result in: func test( def a @= ) {}       //NEW
+      func test( a := ) {}       will result in: func test( const a := ) {}
+      // important:
+      func test( a @= ) {}       will result in: func test( auto a @= ) {}      //NEW
+      //note: auto is not a keyword yet!
+    
+      With this e.g., the stack utility function func stack_push( stack @=, val @= ) { /**/ } can handle const and mutable values
+      correctly. values which are const can be passed and keep the constness. mutable values can still be passed and keep the 
+      mutability as well.
+
     CORELIB: clock_utc() now returns always the UTC time in system clock representation.
     - this is a breaking change on Windows and Linux with gcc >= 13.
       The leap seconds are not counted anymore. Thus, the annoying offset to the system time is gone.

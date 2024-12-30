@@ -1353,6 +1353,7 @@ class ASTNode_Assign : public ASTNode_Binary_Operator
         Assign,
         DefAssign,
         ConstAssign,
+        AutoAssign,   // EXPERIMENTAL: use const/mutable of origin for parameter passing!
     } mMode = eMode::Assign;
 public:
     ASTNode_Assign( bool const shared = false, SourceLocation loc = {} )
@@ -1369,6 +1370,11 @@ public:
     inline bool IsConstAssign() const noexcept
     {
         return mMode == eMode::ConstAssign;
+    }
+
+    inline bool IsAutoAssign() const noexcept
+    {
+        return mMode == eMode::AutoAssign;
     }
 
     inline bool IsSharedAssign() const noexcept
@@ -1393,6 +1399,8 @@ public:
                 mMode = eMode::DefAssign;
             } else if( node->GetDetail() == "const" ) {
                 mMode = eMode::ConstAssign;
+            } else if( node->GetDetail() == "auto" ) {
+                mMode = eMode::AutoAssign;
             } else {
                 throw exception::runtime_error( GetSourceLocation(), "Unsupported define mode for Assign Operator!" );
             }
@@ -1413,7 +1421,7 @@ public:
         }
         bool const is_id = mChildren[0]->GetName() == "Id";
         if( not is_id
-            && not (mChildren[0]->GetName() == "BinOp" && mChildren[0]->GetDetail() == ".")
+            && not (mChildren[0]->GetName() == "BinOp" && mChildren[0]->GetDetail() == "." && mMode != eMode::AutoAssign)
             && not (mChildren[0]->GetName() == "Subscript" && mMode == eMode::Assign) ) {
             throw exception::eval_error( mChildren[0]->GetSourceLocation(), "Assign Operator can only assign to Identifiers! LHS ist not an identifier!" );
         }
@@ -1452,6 +1460,7 @@ public:
                 }
                 throw;
             }
+        // TODO: Streamline DefAssgin, ConstAssign and AutoAssign
         } else if( mMode == eMode::DefAssign ) {
             auto  val = mChildren[1]->Eval( rContext );
             if( !mbShared ) {
@@ -1465,6 +1474,18 @@ public:
             } else {
                 return static_cast<ASTNode_Dot_Operator *>(mChildren[0].get())->AddValueObject( rContext, val.MakeShared() );
             }
+        } else if( mMode == eMode::AutoAssign ) {
+            auto  val = mChildren[1]->Eval( rContext );
+            if( !mbShared && val.ShareCount() > 1 ) { // only make copy for values living on some store already.
+                val.Detach( true ); // make copy
+            }
+
+            //if( is_id ) {
+                return rContext.AddValueObject( mChildren[0]->GetDetail(), val.MakeShared(), mChildren[0]->GetSourceLocation() );
+            //} else {
+                // Does not make any sense for tuple elements so far (must be implemented after 'auto' is introduced as keyword!)
+                //return static_cast<ASTNode_Dot_Operator *>(mChildren[0].get())->AddValueObject( rContext, val.MakeShared() );  
+            //}
         } else { /* ConstAssign */
             auto  val = mChildren[1]->Eval( rContext );
             if( !mbShared && val.ShareCount() > 1 ) { // only make copy for values living on some store already.
@@ -1490,6 +1511,7 @@ public:
         Undef,
         IsDef,
         Const,
+        Auto,  // EXPERIMENTAL: use const/mutable of origin for paramter passing! (there is no 'auto' keyword yet!)
         Debug
     };
 
@@ -1499,7 +1521,7 @@ protected:
 public:
 
     explicit ASTNode_Var_Def_Undef( eType const type, SourceLocation loc = {} )
-        : ASTNode_Unary_Operator( NoCheck{}, type == eType::Def ? "def" : type == eType::Undef ? "undef" : type == eType::IsDef ? "is_defined" : type == eType::Const ? "const" : "debug", std::move( loc ) )
+        : ASTNode_Unary_Operator( NoCheck{}, type == eType::Def ? "def" : type == eType::Undef ? "undef" : type == eType::IsDef ? "is_defined" : type == eType::Const ? "const" : type == eType::Auto ? "auto" : "debug", std::move( loc ) )
         , mType(type)
     { 
     }
@@ -1583,7 +1605,7 @@ public:
                 }
                 throw;
             }
-        } else if( mType == eType::Const ) {
+        } else if( mType == eType::Const || mType == eType::Auto ) {
             // Const can only work when assign during declaration!
             throw exception::declare_without_assign( GetSourceLocation(), mChildren[0]->GetDetail() );
         } else if( mType == eType::Debug ) {
