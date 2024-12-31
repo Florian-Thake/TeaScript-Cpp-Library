@@ -398,7 +398,7 @@ private:
             // condition is always evaluated. conditions get a new scope for if( def a := true, a )
             mInstructions.emplace_back( eTSVM_Instr::EnterScope, teascript::ValueObject() );
             if( mOptLevel >= eOptimize::O2 ) {
-                mState.mScopeStart.push( mInstructions.size() - 1 ); // remember enter scope for possible optimization when block is clased.
+                mState.mScopeStart.push( mInstructions.size() - 1 ); // remember enter scope for possible optimization when block is closed.
             }
             ++mState.scope_level;
             auto it = rNode->begin();
@@ -533,7 +533,6 @@ private:
         } else if( rNode->GetName() == "Repeat" ) {
             // add us to the stack                                                                 first instruction of the loop.            pushes to cleanup
             mState.mLoopState[mState.mLoopIndex].loop_head_stack.emplace_back( rNode->GetDetail(), mInstructions.size(), mState.scope_level, 0ULL );
-            // TODO:  add debug info
             if( mOptLevel == eOptimize::Debug ) {
                 mInstructions.emplace_back( eTSVM_Instr::RepeatStart, teascript::ValueObject( rNode->GetDetail() ) );
                 mDebuginfo.emplace( mInstructions.size() - 1, rNode->GetSourceLocation() );
@@ -931,7 +930,6 @@ private:
                 }
             }
 
-            // TODO:  add debug info
             if( mOptLevel == eOptimize::Debug ) {
                 mInstructions.emplace_back( eTSVM_Instr::RepeatEnd, teascript::ValueObject( rNode->GetDetail() ) );
                 mDebuginfo.emplace( mInstructions.size() - 1, rNode->GetSourceLocation() );
@@ -1052,7 +1050,8 @@ private:
         size_t nested = 0;
         for( auto idx = start + 1; idx < mInstructions.size(); ++idx ) {
             if( nested == 0 ) { // only if in our scope
-                if( mInstructions[idx].instr == eTSVM_Instr::DefVar || mInstructions[idx].instr == eTSVM_Instr::ConstVar || mInstructions[idx].instr == eTSVM_Instr::FuncDef ) {
+                if( mInstructions[idx].instr == eTSVM_Instr::DefVar || mInstructions[idx].instr == eTSVM_Instr::ConstVar 
+                    || mInstructions[idx].instr == eTSVM_Instr::AutoVar || mInstructions[idx].instr == eTSVM_Instr::FuncDef ) {
                     return false;
                 }
             }
