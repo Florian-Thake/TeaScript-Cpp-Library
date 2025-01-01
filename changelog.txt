@@ -8,9 +8,28 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.16.0 (not released yet, pre-release)
 ================
+    UTIL: made tuple::foreach_element/foreach_named_element working with const and ...
+    - ... mutable ValueObjects. If inner elements change to const and the provided 
+      functor takes a const ValueObject it will be called, otherwise nested const
+      elements will be skipped. This is a BREAKING change!
+
+    STACKVM: Fixed instruction UndefElement was able to modify const tuples.
+    CORELIB: Fixed _strreplacepos() was able to modify const strings.
+    - This affected other functions taking a non const reference as well.
+    - strtrim() now takes a correct def @= as parameter instead of const @=.
+    VALUEOBJ: T& GetValue() is const correct now for the case the inner value is const.
+    - For the case a non const reference is requested and the inner value is const 
+      an exception::bad_value_cast is thrown now.
+    - BREAKING: This can be unexpected behavior in existing code. Use GetValue< Type const >().
+    - Introduced clean T const & GetConstValue(), T & GetMutableValue() and T GetValueCopy().
+    CORELIB: use new and generic one fits for all LibraryFunction<> for all core library functions.
+    FUNC: (DEPRECTAED!) made old LibraryFunctions0 to LibraryFunctions5 deprecated! 
+
+    CLEAN: finally removed deprecated --old-mutable-parameters from command line parameters.
     TEASCRIPT: Function parameters without assign specifier are shared assign by default now.
-    - Furthermore, explicit shared function parameters without 'const' or 'def' specifier are set
-      implicit to 'auto' now. They will be either 'const' or 'def' depending on the rhs argument/passed parameter.
+    - Furthermore, explicit shared function parameters without 'const' or 'def' specifier are 
+      set implicit to 'auto' now. They will be either 'const' or 'def' depending on the 
+      rhs argument/passed parameter.
       Quick examples:
       func test( a ) {}          will result in: func test( const a @= ) {}     //NEW
       func test( const a ) {}    will result in: func test( const a @= ) {}     //NEW
@@ -19,10 +38,10 @@ VERSION 0.16.0 (not released yet, pre-release)
       // important:
       func test( a @= ) {}       will result in: func test( auto a @= ) {}      //NEW
       //note: auto is not a keyword yet!
-    
-      With this e.g., the stack utility function func stack_push( stack @=, val @= ) { /**/ } can handle const and mutable values
-      correctly. values which are const can be passed and keep the constness. mutable values can still be passed and keep the 
-      mutability as well.
+
+      With this e.g., the stack utility function func stack_push( stack @=, val @= ) { /**/ } 
+      can handle const and mutable values correctly. values which are const can be passed and 
+      keep the constness. mutable values can still be passed and keep the mutability as well.
 
     CORELIB: clock_utc() now returns always the UTC time in system clock representation.
     - this is a breaking change on Windows and Linux with gcc >= 13.

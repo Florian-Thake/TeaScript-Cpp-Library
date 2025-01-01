@@ -24,6 +24,11 @@
 #include "Print.hpp"  // we need to know if fmt is in use for double -> string conversion
 
 
+// Define this for disable the const correct behavior in T& GetValue() for the case that the inner value is const.
+// This will disable the const correct bugfix and is meant for a temporary transition only. Please, change your code accordingly. This switch will be removed in next release!
+//#define TEASCRIPT_DISABLE_GETVALUE_CONSTCHECK    1
+
+
 namespace teascript {
 
 // forward declare
@@ -816,22 +821,53 @@ public:
     }
 
     /// \return the stored value as T & or throws exception::bad_value_cast
+    /// \note if T is not const the inner value must be not const as well!
+    /// \note this function overload will become deprecated b/c of its complicated const usage. Please, use GetMutableValue|GetConstValue|GetValueCopy instead.
     template< typename T >
-    T & GetValue()
+    T &GetValue()
     {
+#if !defined(TEASCRIPT_DISABLE_GETVALUE_CONSTCHECK)
+        if constexpr( not std::is_const_v<T> ) {
+            if( mProps.IsConst() ) {
+                throw exception::bad_value_cast( "Value of ValueObject is const! Cannot return a mutable reference!" );
+            }
+        }
+#endif
         // one of the rare unevil const_cast: first make this const to can re-use the GetValue code, then remove the const again from result.
-        return const_cast<T&>( const_cast<ValueObject const &>(*this).GetValue<T>() );
+        return const_cast<T &>(const_cast<ValueObject const &>(*this).GetValue<std::remove_const_t<T>>());
     }
 
     /// \return the stored value as T const & or throws exception::bad_value_cast
+    /// \note this function overload will become deprecated b/c of its complicated const usage. Please, use GetMutableValue|GetConstValue|GetValueCopy instead.
     template< typename T >
     T const &GetValue() const
     {
-        T const * const  p = get_impl<T>();
+        T const *const  p = get_impl<std::remove_const_t<T>>();
         if( p != nullptr ) {
             return *p;
         }
         throw exception::bad_value_cast();
+    }
+
+    /// \returns a non const reference of the inner value if the inner value is not const or throws exception::bad_value_cast.
+    template< typename T> requires(not std::is_const_v<T>)
+    T &GetMutableValue()
+    {
+        return GetValue<T>();
+    }
+
+    /// \returns a const reference of the inner value or throws exception::bad_value_cast.
+    template< typename T>
+    T const &GetConstValue() const
+    {
+        return GetValue< std::add_const_t<T> >();
+    }
+
+    /// \returns a copy of the inner value or throws exception::bad_value_cast.
+    template< typename T > requires( not std::is_reference_v<T> )
+    T GetValueCopy() const
+    {
+        return GetConstValue<T>();
     }
 
     /// \return the stored value as T const * or nullptr

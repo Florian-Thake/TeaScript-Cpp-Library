@@ -709,14 +709,15 @@ private:
                     auto       &val = mStack[s - 1];
                     auto const &id  = mStack[s - 2];
                     auto       &obj = mStack[s - 3];
-                    auto       &tuple = obj.GetValue<Tuple>();
-                    bool const shared = current_instr.payload.template GetValue<bool>();
 
                     if( obj.IsConst() ) {
                         HandleException( std::make_exception_ptr( exception::eval_error( "Tuple is const. Elements cannot be added!" ) ) );
                         run = false;
                         continue;
                     }
+
+                    auto       &tuple = obj.GetValue<Tuple>();
+                    bool const shared = current_instr.payload.template GetValue<bool>();
 
                     size_t idx = static_cast<std::size_t>(-1);
                     if( current_instr.instr == eTSVM_Instr::SetElement ) {
@@ -741,8 +742,13 @@ private:
                     continue;
                 } else {
                     auto &lhs = mStack.back();
-                    auto &rhs = current_instr.payload;
-                    auto &tuple = lhs.GetValue<Tuple>();
+                    if( current_instr.instr == eTSVM_Instr::UndefElement && lhs.IsConst() ) {
+                        HandleException( std::make_exception_ptr( exception::eval_error( "Tuple is const. Elements cannot be removed!" ) ) );
+                        run = false;
+                        continue;
+                    }
+                    auto const &rhs   = current_instr.payload;
+                    auto const &tuple = lhs.GetConstValue<Tuple>();
 
                     std::size_t  idx = static_cast<std::size_t>(-1);
                     if( rhs.GetTypeInfo()->IsSame( TypeString ) ) {
@@ -754,7 +760,7 @@ private:
                         mStack.back() = ValueObject( false );
                     } else {
                         if( current_instr.instr == eTSVM_Instr::UndefElement ) {
-                            tuple.RemoveValueByIdx( idx );
+                            lhs.GetMutableValue<Tuple>().RemoveValueByIdx(idx);
                         }
                         mStack.back() = ValueObject( true );
                     }
@@ -906,7 +912,7 @@ private:
                         run = false;
                         continue;
                     }
-                    auto &tuple = lhs.GetValue<Tuple>();
+                    auto const &tuple = lhs.GetValue<Tuple>();
                     std::size_t  idx = static_cast<std::size_t>(-1);
                     if( rhs.GetTypeInfo()->IsSame( TypeString ) ) {
                         idx = tuple.IndexOfKey( rhs.template GetValue<String>() );
@@ -975,8 +981,8 @@ private:
                 } else {
                     auto const  s = mStack.size();
 
-                     // get the sequence
-                    auto &seq_val = mStack[s - 1];
+                    // get the sequence
+                    auto const &seq_val = mStack[s - 1];
                     if( not seq_val.GetTypeInfo()->IsSame<IntegerSequence>() && not seq_val.GetTypeInfo()->IsSame<Tuple>() ) {
                         HandleException( std::make_exception_ptr( exception::eval_error( "Forall loop can actually only iterate over an IntegerSequence/Tuple!" ) ) );
                         run = false;
@@ -1027,7 +1033,7 @@ private:
                     if( stack_error( param_count + 1 + 1 ) ) [[unlikely]] {
                         continue;
                     }
-                    auto func = mStack[ mStack.size() - (param_count + 1 + 1)].GetValue<FunctionPtr>(); // copy is intended!!
+                    auto func = mStack[ mStack.size() - (param_count + 1 + 1)].GetValueCopy<FunctionPtr>();
                     auto cfunc = std::dynamic_pointer_cast<CompiledFuncBase>(func);
                     if( cfunc ) {
                         mCallStack.emplace_back( current_instr.payload.template GetValue<std::string>(), mCurrent + 1, cfunc->GetProgram(), func );

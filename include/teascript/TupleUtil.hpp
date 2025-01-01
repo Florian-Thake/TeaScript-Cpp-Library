@@ -23,17 +23,28 @@ namespace tuple {
 
 /// applies recursively all values to given functor for all elements or stops
 /// further recursive calls if functor returns false.
-/// Functor must have signature: bool ( ValueObject &, int )
-template< typename F>
-void foreach_element( ValueObject &rVal, bool inclusive, F && f, int level = 0 )
+/// Functor must have signature: bool ( ValueObject &, int ) or bool ( ValueObject & const, int )
+/// \note if siganture uses mutable ValueObjects all const ValueObject elements will be skipped!
+template< typename VALUEOBJECT, typename F> requires(std::is_same_v<std::remove_const_t<VALUEOBJECT>, ValueObject>)
+void foreach_element( VALUEOBJECT &rVal, bool inclusive, F && f, int level = 0 )
 {
     if( inclusive ) {
         if( !f( rVal, level ) ) {
             return;
         }
     }
-    if( rVal.GetTypeInfo()->IsSame<Tuple>() ) {
-        Tuple &tuple = rVal.GetValue< Tuple >();
+    if( rVal.GetTypeInfo()->template IsSame<Tuple>() ) {
+        if constexpr( not std::is_const_v<VALUEOBJECT> ) {
+            // switch to const overload?
+            if( rVal.IsConst() ) {
+                if constexpr( std::is_invocable<F, ValueObject const &, int>::value ) {
+                    ValueObject const &valconst = rVal;
+                    foreach_element( valconst, false /* called already! */, f, level );
+                } // else: skip const
+                return;
+            }
+        }
+        auto &tuple = rVal.template GetValue< Tuple >();
         for( auto &kv : tuple ) {
             foreach_element( kv.second, true, f, level + 1 );
         }
@@ -44,17 +55,28 @@ void foreach_element( ValueObject &rVal, bool inclusive, F && f, int level = 0 )
 
 /// applies recursively all values with its full name to given functor for all elements or stops
 /// further recursive calls if functor returns false.
-/// Functor must have signature: bool ( std::string const &, ValueObject &, int )
-template< typename F>
-void foreach_named_element( std::string const &fullname, ValueObject &rVal, bool inclusive, F && f, int level = 0 )
+/// Functor must have signature: bool ( std::string const &, ValueObject &, int ) or  bool ( std::string const &, ValueObject const &, int )
+/// \note if siganture uses mutable ValueObjects all const ValueObject elements will be skipped!
+template< typename VALUEOBJECT, typename F> requires( std::is_same_v<std::remove_const_t<VALUEOBJECT>, ValueObject> )
+void foreach_named_element( std::string const &fullname, VALUEOBJECT &rVal, bool inclusive, F && f, int level = 0 )
 {
     if( inclusive ) {
         if( !f( fullname, rVal, level ) ) {
             return;
         }
     }
-    if( rVal.GetTypeInfo()->IsSame<Tuple>() ) {
-        Tuple &tuple = rVal.GetValue< Tuple >();
+    if( rVal.GetTypeInfo()->template IsSame<Tuple>() ) {
+        if constexpr( not std::is_const_v<VALUEOBJECT> ) {
+            // switch to const overload?
+            if( rVal.IsConst() ) {
+                if constexpr( std::is_invocable<F, std::string const &, ValueObject const &, int>::value ) {
+                    ValueObject const &valconst = rVal;
+                    foreach_named_element( fullname, valconst, false /* called already! */, f, level );
+                } // else: skip const
+                return;
+            }
+        }
+        auto &tuple = rVal.template GetValue< Tuple >();
         size_t idx = 0;
         for( auto &kv : tuple ) {
             std::string const name = kv.first.empty() ?

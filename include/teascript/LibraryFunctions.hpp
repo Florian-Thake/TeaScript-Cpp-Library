@@ -26,6 +26,7 @@ namespace teascript {
 
 namespace util {
 
+// DEPRECATED!
 template< typename T >
 inline
 T &get_value( ValueObject &rObj )
@@ -37,12 +38,26 @@ T &get_value( ValueObject &rObj )
     }
 }
 
+template< typename T >
+inline
+T get_value_ex( ValueObject &rObj )
+{
+    if constexpr( std::is_same_v<std::remove_cvref_t<T>, ValueObject> ) {
+        return rObj;
+    } else if constexpr( not std::is_reference_v<T> ) {
+        // obtain a copy, but use the const overload for can handle const and non const values.
+        return rObj.GetValue< std::add_const_t<T> >();
+    } else {
+        return rObj.GetValue< std::remove_volatile_t<std::remove_reference_t<T>> >();
+    }
+}
+
 // helper function for invoke a function with arbitrary parameters from a ValueObject vector, either with the inner value or with the ValueObject,
 // depending of the function parameters (which are passed as TS param pack)
 template< typename F, typename ...TS, size_t ... IS>
 auto call_helper( F func, std::vector<ValueObject> &rParams, std::integer_sequence<size_t, IS...> ) -> auto
 {
-    return func( util::get_value<std::remove_cvref_t<TS>>( rParams[IS] )... );
+    return func( util::get_value_ex<TS>( rParams[IS] )... );
 }
 
 // helper struct for building a tuple from the parameter pack where the first parameter is omitted.
@@ -67,7 +82,7 @@ template< typename F, typename ...TS, size_t ... IS>
 auto call_context_helper( F func, Context &rContext, std::vector<ValueObject> &rParams, std::integer_sequence<size_t, IS...> ) -> auto
 {
     using tuple_new = typename RemoveFirst<true, TS...>::type;
-    return func( rContext, util::get_value<std::remove_cvref_t<std::tuple_element_t<IS, tuple_new>>>( rParams[IS] )... );
+    return func( rContext, util::get_value_ex<std::tuple_element_t<IS, tuple_new>>( rParams[IS] )... );
 }
 
 // helper struct for determine whether first parameter of a parameter pack is of type Context
@@ -187,7 +202,7 @@ public:
         std::string filename;
         if( mLoadFile ) {
             // TODO: parameter for script ? Can register args as real ValueObjects instead of string! But must avoid to override args of caller script!!!
-            str = rParams[0].GetValue<std::string>();
+            str = rParams[0].GetValueCopy<std::string>();
             // NOTE: TeaScript strings are UTF-8
             // TODO: apply include paths before try absolute()
             std::filesystem::path const script = std::filesystem::absolute( util::utf8_path( str ) );
@@ -205,7 +220,7 @@ public:
                 throw exception::load_file_error( rLoc, str );
             }
         } else {
-            str = rParams[0].GetValue<std::string>();
+            str = rParams[0].GetValueCopy<std::string>();
             content = Content( str );
             filename = "_EVALFUNC_";
         }
@@ -285,28 +300,28 @@ public:
         if( rParams.size() < 1 || not rParams[0].GetTypeInfo()->IsSame<std::string>() ) {
             throw exception::eval_error( rLoc, "FormatStringFunc Call: Need first parameter as the format string!" );
         }
-        std::string const &format_str = rParams[0].GetValue<std::string>();
+        std::string const &format_str = rParams[0].GetConstValue<std::string>();
         fmt::dynamic_format_arg_store<fmt::format_context>  store;
         // skip first, which is the format string.
         for( size_t idx = 1; idx < rParams.size(); ++idx ) {
             switch( rParams[idx].InternalType() ) {
             case ValueObject::TypeBool:
-                store.push_back( rParams[idx].GetValue<Bool>() );
+                store.push_back( rParams[idx].GetValueCopy<Bool>() );
                 break;
             case ValueObject::TypeI64:
-                store.push_back( rParams[idx].GetValue<I64>() );
+                store.push_back( rParams[idx].GetValueCopy<I64>() );
                 break;
             case ValueObject::TypeU64:
-                store.push_back( rParams[idx].GetValue<U64>() );
+                store.push_back( rParams[idx].GetValueCopy<U64>() );
                 break;
             case ValueObject::TypeU8:
-                store.push_back( rParams[idx].GetValue<U8>() );
+                store.push_back( rParams[idx].GetValueCopy<U8>() );
                 break;
             case ValueObject::TypeF64:
-                store.push_back( rParams[idx].GetValue<F64>() );
+                store.push_back( rParams[idx].GetValueCopy<F64>() );
                 break;
             case ValueObject::TypeString:
-                store.push_back( rParams[idx].GetValue<String>() );
+                store.push_back( std::cref(rParams[idx].GetConstValue<String>()) );
                 break;
             default:
                 // try as a String
@@ -331,12 +346,12 @@ public:
 //      Update: but it was during a hot summer afternoon!
 
 
-// IMPORTANT: The next functions, LibraryFunction0 to LibraryFunction5, will become DEPRECATED soon.
+// IMPORTANT: The next functions, LibraryFunction0 to LibraryFunction5, are DEPRECATED!
 //            Please, use the new and improved LibraryFunction (above) instead!
 
-//NOTE: Will be deprecated soon, use LibraryFunction instead!
+// DEPRECATED! Please, use LibraryFunction instead!
 template< typename F, typename RES = void >
-class LibraryFunction0 : public FunctionBase
+class [[deprecated( "Please, use the new and generic LibraryFunction<> instead!" )]] LibraryFunction0 : public FunctionBase
 {
     F *mpFunc;
 public:
@@ -370,10 +385,10 @@ public:
     }
 };
 
-//NOTE: Will be deprecated soon, use LibraryFunction instead!
+// DEPRECATED! Please, use LibraryFunction instead!
 // experimental variant with bool with_context. If true a first parameter is added to thw call: the Context.
 template< typename F, typename T1, typename RES = void, bool with_context = false>
-class LibraryFunction1 : public FunctionBase
+class [[deprecated( "Please, use the new and generic LibraryFunction<> instead!" )]] LibraryFunction1 : public FunctionBase
 {
     F *mpFunc;
 public:
@@ -419,9 +434,9 @@ public:
     }
 };
 
-//NOTE: Will be deprecated soon, use LibraryFunction instead!
+// DEPRECATED! Please, use LibraryFunction instead!
 template< typename F, typename T1, typename T2, typename RES = void>
-class LibraryFunction2 : public FunctionBase
+class [[deprecated( "Please, use the new and generic LibraryFunction<> instead!" )]] LibraryFunction2 : public FunctionBase
 {
     F *mpFunc;
 public:
@@ -455,9 +470,9 @@ public:
     }
 };
 
-//NOTE: Will be deprecated soon, use LibraryFunction instead!
+// DEPRECATED! Please, use LibraryFunction instead!
 template< typename F, typename T1, typename T2, typename T3, typename RES = void>
-class LibraryFunction3 : public FunctionBase
+class [[deprecated( "Please, use the new and generic LibraryFunction<> instead!" )]] LibraryFunction3 : public FunctionBase
 {
     F *mpFunc;
 public:
@@ -491,9 +506,9 @@ public:
     }
 };
 
-//NOTE: Will be deprecated soon, use LibraryFunction instead!
+// DEPRECATED! Please, use LibraryFunction instead!
 template< typename F, typename T1, typename T2, typename T3, typename T4, typename RES = void>
-class LibraryFunction4 : public FunctionBase
+class [[deprecated( "Please, use the new and generic LibraryFunction<> instead!" )]] LibraryFunction4 : public FunctionBase
 {
     F *mpFunc;
 public:
@@ -527,9 +542,9 @@ public:
     }
 };
 
-//NOTE: Will be deprecated soon, use LibraryFunction instead!
+// DEPRECATED! Please, use LibraryFunction instead!
 template< typename F, typename T1, typename T2, typename T3, typename T4, typename T5, typename RES = void>
-class LibraryFunction5 : public FunctionBase
+class [[deprecated( "Please, use the new and generic LibraryFunction<> instead!" )]] LibraryFunction5 : public FunctionBase
 {
     F *mpFunc;
 public:

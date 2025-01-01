@@ -146,7 +146,7 @@ public:
     }
 
     /// \returns the byte position of glyph \param glyph in rStr. rStr must be a valid UTF-8 encoded string.
-    static long long StrUTF8GlyphToBytePos( std::string rStr, long long const glyph )
+    static long long StrUTF8GlyphToBytePos( std::string const &rStr, long long const glyph )
     {
         return static_cast<long long>(util::utf8_glyph_to_byte_pos( rStr, glyph ));
     }
@@ -206,7 +206,7 @@ public:
         return res == std::string::npos ? -1LL : static_cast<long long>(res);
     }
 
-    /// replaces the range [start, start+count) in /param rStr with /praram rNew.
+    /// replaces the range [start, start+count) in /param rStr with /param rNew.
     /// If the range does not form a complete UTF-8 range or is out of range nothing will happen and the function will return false.
     static bool StrReplacePos( std::string &rStr, long long const start, long long const count, std::string const &rNew )
     {
@@ -687,9 +687,9 @@ public:
         return tuple::is_same_structure( rTuple1, rTuple2 );
     }
 
-    static void TuplePrint( ValueObject &rTuple, std::string const &rRootName, long long max_nesting )
+    static void TuplePrint( ValueObject const &rTuple, std::string const &rRootName, long long max_nesting )
     {
-        tuple::foreach_named_element( rRootName, rTuple, true, [=]( std::string const &name, ValueObject &rVal, int level ) -> bool {
+        tuple::foreach_named_element( rRootName, rTuple, true, [=]( std::string const &name, ValueObject const &rVal, int level ) -> bool {
             std::string const val_str = rVal.GetTypeInfo()->IsSame<Tuple>() ? "<Tuple>" : rVal.HasPrintableValue() ? rVal.PrintValue() : "<" + rVal.GetTypeInfo()->GetName() + ">";
             std::string const text = name + ": " + val_str + "\n";
             PrintStdOut( text );
@@ -1394,28 +1394,28 @@ protected:
         //       But it stays here for a while since it was the only possible way to get an i64 from a f64 for a long time.
         // _f64toi64 : i64 (f64) --> converts a f64 to i64. same effect as trunc() but yields a i64.
         {
-            auto func = std::make_shared< LibraryFunction1< decltype(f64toi64), double, long long > >( &f64toi64 );
+            auto func = std::make_shared< LibraryFunction< decltype(f64toi64) > >( &f64toi64 );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_f64toi64", std::move( val ) );
         }
 
         // _out : void ( String ) --> prints param1 (String) to stdout
         if( not (opt_out & config::NoStdOut) ) {
-            auto func = std::make_shared< LibraryFunction1< decltype(PrintStdOut), std::string > >( &PrintStdOut );
+            auto func = std::make_shared< LibraryFunction< decltype(PrintStdOut) > >( &PrintStdOut );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_out", std::move( val ) );
         }
 
         // _err : void ( String ) --> prints param1 (String) to stderr
         if( not (opt_out & config::NoStdErr) ) {
-            auto func = std::make_shared< LibraryFunction1< decltype(PrintStdError), std::string > >( &PrintStdError );
+            auto func = std::make_shared< LibraryFunction< decltype(PrintStdError) > >( &PrintStdError );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_err", std::move( val ) );
         }
 
         // readline : String ( void ) --> read line from stdin (and blocks until line finished), returns the read line without line feed.
         if( not (opt_out & config::NoStdIn) ) {
-            auto func = std::make_shared< LibraryFunction0< decltype(ReadLine), std::string > >( &ReadLine );
+            auto func = std::make_shared< LibraryFunction< decltype(ReadLine) > >( &ReadLine );
             ValueObject val{std::move( func ), cfg_mutable};
             tea_add_var( "readline", std::move( val ) ); // missing _ is intended for now.
         }
@@ -1438,7 +1438,7 @@ protected:
 
         // _seq : Sequence ( start: I64, end: I64, step: I64 ) --> creates an integer sequence from start to end with step step.
         {
-            auto func = std::make_shared< LibraryFunction3< decltype(MakeSequence), long long, long long, long long, IntegerSequence> >( &MakeSequence );
+            auto func = std::make_shared< LibraryFunction< decltype(MakeSequence) > >( &MakeSequence );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_seq", std::move( val ) );
         }
@@ -1447,35 +1447,35 @@ protected:
 
         // _buf: Buffer ( size: Number )  --> creates an empty Buffer (size == 0) with capacity 'size'.
         {
-            auto func = std::make_shared< LibraryFunction1< decltype(MakeBuffer), ValueObject, Buffer> >( &MakeBuffer );
+            auto func = std::make_shared< LibraryFunction< decltype(MakeBuffer) > >( &MakeBuffer );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_buf", std::move( val ) );
         }
 
         // _buf_size: U64 ( Buffer )  --> returns the actual amount of used/filled bytes in the buffer.
         {
-            auto func = std::make_shared< LibraryFunction1< decltype(BufSize), Buffer, U64> >( &BufSize );
+            auto func = std::make_shared< LibraryFunction< decltype(BufSize) > >( &BufSize );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_buf_size", std::move( val ) );
         }
 
         // _buf_capacity: U64 ( Buffer )  --> returns the amount of allocated memory in bytes for the buffer.
         {
-            auto func = std::make_shared< LibraryFunction1< decltype(BufCapacity), Buffer, U64> >( &BufCapacity );
+            auto func = std::make_shared< LibraryFunction< decltype(BufCapacity) > >( &BufCapacity );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_buf_capacity", std::move( val ) );
         }
 
         // _buf_at: U8 ( Buffer, pos: Number )  --> returns byte at given position, throws on out of range.
         {
-            auto func = std::make_shared< LibraryFunction2< decltype(BufAt), Buffer, ValueObject, U8> >(&BufAt);
+            auto func = std::make_shared< LibraryFunction< decltype(BufAt) > >(&BufAt);
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_buf_at", std::move( val ) );
         }
 
         // _buf_fill: Bool ( Buffer, pos: Number, count: Number, val: U8 )  --> fills the buffer from pos up to pos + count with val.
         {
-            auto func = std::make_shared< LibraryFunction4< decltype(BufFill), Buffer, ValueObject, ValueObject, U8, bool> >( &BufFill );
+            auto func = std::make_shared< LibraryFunction< decltype(BufFill) > >( &BufFill );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_buf_fill", std::move( val ) );
         }
@@ -1483,14 +1483,14 @@ protected:
         if( core_level >= config::LevelCore ) {
             // _buf_resize: Bool ( Buffer, size: Number )  --> resizes the buffer (shrink or grow). new values are added as zero. see _buf_fill also.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(BufResize), Buffer, ValueObject, bool> >( &BufResize );
+                auto func = std::make_shared< LibraryFunction< decltype(BufResize) > >( &BufResize );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_resize", std::move( val ) );
             }
 
             // _buf_copy: Bool ( dst: Buffer, dst_off: Number, src: Buffer, src_off: Number, len: Number )  --> copies src buffer into dst buffer.
             {
-                auto func = std::make_shared< LibraryFunction5< decltype(BufCopy), Buffer, ValueObject, Buffer, ValueObject, ValueObject, bool> >( &BufCopy );
+                auto func = std::make_shared< LibraryFunction< decltype(BufCopy) > >( &BufCopy );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_copy", std::move( val ) );
             }
@@ -1499,140 +1499,140 @@ protected:
         if( core_level >= config::LevelUtil ) {
             // _buf_fill32: Bool ( Buffer, pos: Number, count: Number, val: U64 )  --> fills the buffer from pos up to pos + count with val as u32
             {
-                auto func = std::make_shared< LibraryFunction4< decltype(BufFill32), Buffer, ValueObject, ValueObject, U64, bool> >( &BufFill32 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufFill32) > >( &BufFill32 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_fill32", std::move( val ) );
             }
 
             // _buf_set_u8: Bool ( Buffer, pos: Number, val: U8 )  --> sets val as U8 in buffer at given position, returns true on success.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(BufSetU8), Buffer, ValueObject, U8, bool> >( &BufSetU8 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufSetU8) > >( &BufSetU8 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_set_u8", std::move( val ) );
             }
 
             // _buf_set_i8: Bool ( Buffer, pos: Number, val: I64 )  --> sets val as I8 in buffer at given position, returns true on success.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(BufSetI8), Buffer, ValueObject, I64, bool> >( &BufSetI8 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufSetI8) > >( &BufSetI8 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_set_i8", std::move( val ) );
             }
 
             // _buf_set_u16: Bool ( Buffer, pos: Number, val: U64 )  --> sets val as U16 in buffer at given position, returns true on success.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(BufSetU16), Buffer, ValueObject, U64, bool> >( &BufSetU16 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufSetU16) > >( &BufSetU16 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_set_u16", std::move( val ) );
             }
 
             // _buf_set_i16: Bool ( Buffer, pos: Number, val: I64 )  --> sets val as I16 in buffer at given position, returns true on success.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(BufSetI16), Buffer, ValueObject, I64, bool> >( &BufSetI16 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufSetI16) > >( &BufSetI16 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_set_i16", std::move( val ) );
             }
 
             // _buf_set_u32: Bool ( Buffer, pos: Number, val: U64 )  --> sets val as U32 in buffer at given position, returns true on success.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(BufSetU32), Buffer, ValueObject, U64, bool> >( &BufSetU32 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufSetU32) > >( &BufSetU32 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_set_u32", std::move( val ) );
             }
 
             // _buf_set_i32: Bool ( Buffer, pos: Number, val: I64 )  --> sets val as I32 in buffer at given position, returns true on success.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(BufSetI32), Buffer, ValueObject, I64, bool> >( &BufSetI32 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufSetI32) > >( &BufSetI32 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_set_i32", std::move( val ) );
             }
 
             // _buf_set_u64: Bool ( Buffer, pos: Number, val: U64 )  --> sets val as U64 in buffer at given position, returns true on success.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(BufSetU64), Buffer, ValueObject, U64, bool> >( &BufSetU64 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufSetU64) > >( &BufSetU64 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_set_u64", std::move( val ) );
             }
 
             // _buf_set_i64: Bool ( Buffer, pos: Number, val: I64 )  --> sets val as I64 in buffer at given position, returns true on success.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(BufSetI64), Buffer, ValueObject, I64, bool> >( &BufSetI64 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufSetI64) > >( &BufSetI64 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_set_i64", std::move( val ) );
             }
 
             // _buf_set_string: Bool ( Buffer, pos: Number, val: String )  --> writes the String (_without_ trailing 0!) val into the buffer at given position, returns true on success.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(BufSetString), Buffer, ValueObject, String, bool> >( &BufSetString );
+                auto func = std::make_shared< LibraryFunction< decltype(BufSetString) > >( &BufSetString );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_set_string", std::move( val ) );
             }
 
             // _buf_get_u8: U8|Bool ( Buffer, pos: Number )  --> gets an U8 from buffer at given position, returns Bool(false) on failure.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(BufGetU8), Buffer, ValueObject, ValueObject> >( &BufGetU8 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufGetU8) > >( &BufGetU8 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_get_u8", std::move( val ) );
             }
 
             // _buf_get_i8: I64|Bool ( Buffer, pos: Number )  --> gets an I8 as I64 from buffer at given position, returns Bool(false) on failure.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(BufGetI8), Buffer, ValueObject, ValueObject> >( &BufGetI8 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufGetI8) > >( &BufGetI8 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_get_i8", std::move( val ) );
             }
 
             // _buf_get_u16: U64|Bool ( Buffer, pos: Number )  --> gets an U16 as U64 from buffer at given position, returns Bool(false) on failure.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(BufGetU16), Buffer, ValueObject, ValueObject> >( &BufGetU16 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufGetU16) > >( &BufGetU16 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_get_u16", std::move( val ) );
             }
 
             // _buf_get_i16: I64|Bool ( Buffer, pos: Number )  --> gets an I16 as I64 from buffer at given position, returns Bool(false) on failure.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(BufGetI16), Buffer, ValueObject, ValueObject> >( &BufGetI16 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufGetI16) > >( &BufGetI16 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_get_i16", std::move( val ) );
             }
 
             // _buf_get_u32: U64|Bool ( Buffer, pos: Number )  --> gets an U32 as U64 from buffer at given position, returns Bool(false) on failure.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(BufGetU32), Buffer, ValueObject, ValueObject> >( &BufGetU32 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufGetU32) > >( &BufGetU32 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_get_u32", std::move( val ) );
             }
 
             // _buf_get_i32: I64|Bool ( Buffer, pos: Number )  --> gets an I32 as I64 from buffer at given position, returns Bool(false) on failure.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(BufGetI32), Buffer, ValueObject, ValueObject> >( &BufGetI32 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufGetI32) > >( &BufGetI32 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_get_i32", std::move( val ) );
             }
 
             // _buf_get_u64: U64|Bool ( Buffer, pos: Number )  --> gets an U64 from buffer at given position, returns Bool(false) on failure.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(BufGetU64), Buffer, ValueObject, ValueObject> >( &BufGetU64 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufGetU64) > >( &BufGetU64 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_get_u64", std::move( val ) );
             }
 
             // _buf_get_i64: I64|Bool ( Buffer, pos: Number )  --> gets an I64 from buffer at given position, returns Bool(false) on failure.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(BufGetI64), Buffer, ValueObject, ValueObject> >( &BufGetI64 );
+                auto func = std::make_shared< LibraryFunction< decltype(BufGetI64) > >( &BufGetI64 );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_get_i64", std::move( val ) );
             }
 
             // _buf_get_string: String|Bool ( Buffer, pos: Number, len: Number )  --> gets a String from buffer at given position, must be valid UTF-8, returns Bool(false) on failure.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(BufGetString), Buffer, ValueObject, ValueObject, ValueObject> >( &BufGetString );
+                auto func = std::make_shared< LibraryFunction< decltype(BufGetString) > >( &BufGetString );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_get_string", std::move( val ) );
             }
 
             // _buf_get_ascii: String|Bool ( Buffer, pos: Number, len: Number )  --> gets a String from buffer at given position, all values must be in range [0,127], returns Bool(false) on failure.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(BufGetAscii), Buffer, ValueObject, ValueObject, ValueObject> >( &BufGetAscii );
+                auto func = std::make_shared< LibraryFunction< decltype(BufGetAscii) > >( &BufGetAscii );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_buf_get_ascii", std::move( val ) );
             }
@@ -1641,21 +1641,21 @@ protected:
         if( core_level >= config::LevelCore ) {
             // _strtonum : i64|Bool (String) --> converts a String to i64. this works only with real String objects. alternative for '+str'.
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(StrToNum), std::string, ValueObject> >( &StrToNum );
+                auto func = std::make_shared< LibraryFunction< decltype(StrToNum) > >( &StrToNum );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_strtonum", std::move( val ) );
             }
 
             // _strtonumex : i64|u8|u64|f64|Bool (String) --> converts a String to i64,u8,u64 or f64, Bool(false) on error. this works only with real String objects.
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(StrToNumEx), std::string, ValueObject> >( &StrToNumEx );
+                auto func = std::make_shared< LibraryFunction< decltype(StrToNumEx) > >( &StrToNumEx );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_strtonumex", std::move( val ) );
             }
 
             // _numtostr : String (i64) --> converts a i64 to String. this works only with real i64 objects. alternative for 'num % ""'
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(NumToStr), long long, std::string > >( &NumToStr );
+                auto func = std::make_shared< LibraryFunction< decltype(NumToStr) > >( &NumToStr );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_numtostr", std::move( val ) );
             }
@@ -1675,7 +1675,7 @@ protected:
 #if TEASCRIPT_FMTFORMAT
             if( not (opt_out & config::NoStdOut) ) {
                 // cprint : void (i64, String)  --> prints the text in the given rgb color (only available with libfmt)
-                auto func = std::make_shared< LibraryFunction2< decltype(PrintColored), long long, ValueObject > >( &PrintColored );
+                auto func = std::make_shared< LibraryFunction< decltype(PrintColored) > >( &PrintColored );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "cprint", std::move( val ) ); // missing _ is intended for now.
             }
@@ -1683,21 +1683,21 @@ protected:
 
              // _print_version : void ( void ) --> prints TeaScript version to stdout
             if( not (opt_out & config::NoStdOut) ) {
-                auto func = std::make_shared< LibraryFunction0< decltype(PrintVersion) > >( &PrintVersion );
+                auto func = std::make_shared< LibraryFunction< decltype(PrintVersion) > >( &PrintVersion );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_print_version", std::move( val ) );
             }
 
             // _sqrt : f64 (f64) --> calculates square root
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(Sqrt), double, double > >( &Sqrt );
+                auto func = std::make_shared< LibraryFunction< decltype(Sqrt) > >( &Sqrt );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_sqrt", std::move( val ) );
             }
 
             // _trunc : f64 (f64) --> rounds the given Number towards zero as f64. e.g. 1.9 will yield 1.0, -2.9 will yield -2.0.
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(Trunc), double, double > >( &Trunc );
+                auto func = std::make_shared< LibraryFunction< decltype(Trunc) > >( &Trunc );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_trunc", std::move( val ) );
             }
@@ -1738,14 +1738,14 @@ protected:
 
         // _tuple_size : i64 ( Tuple ) --> returns the element count of the Tuple
         {
-            auto func = std::make_shared< LibraryFunction1< decltype(TupleSize), Tuple, long long > >( &TupleSize );
+            auto func = std::make_shared< LibraryFunction< decltype(TupleSize) > >( &TupleSize );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_tuple_size", std::move( val ) );
         }
 
         // _tuple_same_types : Bool ( Tuple, Tuple ) --> checks whether the 2 tuples have the same types in exactly the same order (and with same names).
         {
-            auto func = std::make_shared< LibraryFunction2< decltype(TupleSameTypes), Tuple, Tuple, bool > >( &TupleSameTypes );
+            auto func = std::make_shared< LibraryFunction< decltype(TupleSameTypes) > >( &TupleSameTypes );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_tuple_same_types", std::move( val ) );
         }
@@ -1753,98 +1753,98 @@ protected:
         if( core_level >= config::LevelCore ) {
             // _tuple_val : Any ( Tuple, i64 ) --> returns the value at given index.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleValue), Tuple, long long, ValueObject > >( &TupleValue );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleValue) > >( &TupleValue );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_val", std::move( val ) );
             }
 
             // _tuple_named_val : Any ( Tuple, String ) --> returns the value with given name (or throws)
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleNamedValue), Tuple, std::string, ValueObject > >( &TupleNamedValue );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleNamedValue) > >( &TupleNamedValue );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_named_val", std::move( val ) );
             }
 
             // _tuple_set : void ( Tuple, i64, Any ) --> sets the value at given index or throws if index not exist.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(TupleSetValue), Tuple, long long, ValueObject > >( &TupleSetValue );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleSetValue) > >( &TupleSetValue );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_set", std::move( val ) );
             }
 
             // _tuple_named_set : void ( Tuple, String, Any ) --> set the value with given name (or throws)
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(TupleSetNamedValue), Tuple, std::string, ValueObject > >( &TupleSetNamedValue );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleSetNamedValue) > >( &TupleSetNamedValue );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_named_set", std::move( val ) );
             }
 
             // _tuple_append : void ( Tuple, Any ) --> appends new value to the end as new element
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleAppend), Tuple, ValueObject > >( &TupleAppend );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleAppend) > >( &TupleAppend );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_append", std::move( val ) );
             }
 
             // _tuple_named_append : Bool ( Tuple, String, Any ) --> appends new value with given name to the end as new element if the name not exist yet.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(TupleNamedAppend), Tuple, std::string, ValueObject, bool > >( &TupleNamedAppend );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleNamedAppend) > >( &TupleNamedAppend );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_named_append", std::move( val ) );
             }
 
             // _tuple_insert : void ( Tuple, i64, Any ) --> inserts new value at given index
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(TupleInsert), Tuple, long long, ValueObject > >( &TupleInsert );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleInsert) > >( &TupleInsert );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_insert", std::move( val ) );
             }
 
             // _tuple_named_insert : void ( Tuple, i64, String, Any ) --> inserts a value with given name at given index
             {
-                auto func = std::make_shared< LibraryFunction4< decltype(TupleNamedInsert), Tuple, long long, std::string, ValueObject > >( &TupleNamedInsert );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleNamedInsert) > >( &TupleNamedInsert );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_named_insert", std::move( val ) );
             }
 
             // _tuple_remove : Bool ( Tuple, i64 ) --> removes element at given index, returns whether an element has been removed.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleRemove), Tuple, long long, bool > >( &TupleRemove );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleRemove) > >( &TupleRemove );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_remove", std::move( val ) );
             }
 
             // _tuple_named_remove : Bool ( Tuple, String ) --> removes element with given name, returns whether an element has been removed.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleNamedRemove), Tuple, std::string, bool > >( &TupleNamedRemove );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleNamedRemove) > >( &TupleNamedRemove );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_named_remove", std::move( val ) );
             }
 
             // _tuple_index_of : i64 ( Tuple, String ) --> returns the index of the element with given name or -1
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleIndexOf), Tuple, std::string, long long > >( &TupleIndexOf );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleIndexOf) > >( &TupleIndexOf );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_index_of", std::move( val ) );
             }
 
             // _tuple_name_of : String ( Tuple, i64 ) --> returns the name of the element with given idx (or throws)
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(TupleNameOf), Tuple, long long, std::string > >( &TupleNameOf );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleNameOf) > >( &TupleNameOf );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_name_of", std::move( val ) );
             }
 
             // _tuple_swap : void ( Tuple, i64, i64 ) --> swaps elements of given indices
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(TupleSwapValues), Tuple, long long, long long > >( &TupleSwapValues );
+                auto func = std::make_shared< LibraryFunction< decltype(TupleSwapValues) > >( &TupleSwapValues );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_tuple_swap", std::move( val ) );
             }
 
             // tuple_print : void ( Tuple, String, i64 ) --> prints (recursively) all (named) elements, for debugging (String param is the "root" name, last param is for max nesting level)
             if( not (opt_out & config::NoStdOut) ) {
-                auto func = std::make_shared< LibraryFunction3< decltype(TuplePrint), ValueObject, std::string, long long > >( &TuplePrint );
+                auto func = std::make_shared< LibraryFunction< decltype(TuplePrint) > >( &TuplePrint );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "tuple_print", std::move( val ) ); // missing _ is intended for now.
             }
@@ -1855,49 +1855,49 @@ protected:
 
         // _strlen : i64 ( String ) --> returns the length of the string in bytes (excluding the ending 0).
         {
-            auto func = std::make_shared< LibraryFunction1< decltype(StrLength), std::string, long long > >( &StrLength );
+            auto func = std::make_shared< LibraryFunction< decltype(StrLength) > >( &StrLength );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_strlen", std::move( val ) );
         }
 
         // _strglyphs : i64 ( String ) --> returns the utf-8 (Unicode) glyph count of the string (excluding the ending 0).
         {
-            auto func = std::make_shared< LibraryFunction1< decltype(StrUTF8GlyphCount), std::string, long long > >( &StrUTF8GlyphCount );
+            auto func = std::make_shared< LibraryFunction< decltype(StrUTF8GlyphCount) > >( &StrUTF8GlyphCount );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_strglyphs", std::move( val ) );
         }
 
         // _strglyphtobytepos : i64 ( String, i64 ) --> returns the byte position of the given glyph in given string, or -1 if out of range.
         {
-            auto func = std::make_shared< LibraryFunction2< decltype(StrUTF8GlyphToBytePos), std::string, long long, long long > >( &StrUTF8GlyphToBytePos );
+            auto func = std::make_shared< LibraryFunction< decltype(StrUTF8GlyphToBytePos) > >( &StrUTF8GlyphToBytePos );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_strglyphtobytepos", std::move( val ) );
         }
 
         // _strat : String ( String, i64 ) --> returns a substring of one complete UTF-8 code point where position points into. empty string if out of range.
         {
-            auto func = std::make_shared< LibraryFunction2< decltype(StrAt), std::string, long long, std::string > >( &StrAt );
+            auto func = std::make_shared< LibraryFunction< decltype(StrAt) > >( &StrAt );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_strat", std::move( val ) );
         }
 
         // _substr : String ( String, from: i64, count: i64 ) --> returns a substring [from, from+count). count -1 means until end of string. returns empty string on invalid arguments.
         {
-            auto func = std::make_shared< LibraryFunction3< decltype(SubStr), std::string, long long, long long, std::string > >( &SubStr );
+            auto func = std::make_shared< LibraryFunction< decltype(SubStr) > >( &SubStr );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_substr", std::move( val ) );
         }
 
         // _strfind : i64 ( String, substring: String, offset: i64 ) --> searches for substring from offset and returns found pos of first occurrence. -1 if not found.
         {
-            auto func = std::make_shared< LibraryFunction3< decltype(StrFind), std::string, std::string, long long, long long > >( &StrFind );
+            auto func = std::make_shared< LibraryFunction< decltype(StrFind) > >( &StrFind );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_strfind", std::move( val ) );
         }
 
         // _strfromascii : String|Bool ( char: Number ) --> returns a String build from the ascii char. For invalid chars (>127) Bool(false) will be returned.
         {
-            auto func = std::make_shared< LibraryFunction1< decltype(StrFromAscii), ValueObject, ValueObject > >( &StrFromAscii );
+            auto func = std::make_shared< LibraryFunction< decltype(StrFromAscii) > >( &StrFromAscii );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_strfromascii", std::move( val ) );
         }
@@ -1906,14 +1906,14 @@ protected:
         if( core_level >= config::LevelCore ) {
             // _strfindreverse : i64 ( String, substring: String, offset: i64 ) --> searches for substring from behind from offset and returns found pos of first occurrence. -1 if not found.
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(StrReverseFind), std::string, std::string, long long, long long > >( &StrReverseFind );
+                auto func = std::make_shared< LibraryFunction< decltype(StrReverseFind) > >( &StrReverseFind );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_strfindreverse", std::move( val ) );
             }
 
             // _strreplacepos : Bool ( str: String, start: i64, count: i64, new: String ) --> replaces the section [start, start+count) in str with new. returns false on error, e.g. start is out of range.
             {
-                auto func = std::make_shared< LibraryFunction4< decltype(StrReplacePos), std::string, long long, long long, std::string, bool > >( &StrReplacePos );
+                auto func = std::make_shared< LibraryFunction< decltype(StrReplacePos) > >( &StrReplacePos );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_strreplacepos", std::move( val ) );
             }
@@ -1924,7 +1924,7 @@ protected:
 
         // _timestamp : f64 ( void ) --> gets the elapsed time in (fractional) seconds as f64 from an unspecified time point during program start. Time is monotonic increasing.
         {
-            auto func = std::make_shared< LibraryFunction0< decltype(GetTimeStamp), double > >( &GetTimeStamp );
+            auto func = std::make_shared< LibraryFunction< decltype(GetTimeStamp) > >( &GetTimeStamp );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_timestamp", std::move( val ) );
         }
@@ -1932,28 +1932,28 @@ protected:
         if( core_level >= config::LevelUtil ) {
             // clock : f64 ( void ) --> gets the local wall clock time of the current day in (fractional) seconds as f64. 
             {
-                auto func = std::make_shared< LibraryFunction0< decltype(GetLocalTimeInSecs), double > >( &GetLocalTimeInSecs );
+                auto func = std::make_shared< LibraryFunction< decltype(GetLocalTimeInSecs) > >( &GetLocalTimeInSecs );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "clock", std::move( val ) ); // missing _ is intended for now.
             }
 
             // clock_utc : f64 ( void ) --> gets the UTC time of the current day in (fractional) seconds as f64.
             {
-                auto func = std::make_shared< LibraryFunction0< decltype(GetUTCTimeInSecs), double > >( &GetUTCTimeInSecs );
+                auto func = std::make_shared< LibraryFunction< decltype(GetUTCTimeInSecs) > >( &GetUTCTimeInSecs );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "clock_utc", std::move( val ) ); // missing _ is intended for now.
             }
 
             // sleep : void ( i64 ) --> sleeps (at least) for given amount of seconds.
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(SleepSecs), long long > >( &SleepSecs );
+                auto func = std::make_shared< LibraryFunction< decltype(SleepSecs) > >( &SleepSecs );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "sleep", std::move( val ) );
             }
 
             // random : i64 ( i64, i64 ) --> creates a random number in between [start,end]. start, end must be >= 0 and <= UINT_MAX.
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(CreateRandomNumber), long long, long long, long long > >( &CreateRandomNumber );
+                auto func = std::make_shared< LibraryFunction< decltype(CreateRandomNumber) > >( &CreateRandomNumber );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "random", std::move( val ) );
             }
@@ -1961,14 +1961,14 @@ protected:
 #if TEASCRIPT_TOMLSUPPORT
             // readtomlstring : Tuple|Bool ( String ) --> creates a named tuple from the given TOML formatted string (or false on error).
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(TomlSupport::ReadTomlString), std::string, ValueObject, true> >( &TomlSupport::ReadTomlString );
+                auto func = std::make_shared< LibraryFunction< decltype(TomlSupport::ReadTomlString) > >( &TomlSupport::ReadTomlString );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readtomlstring", std::move( val ) ); // missing _ is intended
             }
 
             // writetomlstring : String|Bool ( Tuple ) --> creates a TOML formatted string from the given tuple (or false on error).
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(TomlSupport::WriteTomlString), Tuple, ValueObject> >( &TomlSupport::WriteTomlString );
+                auto func = std::make_shared< LibraryFunction< decltype(TomlSupport::WriteTomlString) > >( &TomlSupport::WriteTomlString );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "writetomlstring", std::move( val ) ); // missing _ is intended
             }
@@ -1982,35 +1982,35 @@ protected:
 
             // toml_is_array : Bool ( Any ) --> checks if given parameter is an Toml compatible array.
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(tuple::TomlJsonUtil::IsAnArray), ValueObject, bool> >( &tuple::TomlJsonUtil::IsAnArray );
+                auto func = std::make_shared< LibraryFunction< decltype(tuple::TomlJsonUtil::IsAnArray) > >( &tuple::TomlJsonUtil::IsAnArray );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "toml_is_array", std::move( val ) ); // missing _ is intended
             }
 
             // toml_array_empty : Bool ( Tuple ) --> checks if given Tuple is an empty Toml array.
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(tuple::TomlJsonUtil::IsArrayEmpty), Tuple, bool> >( &tuple::TomlJsonUtil::IsArrayEmpty );
+                auto func = std::make_shared< LibraryFunction< decltype(tuple::TomlJsonUtil::IsArrayEmpty) > >( &tuple::TomlJsonUtil::IsArrayEmpty );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "toml_array_empty", std::move( val ) ); // missing _ is intended
             }
 
             // toml_array_append : void ( Tuple, Any ) --> appends value to Toml comaptible array (the Tuple must be compatible, e.g., toml_is_array returned true!)
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(tuple::TomlJsonUtil::ArrayAppend), Tuple, ValueObject > >( &tuple::TomlJsonUtil::ArrayAppend );
+                auto func = std::make_shared< LibraryFunction< decltype(tuple::TomlJsonUtil::ArrayAppend) > >( &tuple::TomlJsonUtil::ArrayAppend );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "toml_array_append", std::move( val ) ); // missing _ is intended
             }
 
             // toml_array_insert : Bool ( Tuple, I64, Any ) --> inserts value at idx to Toml comaptible array (the Tuple must be compatible, e.g., toml_is_array returned true!)
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(tuple::TomlJsonUtil::ArrayInsert), Tuple, long long, ValueObject, ValueObject > >( &tuple::TomlJsonUtil::ArrayInsert );
+                auto func = std::make_shared< LibraryFunction< decltype(tuple::TomlJsonUtil::ArrayInsert) > >( &tuple::TomlJsonUtil::ArrayInsert );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "toml_array_insert", std::move( val ) ); // missing _ is intended
             }
 
             // toml_array_remove : Bool ( Tuple, I64 ) --> removes value at idx from Toml comaptible array (the Tuple must be compatible, e.g., toml_is_array returned true!)
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(tuple::TomlJsonUtil::ArrayRemove), Tuple, long long, ValueObject > >( &tuple::TomlJsonUtil::ArrayRemove );
+                auto func = std::make_shared< LibraryFunction< decltype(tuple::TomlJsonUtil::ArrayRemove) > >( &tuple::TomlJsonUtil::ArrayRemove );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "toml_array_remove", std::move( val ) ); // missing _ is intended
             }
@@ -2019,14 +2019,14 @@ protected:
 #if TEASCRIPT_JSONSUPPORT
             // readjsonstring : Any ( String ) --> creates a value of appropriate type from the given JSON formatted string (or a TypeInfo on error).
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(JsonSupport<>::ReadJsonString), std::string, ValueObject, true> >( &JsonSupport<>::ReadJsonString );
+                auto func = std::make_shared< LibraryFunction< decltype(JsonSupport<>::ReadJsonString) > >( &JsonSupport<>::ReadJsonString );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readjsonstring", std::move( val ) ); // missing _ is intended
             }
 
             // writejsonstring : String|Bool ( Any ) --> creates a Json formatted string (or false on error).
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(JsonSupport<>::WriteJsonString), ValueObject, ValueObject> >( &JsonSupport<>::WriteJsonString );
+                auto func = std::make_shared< LibraryFunction< decltype(JsonSupport<>::WriteJsonString) > >( &JsonSupport<>::WriteJsonString );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "writejsonstring", std::move( val ) ); // missing _ is intended
             }
@@ -2040,35 +2040,35 @@ protected:
 
             // jaon_is_array : Bool ( Any ) --> checks if given parameter is an Json compatible array.
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(tuple::TomlJsonUtil::IsAnArray), ValueObject, bool> >( &tuple::TomlJsonUtil::IsAnArray );
+                auto func = std::make_shared< LibraryFunction< decltype(tuple::TomlJsonUtil::IsAnArray) > >( &tuple::TomlJsonUtil::IsAnArray );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "json_is_array", std::move( val ) ); // missing _ is intended
             }
 
             // json_array_empty : Bool ( Tuple ) --> checks if given Tuple is an empty Json array.
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(tuple::TomlJsonUtil::IsArrayEmpty), Tuple, bool> >( &tuple::TomlJsonUtil::IsArrayEmpty );
+                auto func = std::make_shared< LibraryFunction< decltype(tuple::TomlJsonUtil::IsArrayEmpty) > >( &tuple::TomlJsonUtil::IsArrayEmpty );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "json_array_empty", std::move( val ) ); // missing _ is intended
             }
 
             // json_array_append : void ( Tuple, Any ) --> appends value to Json comaptible array (the Tuple must be compatible, e.g., json_is_array returned true!)
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(tuple::TomlJsonUtil::ArrayAppend), Tuple, ValueObject > >( &tuple::TomlJsonUtil::ArrayAppend );
+                auto func = std::make_shared< LibraryFunction< decltype(tuple::TomlJsonUtil::ArrayAppend) > >( &tuple::TomlJsonUtil::ArrayAppend );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "json_array_append", std::move( val ) ); // missing _ is intended
             }
 
             // json_array_insert : Bool ( Tuple, I64, Any ) --> inserts value at idx to Json comaptible array (the Tuple must be compatible, e.g., json_is_array returned true!)
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(tuple::TomlJsonUtil::ArrayInsert), Tuple, long long, ValueObject, ValueObject > >( &tuple::TomlJsonUtil::ArrayInsert );
+                auto func = std::make_shared< LibraryFunction< decltype(tuple::TomlJsonUtil::ArrayInsert) > >( &tuple::TomlJsonUtil::ArrayInsert );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "json_array_insert", std::move( val ) ); // missing _ is intended
             }
 
             // json_array_remove : Bool ( Tuple, I64 ) --> removes value at idx from Json comaptible array (the Tuple must be compatible, e.g., json_is_array returned true!)
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(tuple::TomlJsonUtil::ArrayRemove), Tuple, long long, ValueObject > >( &tuple::TomlJsonUtil::ArrayRemove );
+                auto func = std::make_shared< LibraryFunction< decltype(tuple::TomlJsonUtil::ArrayRemove) > >( &tuple::TomlJsonUtil::ArrayRemove );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "json_array_remove", std::move( val ) ); // missing _ is intended
             }
@@ -2080,56 +2080,56 @@ protected:
                                              (opt_out & (config::NoFileWrite | config::NoFileRead | config::NoFileDelete)) ) {
             // cwd : String ( void ) --> returns the current working directory as String
             {
-                auto func = std::make_shared< LibraryFunction0< decltype(CurrentPath), std::string > >( &CurrentPath );
+                auto func = std::make_shared< LibraryFunction< decltype(CurrentPath) > >( &CurrentPath );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "cwd", std::move( val ) ); // missing _ is intended for now.
             }
 
             // change_cwd : Bool ( String ) --> changes the current working dir
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(ChangeCurrentPath), std::string, bool> >( &ChangeCurrentPath );
+                auto func = std::make_shared< LibraryFunction< decltype(ChangeCurrentPath) > >( &ChangeCurrentPath );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "change_cwd", std::move( val ) ); // missing _ is intended for now.
             }
 
             // tempdir : String ( void ) --> returns configured temp directory as String
             {
-                auto func = std::make_shared< LibraryFunction0< decltype(TempPath), std::string > >( &TempPath );
+                auto func = std::make_shared< LibraryFunction< decltype(TempPath) > >( &TempPath );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "tempdir", std::move( val ) ); // missing _ is intended for now.
             }
 
             // path_exists : Bool ( String ) --> returns whether path in String exists as directory or file.
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(PathExists), std::string, long long> >( &PathExists );
+                auto func = std::make_shared< LibraryFunction< decltype(PathExists) > >( &PathExists );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "path_exists", std::move( val ) ); // missing _ is intended for now.
             }
 
             // file_size : i64 ( String ) --> returns file size in bytes. -1 on error / file not exists / is not a file.
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(FileSize), std::string, long long> >( &FileSize );
+                auto func = std::make_shared< LibraryFunction< decltype(FileSize) > >( &FileSize );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "file_size", std::move( val ) ); // missing _ is intended for now.
             }
 
             // last_modified : String ( String ) --> returns the last modified time as String for the given path or empty string if not exists/error.
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(LastModified), std::string, std::string> >( &LastModified );
+                auto func = std::make_shared< LibraryFunction< decltype(LastModified) > >( &LastModified );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "last_modified", std::move( val ) ); // missing _ is intended for now.
             }
 
             // readdirfirst : Tuple ( String ) --> returns the first direntry of given path (see direntry for details)
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(ReadDirFirst), std::string, ValueObject, true> >( &ReadDirFirst );
+                auto func = std::make_shared< LibraryFunction< decltype(ReadDirFirst) > >( &ReadDirFirst );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readdirfirst", std::move( val ) ); // missing _ is intended for now.
             }
 
             // readdirnext : Tuple ( Tuple ) --> returns the next direntry of given direntry (see direntry for details)
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(ReadDirNext), Tuple, ValueObject, true> >( &ReadDirNext );
+                auto func = std::make_shared< LibraryFunction< decltype(ReadDirNext) > >( &ReadDirNext );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readdirnext", std::move( val ) ); // missing _ is intended for now.
             }
@@ -2140,7 +2140,7 @@ protected:
             // file_copy : Bool ( file: String, dest_dir: String, overwrite: Bool ) 
             // --> copies file to dest_dir if not exist or overwrite is true
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(FileCopy), std::string, std::string, bool, bool> >( &FileCopy );
+                auto func = std::make_shared< LibraryFunction< decltype(FileCopy) > >( &FileCopy );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "file_copy", std::move( val ) ); // missing _ is intended for now.
             }
@@ -2148,7 +2148,7 @@ protected:
             // file_copy_newer : Bool ( file: String, dest_dir: String ) 
             // --> copies file to dest_dir if not exist or file is newer as the file in dest_dir
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(FileCopyIfNewer), std::string, std::string, bool> >( &FileCopyIfNewer );
+                auto func = std::make_shared< LibraryFunction< decltype(FileCopyIfNewer) > >( &FileCopyIfNewer );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "file_copy_newer", std::move( val ) ); // missing _ is intended for now.
             }
@@ -2157,14 +2157,14 @@ protected:
         // readtextfile : String|Bool ( String ) --> reads the content of an UTF-8 text file and returns it in a String. An optional BOM is removed.
         if( core_level >= config::LevelFull && not (opt_out & config::NoFileRead) )
         {
-            auto func = std::make_shared< LibraryFunction1< decltype(ReadTextFile), std::string, ValueObject > >( &ReadTextFile );
+            auto func = std::make_shared< LibraryFunction< decltype(ReadTextFile) > >( &ReadTextFile );
             ValueObject val{std::move( func ), cfg_mutable};
             tea_add_var( "readtextfile", std::move( val ) ); // missing _ is intended for now.
         }
 
         // readfile : Buffer|Bool ( String ) --> reads the content of a file and returns it in a Buffer.
         if( core_level >= config::LevelFull && not (opt_out & config::NoFileRead) ) {
-            auto func = std::make_shared< LibraryFunction1< decltype(ReadBinaryFile), std::string, ValueObject > >( &ReadBinaryFile );
+            auto func = std::make_shared< LibraryFunction< decltype(ReadBinaryFile) > >( &ReadBinaryFile );
             ValueObject val{std::move( func ), cfg_mutable};
             tea_add_var( "readfile", std::move( val ) ); // missing _ is intended for now.
         }
@@ -2174,7 +2174,7 @@ protected:
         {
             // create_dir : Bool ( String, Bool ) --> creates directories for path in String. Bool == true means recursively
             {
-                auto func = std::make_shared< LibraryFunction2< decltype(CreateDir), std::string, bool, bool > >( &CreateDir );
+                auto func = std::make_shared< LibraryFunction< decltype(CreateDir) > >( &CreateDir );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "create_dir", std::move( val ) ); // missing _ is intended for now.
             }
@@ -2182,7 +2182,7 @@ protected:
             // writetextfile : Bool ( file: String, str: String, overwrite: Bool, bom: Bool ) 
             // --> writes the content of String to text file. An optional UTF-8 BOM can be written (last Bool param). overwrite indicates if a prior existing file shall be overwritten (old content destroyed!)
             {
-                auto func = std::make_shared< LibraryFunction4< decltype(WriteTextFile), std::string, std::string, bool, bool, bool > >( &WriteTextFile );
+                auto func = std::make_shared< LibraryFunction< decltype(WriteTextFile) > >( &WriteTextFile );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "writetextfile", std::move( val ) ); // missing _ is intended for now.
             }
@@ -2190,7 +2190,7 @@ protected:
             // writefile : Bool ( file: String, content: Buffer, overwrite: Bool ) 
             // --> writes the content of the Buffer into file. overwrite indicates if a prior existing file shall be overwritten (old content destroyed!)
             {
-                auto func = std::make_shared< LibraryFunction3< decltype(WriteBinaryFile), std::string, Buffer, bool, bool > >( &WriteBinaryFile );
+                auto func = std::make_shared< LibraryFunction< decltype(WriteBinaryFile) > >( &WriteBinaryFile );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "writefile", std::move( val ) ); // missing _ is intended for now.
             }
@@ -2200,7 +2200,7 @@ protected:
         {
             // path_delete : Bool ( String ) --> deletes(!) file or (empty) directory
             {
-                auto func = std::make_shared< LibraryFunction1< decltype(PathDelete), std::string, bool > >( &PathDelete );
+                auto func = std::make_shared< LibraryFunction< decltype(PathDelete) > >( &PathDelete );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "path_delete", std::move( val ) ); // missing _ is intended for now.
             }
@@ -2519,7 +2519,7 @@ func strreplacelast( str @=, what, new, offset := -1 ) // offset -1 == whole str
 
 // trims the string if it starts or ends with characters in given set.
 // e.g. strtrim( s, " \t\r\n", false, true ) will remove all spaces, tabs, carriage returns and new lines at the end of the string.
-func strtrim( const str @=, set, leading := true, trailing := true )
+func strtrim( def str @=, set, leading := true, trailing := true )
 {
     def res := false
     if( leading ) {

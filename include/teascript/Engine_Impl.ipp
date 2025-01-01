@@ -119,7 +119,7 @@ TEASCRIPT_COMPILE_MODE_INLINE
 ValueObject Engine::CallFunc( std::string const &rName, std::vector<ValueObject> &rParams )
 {
     auto funcval = GetVar( rName );
-    auto func = funcval.GetValue< FunctionPtr >(); // copy is intended
+    auto func = funcval.GetValueCopy< FunctionPtr >();
     return func->Call( mContext, rParams, SourceLocation() );
 }
 

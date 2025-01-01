@@ -1090,8 +1090,8 @@ public:
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
 
         // get and evaluate parameter list
-        auto  paramval = mChildren[1]->Eval( rContext );
-        auto const &params = paramval.GetValue< std::vector< ValueObject> >();
+        auto const paramval = mChildren[1]->Eval( rContext );
+        auto const &params  = paramval.GetValue< std::vector< ValueObject> >();
 
         return SetValueObject( lhs, std::span( params.data(), params.size() ), rValue, shared, GetSourceLocation() );
     }
@@ -1149,10 +1149,10 @@ public:
     ValueObject GetValueObject( Context &rContext ) const
     {
         Check();
-        ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
+        ValueObject const  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
 
         // get and evaluate parameter list
-        auto  paramval = mChildren[1]->Eval( rContext );
+        auto const paramval = mChildren[1]->Eval( rContext );
         auto const &params = paramval.GetValue< std::vector< ValueObject> >();
 
         return GetValueObject( lhs, std::span( params.data(), params.size() ), GetSourceLocation() );
@@ -1249,12 +1249,12 @@ public:
     ValueObject AddValueObject( Context &rContext, ValueObject const &rVal )
     {
         Check();
-        ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
-        auto &tuple = lhs.GetValue<Tuple>();
-
+        ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!S
         if( lhs.IsConst() ) {
             throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be added!" );
         }
+
+        auto &tuple = lhs.GetValue<Tuple>();
 
         std::string identifier;
         if( mChildren[1]->GetName() == "Id" ) {
@@ -1289,11 +1289,12 @@ public:
     {
         Check();
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
-        auto &tuple = lhs.GetValue<Tuple>();
 
         if( lhs.IsConst() ) {
             throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be changed!" );
         }
+
+        auto &tuple = lhs.GetValue<Tuple>();
 
         auto const idx = GetIndex( tuple, rContext ); // throws on error!
         auto &obj = tuple.GetValueByIdx_Unchecked( idx );
@@ -1309,10 +1310,12 @@ public:
     {
         Check();
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
-        auto &tuple = lhs.GetValue<Tuple>();
+
         if( lhs.IsConst() ) {
             throw exception::eval_error( GetSourceLocation(), "Tuple is const. Elements cannot be removed!" );
         }
+
+        auto &tuple = lhs.GetValue<Tuple>();
 
         auto const idx = GetIndex( tuple, rContext ); // throws on error!
         auto obj = tuple.GetValueByIdx_Unchecked( idx );
@@ -1324,7 +1327,7 @@ public:
     {
         Check();
         ValueObject  lhs = mChildren[0]->Eval( rContext ); // NOTE: lhs might be a temporary object!!!
-        auto &tuple = lhs.GetValue<Tuple>();
+        auto const &tuple = lhs.GetConstValue<Tuple>();
 
         auto const idx = GetIndex( tuple, rContext ); // throws on error!
         auto obj = tuple.GetValueByIdx_Unchecked( idx );
@@ -2159,7 +2162,7 @@ public:
         ValueObject res;
 
         // get the sequence
-        auto seq_val = mChildren[1]->Eval( rContext );
+        auto const  seq_val = mChildren[1]->Eval( rContext );
         if( not seq_val.GetTypeInfo()->IsSame<IntegerSequence>() && not seq_val.GetTypeInfo()->IsSame<Tuple>() ) {
             throw exception::eval_error( GetSourceLocation(), "Forall ASTNode can actually only iterate over an IntegerSequence/Tuple!" );
         }

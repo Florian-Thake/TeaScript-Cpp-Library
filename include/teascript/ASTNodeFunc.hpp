@@ -129,7 +129,7 @@ public:
 
         // get the ValueObject with the Func
         auto funcval = mChildren[0]->Eval( rContext );
-        auto func = funcval.GetValue< FunctionPtr >(); // copy is intended
+        auto func    = funcval.GetValueCopy< FunctionPtr >();
 
         // get and evaluate parameter list
         auto  paramval = mChildren[1]->Eval( rContext );

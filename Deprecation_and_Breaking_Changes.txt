@@ -25,6 +25,7 @@ TeaScript Breaking Changes in the actual release
     correctly. values which are const can be passed and keep the constness. mutable values can still be passed and keep the 
     mutability as well.
     
+
     Changes in CoreLibrary functionality
     ------------------------------------
     clock_utc() has a breaking change on Windows and Linux with gcc >= 13.
@@ -33,10 +34,30 @@ TeaScript Breaking Changes in the actual release
     The previous wrong behavior resulted due to a misunderstanding of the underlying C++ API.
     Now there isn't an annoying offset to the system clock time anymore.
 
+    strtrim() first parameter was a const @= by accident. changed to correct def @=.
+    Now the function will not take a const string as input parameter anymore!
+    This worked because of a const correct bug, which has been fixed now (see C++ API level breaking changes below).
+
 
     Changes on C++ API level
     ------------------------------------
+    T & ValueObject::GetValue() was not const correct for the case the inner value was const.
+    In that case also a non const reference was returned and the const value could be modified. This has been fixed now.
     
+    GetValue() from a non const value object is invoked but which has a const inner value will throw a exception::bad_value_cast now.
+    This can result in unexpected exceptions in old code!
+    
+    To fix this, you can call GetValue< Type const >() instead.
+    A more clean variant would be to replace all GetValue() calls by one of GetConstValue()|GetMutableValue() or GetValueCopy().
+    
+    For temporarily restore the old but wrong behavior define this macro TEASCRIPT_DISABLE_GETVALUE_CONSTCHECK.
+    This switch will be removed in the next release!
+    
+    
+    tuple::foreach_element/foreach_named_element are working now with either a const ValueObject or a mutable one.
+    If the functor takes mutable objects all nested const objects (if any) will be skipped.
+    This is a breaking change but the old behavior was faulty as it allowed to access const elements as mutable reference.
+
 
     Visibility of Core Library functions
     ------------------------------------
@@ -60,4 +81,7 @@ TeaScript list of deprecated parts
 
 
     The following parts are now deprecated and will be removed in some future release:
+    
+    class LibraryFunction0<> to LibraryFunction5<> are deprecated now.
+    Please, use the new and generic one fits for all LibraryFunction<> instead.
 
