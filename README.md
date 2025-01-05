@@ -484,7 +484,7 @@ https://paypal.me/FlorianThake
 The donation will be for covering the monthly and yearly costs as well as for free personal use. All donations will help me to put more time and effort into TeaScript and its webpage. Thank you very much! 🙂
 
 # Copyright
-Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+Copyright (C) 2025 Florian Thake <contact |at| tea-age.solutions>.
 
 This file:
-Copyright (C) 2024 Florian Thake. All rights reserved.
+Copyright (C) 2025 Florian Thake. All rights reserved.
