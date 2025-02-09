@@ -83,12 +83,6 @@ public:
         return line;
     }
 
-    [[deprecated("Control flow exit from TeaScript code will not be supported anymore. Please, use _Exit val instead (or throw Exit_Script() directly from cpp code).")]]
-    [[noreturn]] static void ExitScript( long long const code )
-    {
-        throw control::Exit_Script( code );
-    }
-
     static double Sqrt( double const d )
     {
         return std::sqrt( d );

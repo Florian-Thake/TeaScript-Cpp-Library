@@ -75,6 +75,9 @@ TeaScript list of deprecated parts
 
     The following deprecated parts have been finally removed from this release:
     
+    The Core Library function CoreLibrary::ExitScript() has been finally removed.
+    Please, use _Exit val instead or directly throw teascript::control::Exit_Script from C++.
+    
     --old-mutable-parameters command line option has been finnaly removed.
     For the case you want use a legacy dialect of TeaScript with default mutable parameters you need
     to change the used Dialect instance, see Dialect.hpp    

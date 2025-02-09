@@ -8,6 +8,9 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.16.0 (not released yet, pre-release)
 ================
+    CLEAN: finally removed deprecated CoreLibrary::ExitScript().
+    - Please, use _Exit val instead or directly throw teascript::control::Exit_Script from C++.
+
     UTIL: made tuple::foreach_element/foreach_named_element working with const and ...
     - ... mutable ValueObjects. If inner elements change to const and the provided 
       functor takes a const ValueObject it will be called, otherwise nested const
