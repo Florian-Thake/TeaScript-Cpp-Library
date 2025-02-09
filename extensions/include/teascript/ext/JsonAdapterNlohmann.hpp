@@ -40,6 +40,12 @@ public:
     static ValueObject ToValueObject( Context &rContext, JsonType const &json );
 
     static void FromValueObject( ValueObject const &rObj, JsonType &rOut );
+
+
+    // nlohmann supports different binary formats. We support BSON here.
+
+    static ValueObject FromBSON( Context &rContext, Buffer const &rBuffer );
+    static ValueObject ToBSON( ValueObject const &rObj );
 };
 
 } // namespace teascript

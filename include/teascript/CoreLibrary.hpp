@@ -2066,6 +2066,23 @@ protected:
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "json_array_remove", std::move( val ) ); // missing _ is intended
             }
+
+            // EXPERIMENTAL BSON support (nlohmann adapter must be used!)
+# if TEASCRIPT_BSONSUPPORT
+            // readbsonbuffer : Any ( Buffer ) --> creates a value of appropriate type from the given BSON buffer (or a TypeInfo on error).
+            {
+                auto func = std::make_shared< LibraryFunction< decltype(JsonSupport<>::ReadBsonBuffer) > >( &JsonSupport<>::ReadBsonBuffer );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "readbsonbuffer", std::move( val ) ); // missing _ is intended
+            }
+
+            // writebsonbuffer : Buffer|Bool ( Any ) --> creates a Bson buffer (or false on error).
+            {
+                auto func = std::make_shared< LibraryFunction< decltype(JsonSupport<>::WriteBsonBuffer) > >( &JsonSupport<>::WriteBsonBuffer );
+                ValueObject val{std::move( func ), cfg_mutable};
+                tea_add_var( "writebsonbuffer", std::move( val ) ); // missing _ is intended
+            }
+# endif
 #endif
         }
 

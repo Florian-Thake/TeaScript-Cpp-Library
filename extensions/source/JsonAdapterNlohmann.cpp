@@ -158,4 +158,25 @@ void JsonAdapterNlohmann::FromValueObject( ValueObject const &rObj, JsonType & r
     }
 }
 
+ValueObject JsonAdapterNlohmann::FromBSON( Context &rContext, Buffer const &rBuffer )
+{
+    auto json = nlohmann::json::from_bson( rBuffer );
+    return ToValueObject( rContext, json );
+}
+
+ValueObject JsonAdapterNlohmann::ToBSON( ValueObject const &rObj )
+{
+    JsonType json;
+    try {
+        FromValueObject( rObj, json );
+    } catch( std::exception const & ) {
+        // TODO better error handling! Use Error once it exist!
+        return ValueObject( false );
+    }
+
+    Buffer  bson = nlohmann::json::to_bson( json );
+    return ValueObject( std::move( bson ) );
+}
+
+
 } // namespace teascript

@@ -8,6 +8,10 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.16.0 (not released yet, pre-release)
 ================
+    CORELIB|JSON: added experimental BSON support if nlohmann::json Adapter is used.
+    - added readbsonbuffer and writebsonbuffer to core library for ...
+    ... Tuple <--> BSON Buffer conversion.
+
     CLEAN: finally removed deprecated CoreLibrary::ExitScript().
     - Please, use _Exit val instead or directly throw teascript::control::Exit_Script from C++.
 

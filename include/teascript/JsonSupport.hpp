@@ -46,6 +46,10 @@ namespace teascript {
 using JsonAdapter = JsonAdapterPico;
 }
 #elif TEASCRIPT_JSONSUPPORT == TEASCRIPT_JSON_NLOHMANN
+# if !defined( TEASCRIPT_BSONSUPPORT)
+// nlohmann supports BSON
+#  define TEASCRIPT_BSONSUPPORT     1
+# endif
 #if __has_include("teascript/ext/JsonAdapterNlohmann.hpp")
 # include "teascript/ext/JsonAdapterNlohmann.hpp"
 #else
@@ -76,6 +80,9 @@ using JsonAdapter = JsonAdapterBoost;
 # error unsupported JSON flavor for TeaScript
 #endif
 
+#if !defined( TEASCRIPT_BSONSUPPORT)
+# define TEASCRIPT_BSONSUPPORT     0
+#endif
 
 namespace teascript {
 
@@ -117,6 +124,23 @@ public:
     {
         Adapter::FromValueObject( rObj, rOut );
     }
+
+    // EXPERIMENTAL BSON support (nlohmann adapter must be used!)
+#if TEASCRIPT_BSONSUPPORT
+    /// Constructs a ValueObject structure from the given BSON buffer.
+    static ValueObject ReadBsonBuffer( Context &rContext, Buffer const &rBuffer )
+    {
+        return Adapter::FromBSON( rContext, rBuffer );
+    }
+
+    /// Constructs a Bson buffer from the given ValueObject. 
+    /// \return the constructed buffer or false on error.
+    /// \note the object must only contain supported types and layout for Json.
+    static ValueObject WriteBsonBuffer( ValueObject const &rObj )
+    {
+        return Adapter::ToBSON( rObj );
+    }
+#endif
 };
 
 } // namespace teascript
