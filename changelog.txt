@@ -8,6 +8,13 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.16.0 (not released yet, pre-release)
 ================
+    BUILD: Support Visual Studio 2022 17.13 with C++23 preview.
+    FIX: C++23 - Printing without libfmt. Use std::print again instead of std::vprint_unicode.
+    ... On Linux it just works, 
+    ... on Windows with VS 17.13 at least in Windows Terminal (but not in old conhost.exe).
+
+    3RDPARTY|HOST: updated to fmt 11.1.4, hard minimum is still 10.1.1
+
     CORELIB|JSON: added experimental BSON support if nlohmann::json Adapter is used.
     - added readbsonbuffer and writebsonbuffer to core library for ...
     ... Tuple <--> BSON Buffer conversion.

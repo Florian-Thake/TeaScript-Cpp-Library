@@ -25,8 +25,8 @@
 
 // Priority order:
 // 1.) Use fmt::print if available (this will offer the most possible features, e.g. colored output, string formatting within script code, etc...)
-// 2.) Use std::vprint_unicode if available.
-// 3.) Use std::cout + std::format
+// 2.) Use C++23 std::print if available.
+// 3.) Use C++20 std::cout + std::format
 #if __has_include( "fmt/format.h" ) && !defined( TEASCRIPT_DISABLE_FMTLIB )
 # define TEASCRIPT_FMTFORMAT      1
 # ifndef TEASCRIPT_DISABLE_FMT_HEADER_ONLY
@@ -40,7 +40,8 @@
 # endif
 #elif __has_include( <format> )
 # include <format>
-# if defined( __cpp_lib_format ) && __cpp_lib_format > 202110L && __cplusplus > 202002L && !defined( TEASCRIPT_DISABLE_STDFORMAT_23 )
+// for Visual Studio we not only need C++23 but also at least VS 2022 17.13 with C++23 preview for have a working std::print with UTF-8 support.
+# if defined( __cpp_lib_format ) && __cpp_lib_format > 202110L && __cplusplus > 202002L && !defined( TEASCRIPT_DISABLE_STDFORMAT_23 ) && (!defined(_MSC_VER) || _MSC_VER >= 1943)
 #  define TEASCRIPT_STDFORMAT_23   1
 #  include <print>
 # else
@@ -60,8 +61,8 @@
 # define TEASCRIPT_PRINT( ... ) fmt::print( __VA_ARGS__ )
 # define TEASCRIPT_ERROR( ... ) fmt::print( stderr, __VA_ARGS__ )
 #elif TEASCRIPT_STDFORMAT_23 
-# define TEASCRIPT_PRINT( ... ) std::vprint_unicode( __VA_ARGS__ )
-# define TEASCRIPT_ERROR( ... ) std::vprint_unicode( stderr, __VA_ARGS__ )
+# define TEASCRIPT_PRINT( ... ) std::print( __VA_ARGS__ )
+# define TEASCRIPT_ERROR( ... ) std::print( stderr, __VA_ARGS__ )
 #elif TEASCRIPT_STDFORMAT_20
 // NOTE: On Windows you must most likely hook up the streambuf of std::cout/std::cerr for support full UTF-8
 # define TEASCRIPT_PRINT( ... ) std::cout << std::format( __VA_ARGS__ )
