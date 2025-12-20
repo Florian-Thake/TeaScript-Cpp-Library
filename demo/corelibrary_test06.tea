@@ -1,0 +1,172 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText: Copyright (C) 2025 Florian Thake <contact@tea-age.solutions>. All rights reserved.
+ */
+ 
+// This is a follow up Unittest for the TeaScript Core Library written in TeaScript for versions >= 0.16
+// This test focusses on new Error type
+
+// NOTE: assuming all C++ UnitTests and test01.tea + test02.tea passed 100%!
+
+##minimum_version 0.16
+
+// pre-check
+if( not is_defined _core_config or (_core_config bit_and 0xf) < 8 /* LevelFull */ ) {
+    return "Tests must always run with CoreLibrary LevelFull."
+}
+
+// --- pre check done...
+
+// helper construct for (optional feature) color printing:
+// If cprint is not defined, we define it but just call print without color.
+// HINT: You need to add the {fmt} lib to your project in order to have color and format printing.
+//       The pre-build TeaScript Host Application has this feature always enabled.
+is_defined cprint or (func cprint( color, text )
+{
+    print( text )
+})
+
+
+func print_failure( text )
+{
+    // red color
+    cprint( make_rgb( 255, 0, 0 ), text )
+}
+
+func print_success( text )
+{
+    // green color
+    cprint( make_rgb( 0, 255, 0 ), text )
+}
+
+func print_warning( text )
+{
+    // pink color
+    cprint( make_rgb( 255, 0, 255 ), text )
+}
+
+
+// --- UnitTest function definitions 
+
+func TEST_EQ( val, expected, msg )
+{
+    def res := val == expected
+    if( not res ) {
+        print_failure( "\nFAILED:\n" )
+        fail_with_message( "expected %(expected) but was %(val). " % msg, _exit_failure )
+    }
+}
+
+func TEST_TRUE( c, msg )
+{
+    // enforce a boolean!
+    TEST_EQ( not not c, true, msg )
+}
+
+func TEST_FALSE( c, msg )
+{
+    // enforce a boolean!
+    TEST_EQ( not not c, false, msg )
+}
+
+// --- Start the test
+
+_out( "Start testing TeaScript Core Library ...\n" )
+
+// Error + _error_* functions
+print( "testing basic Error functionality and _error_get_[code/name/message]... " )
+{
+    const e := "Some Error" as Error
+    TEST_EQ( typeof e, Error, "e is not Error!" )
+    TEST_EQ( _error_get_code(e), 1, "code is not 1 (Runtime Error)!" )
+    TEST_EQ( _error_get_name(e), "Runtime Error", "_error_get_name failed!" )
+    TEST_EQ( _error_get_message(e), "Some Error", "_error_get_message failed!" )
+    
+    const e2 := e as Error
+    const e3 := make_runtime_error( "Some Error" )
+    TEST_EQ( typeof e3, Error, "e3 is not Error!" )
+    TEST_EQ( e2, e3, "e3 != e2!" )
+    
+    // NaV
+    const e4 := void as Error
+    TEST_EQ( typeof e4, Error, "e4 is not Error!" )
+    TEST_EQ( _error_get_code(e4), 2, "code is not 2 (Not A Value)!" )
+}
+print_success( "ok.\n" )
+
+// catch + _strtonum / _strtonumex error path test
+print( "testing catch and _strtonum / _strtonumex error path... " )
+{
+    TEST_EQ( "str" as Error catch 1337, 1337, "catch rhs failed!" )
+    TEST_EQ( "str" as String catch 1337, "str", "catch lhs failed!" )
+
+    def n1 := _strtonum( "123" ) catch 567
+    TEST_EQ( n1, 123, "_strtonum catch lhs failed!" )
+    def n2 := _strtonum( "uvw" ) catch 567
+    TEST_EQ( n2, 567, "_strtonum catch rhs failed!" )
+
+    def n3 := _strtonumex( "123" ) catch 567
+    TEST_EQ( n3, 123, "_strtonumex catch lhs failed!" )
+    def n4 := _strtonumex( "uvw" ) catch 567
+    TEST_EQ( n4, 567, "_strtonumex catch rhs failed!" )
+    
+    // chaining
+    
+    def n5 := _strtonumex( "opq" ) catch _strtonumex( "foobaz" ) catch _strtonumex( "42f64" )
+    TEST_EQ( typeof n5, f64, "n5 is not f64!" )
+    TEST_EQ( n5, 42f64, "_strtonumex chained catch rhs failed!" )
+    
+    def n6 := _strtonumex( "opq" ) catch _strtonumex( "1337u64" ) catch _strtonumex( "foobaz" ) catch _strtonumex( "42f64" )
+    TEST_EQ( typeof n6, u64, "n5 is not u64!" )
+    TEST_EQ( n6, 1337u64, "_strtonumex chained catch middle failed!" )
+    
+}
+print_success( "ok.\n" )
+
+// catch( error ) / catch return
+print( "testing  catch( error ) / catch return... " )
+
+func test_func( a )
+{
+    def x := _strtonumex( a ) catch return -123
+    x * 2
+}
+
+func test_func2( a )
+{
+    def x := _strtonumex( a ) catch( err ) return err
+    x * x
+}
+
+func test_func3( a )
+{
+    def z := test_func2( a ) catch( err ) return err
+    z + 3
+}
+
+{
+    def n1 := test_func( "4" )
+    TEST_EQ( n1, 8, "test_func( \"4\" ) failed!" )
+    def n2 := test_func( "uvw" )
+    TEST_EQ( n2, -123, "test_func( \"uvw\" ) failed!" )
+    
+    def n3 := test_func2( "4" )
+    TEST_EQ( n3, 16, "test_func2( \"4\" ) failed!" )
+    def e1 := test_func2( "uvw" )
+    TEST_EQ( typeof e1, Error, "test_func2( \"uvw\" ) failed!" )
+    
+    def n4 := test_func3( "4" )
+    TEST_EQ( n4, 19, "test_func3( \"4\" ) failed!" )
+    def e2 := test_func3( "uvw" )
+    TEST_EQ( typeof e1, Error, "test_func3( \"uvw\" ) failed!" )
+    
+    def s1 := "World" as Error catch( err )
+    {
+         def msg  := _error_get_message( err ) 
+         "Hello " % msg % "!"
+    }
+    TEST_EQ( s1, "Hello World!", "catch with block failed!" )
+}
+print_success( "ok.\n" )
+
+print_success( "=== TEST PASSED ===\n" )

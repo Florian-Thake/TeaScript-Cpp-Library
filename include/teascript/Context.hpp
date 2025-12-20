@@ -220,7 +220,7 @@ public:
         // for now only in the current scope.
         //TODO: check if outer scopes shall be considered as well!
         Scope &scope = GetCurrentScope();
-        auto res = scope.mVariableCollection.RemveValueByKeyWithPlaceholder( rName, ValueObject() );
+        auto res = scope.mVariableCollection.RemoveValueByKeyWithPlaceholder( rName, ValueObject() );
         if( res.has_value() ) {
             return res.value();
         }

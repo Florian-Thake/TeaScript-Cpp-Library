@@ -158,16 +158,8 @@ public:
         AddValueObject( rName, std::move( val ) );
     }
 
-    /// Executes the script referenced with file path \param path with the (optional) script parameters \param args.
-    /// \see the other overload and in class EngineBase for more details.
-    ValueObject ExecuteScript( std::filesystem::path const &path, std::vector<std::string> const &args = {} ) override
-    {
-        std::vector<ValueObject> val_args;
-        for( auto const &s : args ) {
-            val_args.emplace_back( ValueObject( s, ValueConfig{ValueShared, ValueMutable} ) );
-        }
-        return ExecuteScript( path, val_args );
-    }
+    // pull in the other overload with std::vector<std::string> args.
+    using EngineBase::ExecuteScript;
 
     /// Executes the script referenced with file path \param path with the (optional) script parameters \param args.
     /// The script parameters will be available for the script as a tuple "args[idx]". Additionally an "argN" variable indicating the parameter amount.
@@ -176,7 +168,7 @@ public:
     /// \note The legacy form of the arg variables "arg1", "arg2", ... is available via the compile setting TEASCRIPT_ENGINE_USE_LEGACY_ARGS=1
     /// \note \see EngineBase::ExecuteScript for further important details.
     /// \throw May throw exception::load_file_error or any exception based on exception::parsing_error/compile_error/eval_error/runtime_error/bad_value_cast.
-    TEASCRIPT_COMPILE_MODE_INLINE ValueObject ExecuteScript( std::filesystem::path const &path, std::vector<ValueObject> const &args );
+    TEASCRIPT_COMPILE_MODE_INLINE ValueObject ExecuteScript( std::filesystem::path const &path, std::vector<ValueObject> const &args ) override;
 
 
     /// Executes the given \param program in the TeaStackVM with the (optional) script parameters \param args.

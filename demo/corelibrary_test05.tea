@@ -473,8 +473,7 @@ print_success( "ok.\n" )
 
 print( "testing bigger json structure ... " )
 
-{
-    const json_str := """"
+const json_str := """"
 {
   "type": "FeatureCollection",
   "features": [
@@ -513,6 +512,7 @@ print( "testing bigger json structure ... " )
 } 
 """"
 
+{
     def json := readjsonstring( json_str )
     TEST_EQ( typeof json, Tuple, "wrong json value type!" )
     _out( "\n" )
@@ -604,5 +604,32 @@ contributors = [
 } else {
     print_warning( "\nTOML is not present! TOML test skipped!\n" )
 }
+
+print( "testing BSON extensions ... " )
+
+// You must use nlohmann as JSON adapter for have BSON support!
+def bson_present := is_defined readbsonbuffer and is_defined writebsonbuffer
+if( bson_present ) {
+    // first create some json tuple.
+    def json := readjsonstring( json_str )
+    // json tuple to bson
+    def bson_buffer := writebsonbuffer( json )
+    TEST_EQ( typeof bson_buffer, Buffer, "unexpected BSON type!" )
+    
+    //println( "\nContent:\n%(bson_buffer)" )
+    
+    def json_new := readbsonbuffer( bson_buffer )
+    TEST_EQ( typeof json_new, typeof json, "roundtrip failed! wrong type!" )
+    TEST_EQ( json_new, json, "roundtrip failed! not equal structure!" )
+    
+    print_success( "ok.\n" )
+} else {
+    print_warning( "\nBSON support is not present. BSON test skipped!\n")
+    print_warning( "You need ")
+    maybe_cprint( make_rgb( 210, 170, 90 ), "nlohmann::json" )
+    print_warning( " as JSON adapter, you have " )
+    maybe_cprint( make_rgb( 210, 170, 90 ), features.json_adapter % "\n" )
+}
+
 
 print_success( "=== TEST PASSED ===\n" )

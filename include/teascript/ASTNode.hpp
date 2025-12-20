@@ -1786,11 +1786,16 @@ public:
 
     static ValueObject StaticExec( ValueObject const &lhs, ValueObject const &rhs, SourceLocation const &loc = {} )
     {
-        if( not rhs.GetTypeInfo()->IsSame<TypeInfo>() ) {
+        if( not rhs.GetTypeInfo()->IsSame<TypeInfo>() ) [[unlikely]] {
             throw exception::eval_error( loc, "As Operator: RHS must be a Type!" );
         }
 
         auto const &ti = rhs.GetValue<TypeInfo>();
+
+        // same already or Error or NaV                                                                                                    NaV can cast to Error
+        if( lhs.GetTypeInfo()->IsSame( ti ) || lhs.InternalType() == ValueObject::TypeError || (lhs.InternalType() == ValueObject::TypeNaV && not ti.IsSame<Error>()) ) {
+            return lhs;
+        }
 
         switch( ti.GetName()[0] ) {
         case 'i': // i64
@@ -1820,6 +1825,15 @@ public:
                 return ValueObject( lhs.GetAsString(), ValueConfig( ValueUnshared, ValueMutable ) );
             }
             break;
+        case 'E': // Error
+            if( ti.IsSame<Error>() ) [[likely]] {
+                if( lhs.InternalType() == ValueObject::TypeNaV ) {
+                    return ValueObject( Error::MakeNotAValueError(), ValueConfig( ValueUnshared, ValueMutable ) );
+                } else {
+                    return ValueObject( Error::MakeRuntimeError( lhs.GetAsString() ), ValueConfig( ValueUnshared, ValueMutable ) );
+                }
+            }
+            break;
         default:
             break;
         }
@@ -1837,6 +1851,80 @@ public:
     }
 };
 
+
+/// ASTNode for catch statement, e.g., _strtonum( "abc" ) catch 1 / catch( err ) { return err }
+class ASTNode_Catch : public ASTNode_Binary_Operator
+{
+    std::string mErrorVariableName;
+public:
+    explicit ASTNode_Catch( SourceLocation loc = {} )
+        : ASTNode_Binary_Operator( NoCheck{}, "catch", std::move( loc ) )
+    {
+    }
+
+    explicit ASTNode_Catch( std::string const &rErrorVariableName, SourceLocation loc = {} )
+        : ASTNode_Binary_Operator( NoCheck{}, "catch", std::move( loc ) )
+        , mErrorVariableName(rErrorVariableName)
+    {
+    }
+
+    std::string const &GetErrorVariableName() const
+    {
+        return mErrorVariableName;
+    }
+
+    int Precedence() const noexcept override
+    {
+        return 3; // small to bind with closest neighbour , e.g. a + _strtonum( "abc" ) catch 3 =>  a + (_strtonum( "abc" ) catch 3)  //TODO: check and adjust if needed!
+    }
+
+    void AddChildNode( ASTNodePtr node ) override
+    {
+        ASTNode_Binary_Operator::AddChildNode( std::move( node ) );
+    }
+
+    void Check() const override
+    {
+        if( !IsComplete() ) {
+            if( NeedLHS() ) {
+                throw exception::eval_error( GetSourceLocation(), "Catch Operator ASTNode incomplete! LHS and RHS missing!" );
+            } else { // mChildren.size() < 2
+                throw exception::eval_error( GetSourceLocation(), "Catch Operator ASTNode incomplete! RHS missing!" );
+            }
+        }
+    }
+
+    ValueObject Eval( Context &rContext ) const override
+    {
+        Check();
+
+        auto  lhs = mChildren[0]->Eval( rContext );
+        
+        switch( lhs.InternalType() ) {
+        case ValueObject::TypeNaV:
+        case ValueObject::TypeError:
+            break;
+        default:
+            return lhs;
+        }
+
+        ScopedNewScope new_scope( rContext ); // catch has a new scope...
+
+        if( not mErrorVariableName.empty() ) {
+            ValueObject err;
+            if( lhs.InternalType() == ValueObject::TypeNaV ) {
+                err = ValueObject( Error::MakeNotAValueError() );
+            } else { // is Error already.
+                err = std::move(lhs);
+            }
+
+            rContext.AddValueObject( mErrorVariableName, err.MakeShared(), GetSourceLocation() );
+        }
+
+        return mChildren[1]->Eval( rContext );   
+    }
+
+};
 
 namespace detail {
 //forward decl...

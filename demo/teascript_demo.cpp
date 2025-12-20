@@ -1,5 +1,5 @@
 /* === TeaScript Demo Program ===
- * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-FileCopyrightText:  Copyright (C) 2025 Florian Thake <contact |at| tea-age.solutions>.
  * SPDX-License-Identifier: MPL-2.0
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -77,10 +77,10 @@
 
 
 
-// forward definition, see coroutine_demo.cpp for implementation.
+// forward declaration, see coroutine_demo.cpp for implementation.
 void teascript_coroutine_demo();
 
-// forward definition, see suspend_thread_demo.cpp for implementation.
+// forward declaration, see suspend_thread_demo.cpp for implementation.
 void teascript_thread_suspend_demo();
 
 

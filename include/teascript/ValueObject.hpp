@@ -19,6 +19,7 @@
 #include "FunctionBase.hpp"
 #include "Collection.hpp"
 #include "IntegerSequence.hpp"
+#include "Error.hpp"
 #include "Exception.hpp"
 #include "SourceLocation.hpp"
 #include "Print.hpp"  // we need to know if fmt is in use for double -> string conversion
@@ -136,6 +137,7 @@ public:
         TypeF64,
         TypeDouble   = TypeF64, // alias, deprecated, use TypeF64
         TypeString,
+        TypeError,
         TypeTuple,
         TypeBuffer,
         TypeIntSeq,   // IntegerSequence
@@ -150,7 +152,7 @@ private:
 
     //TODO [ITEM 98]: Think of a better storage layout. sizeof 64 would be great! Maybe we can get rid of the nested variant and also store any always as shared_ptr?
     // sizeof BareTypes == 72 (std::any == 64 + 8 for std::variant)
-    using BareTypes = std::variant< NotAValue, Bool, U8, I64, U64, F64, String, Tuple, Buffer, IntegerSequence, FunctionPtr, std::any >;
+    using BareTypes = std::variant< NotAValue, Bool, U8, I64, U64, F64, String, Error, Tuple, Buffer, IntegerSequence, FunctionPtr, std::any >;
     // sizeof ValueVariant == 80 (BarTypes == 72 + 8 for std::variant)
     using ValueVariant = std::variant< BareTypes, std::shared_ptr<BareTypes> >;
 
@@ -197,6 +199,8 @@ private:
             return std::get_if<F64>( mpValue );
         } else if constexpr( std::is_same_v<T, std::string> ) {
             return std::get_if<std::string>( mpValue );
+        } else if constexpr( std::is_same_v<T, Error> ) {
+            return std::get_if<Error>( mpValue );
         } else if constexpr( std::is_same_v<T, Tuple> ) {
             return std::get_if<Tuple>( mpValue );
         } else if constexpr( std::is_same_v<T, Buffer> ) {
@@ -404,6 +408,26 @@ public:
     }
 
     inline
+    explicit ValueObject( Error const &rError, ValueConfig const &cfg = {} )
+        : mValue( create_helper( cfg.IsShared(), BareTypes( rError ) ) )
+        , mpValue( cfg.IsShared() ? std::get<1>( mValue ).get() : &std::get<0>( mValue ) )
+        , mpType( &teascript::TypeError )
+        , mProps( cfg.IsConst() )
+    {
+
+    }
+
+    inline
+    explicit ValueObject( Error &&rError, ValueConfig const &cfg = {} )
+        : mValue( create_helper( cfg.IsShared(), BareTypes( std::move( rError ) ) ) )
+        , mpValue( cfg.IsShared() ? std::get<1>( mValue ).get() : &std::get<0>( mValue ) )
+        , mpType( &teascript::TypeError )
+        , mProps( cfg.IsConst() )
+    {
+
+    }
+
+    inline
     explicit ValueObject( Buffer &&rBuffer, ValueConfig const &cfg = {} )
         : mValue( create_helper( true, BareTypes( std::move( rBuffer ) ) ) )
         , mpValue( std::get<1>( mValue ).get() )
@@ -566,7 +590,7 @@ public:
         return mpType;
     }
 
-    /// \retunrs the inner type of the variant. Can be used in a switch.
+    /// \returns the inner type of the variant. Can be used in a switch.
     inline eType InternalType() const noexcept
     {
         return static_cast<eType>(mpValue->index());
@@ -904,6 +928,7 @@ public:
             []( U64 const u ) { return static_cast<bool>(u); },
             []( F64 const d ) { return static_cast<bool>(d); },
             []( std::string const &rStr ) { return !rStr.empty(); },
+            []( Error const &/*rError*/ ) { return false; }, // prior Error existed, bool(false) was returned on error. This might help for transition?! TODO: check!!
             []( Tuple const &rTuple ) { return rTuple.Size() > 0u; },
             []( Buffer const &rBuffer ) { return not rBuffer.empty(); }
         }, *mpValue );
@@ -920,7 +945,8 @@ public:
             []( I64 const i ) { return static_cast<Integer>(i); },
             []( U64 const u ) { return u <= static_cast<U64>(std::numeric_limits<I64>::max()) ? static_cast<Integer>(u) : (throw exception::bad_value_cast( "ValueObject with u64 not convertible to Integer!" ), Integer{}); },
             []( F64 const d ) { return std::isfinite( d ) ? static_cast<Integer>(d) : (throw exception::bad_value_cast( "ValueObject with f64 not convertible to Integer!" ), Integer{}); },
-            []( std::string const &rStr ) { try { return static_cast<Integer>(std::stoll( rStr )); } catch( ... ) { throw exception::bad_value_cast( "ValueObject with String not convertible to Integer!" ); } }
+            []( std::string const &rStr ) { try { return static_cast<Integer>(std::stoll( rStr )); } catch( ... ) { throw exception::bad_value_cast( "ValueObject with String not convertible to Integer!" ); } },
+            []( Error const &/*rError*/ ) -> Integer { throw exception::bad_value_cast( "ValueObject with Error not convertible to Integer!" ); }
         }, *mpValue );
     }
 
@@ -941,6 +967,7 @@ public:
             []( U64 const u ) { return to_string( u ); },
             []( F64 const d ) { return to_string( d ); },
             []( std::string const &rStr ) { return rStr; },
+            []( Error const &rError ) { return rError.Message(); },
             []( Tuple const &rTuple ) { return print_tuple( rTuple ); },
             []( Buffer const &rBuffer ) { return print_buffer( rBuffer, rBuffer.size() ); },
             []( IntegerSequence const &rSeq ) { return seq::print( rSeq ); } // TODO: check if a Sequence should really be convertible to String? Remove (PrintValue is sufficiend then).
@@ -964,6 +991,7 @@ public:
             []( U64 const u ) { return to_string( u ); },
             []( F64 const d ) { return to_string( d ); },
             []( std::string const &rStr ) { return "\"" + rStr + "\""; },
+            []( Error const &rError ) { return rError.ToDisplayString(); },
             []( Tuple const &rTuple ) { return print_tuple( rTuple ); },
             []( Buffer const &rBuffer ) { return print_buffer( rBuffer, 100 ); },
             []( IntegerSequence const &rSeq ) { return seq::print( rSeq ); }
@@ -1146,6 +1174,10 @@ inline std::strong_ordering operator<=>( teascript::ValueObject const &lhs, teas
             return res < 0 ? std::strong_ordering::less : res > 0 ? std::strong_ordering::greater : std::strong_ordering::equal;
         }
 #endif 
+    }
+
+    if( lhs.GetTypeInfo()->IsSame<Error>() && rhs.GetTypeInfo()->IsSame<Error>() ) {
+        return lhs.GetValue<Error>().Code() <=> rhs.GetValue<Error>().Code();
     }
 
     if( lhs.GetTypeInfo()->IsSame<TypeInfo>() && rhs.GetTypeInfo()->IsSame<TypeInfo>() ) {

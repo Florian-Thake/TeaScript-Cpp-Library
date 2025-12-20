@@ -60,7 +60,7 @@ class Parser
                 table.insert( "debug" ); //?
                 //table.insert( "is" ); // binop, will be eaten before.
                 table.insert( "as" ); // binop
-                table.insert( "in" ); // binop (reserved)
+                table.insert( "in" ); // binop
                 table.insert( "if" );
                 table.insert( "else" );
                 table.insert( "stop" );
@@ -74,6 +74,8 @@ class Parser
                 table.insert( "typename" );
                 table.insert( "suspend" );
                 table.insert( "yield" );
+                table.insert( "catch" );
+                table.insert( "try" );
             }
         };
 
@@ -1132,6 +1134,38 @@ public:
         return false;
     }
 
+    bool Catch( Content &rHere )
+    {
+        Content const start = rHere;
+        if( CheckWordAndMove( "catch", rHere ) ) {
+            // check for " ( <errname> ) ", whereby errname is optinal as well as the brackets.
+            // note: we do a shortcut here for now and not parse it as an expression but directly...
+            SkipWhitespace( rHere );
+            std::string errname;
+            if( rHere == '(' ) {
+                Content const start_bracket = rHere;
+                ++rHere;
+                SkipWhitespace( rHere );
+                
+                if( std::isalpha( static_cast<unsigned char>(*rHere) ) ) {
+                    Content const start_name = rHere;
+                    while( rHere.HasMore() && (rHere == '_' || std::isalnum( static_cast<unsigned char>(*rHere) )) ) ++rHere;
+                    errname = std::string_view{&(*start_name), &(*rHere)};
+                }
+                SkipWhitespace( rHere );
+                if( rHere != ')' ) {
+                    util::throw_parsing_error( start_bracket, mState->GetFilePtr(), "Closing bracket for catch not found!" );
+                }
+                ++rHere;
+            }
+
+            mState->AddASTNode( std::make_shared<ASTNode_Catch>( errname, MakeSrcLoc( start, rHere ) ) );
+
+            return true;
+        }
+        return false;
+    }
+
 
     /// Parses all of content in \param rHere. Every line must be complete including the line ending. 
     /// Partial parsing is supported (rHere must not be the complete script, but at least one line (or empty).).
@@ -1273,6 +1307,8 @@ public:
                     if( next_line_required.HasViolation( rHere ) ) {
                         util::throw_parsing_error( rHere, mState->GetFilePtr(), "More than one statement/expression per line! '\\n' (line feed) missing!" );
                     }
+                } else if( Catch( rHere ) ) {
+                    next_line_required.Unset();
                 } else if( Repeat( rHere ) ) {
                     if( next_line_required.HasViolation( rHere ) ) {
                         util::throw_parsing_error( rHere, mState->GetFilePtr(), "More than one statement/expression per line! '\\n' (line feed) missing!" );

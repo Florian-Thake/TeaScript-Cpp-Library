@@ -123,8 +123,7 @@ public:
         picojson::value  json;
         auto const errorstr = picojson::parse( json, rJsonStr );
         if( not errorstr.empty() ) {
-            // TODO better error handling! Use Error once it exist!
-            return ValueObject( TypeNaV, false ); // false and null (NaV) is a valid return value, so we use TypeInfo for NaV to indicate error!
+            return ValueObject( Error::MakeRuntimeError("Error reading JSON String: " + errorstr), ValueConfig(ValueUnshared,ValueMutable) );
         }
 
         return ToValueObject( rContext, json );
@@ -138,9 +137,8 @@ public:
         JsonType json;
         try {
             FromValueObject( rObj, json );
-        } catch( std::exception const & ) {
-            // TODO better error handling! Use Error once it exist!
-            return ValueObject( false );
+        } catch( std::exception const & ex) {
+            return ValueObject( Error::MakeRuntimeError( std::string("Error writing JSON String: ") + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
         std::ostringstream  os;
         os << json;
@@ -172,8 +170,7 @@ public:
             return ValueObject( NotAValue{}, cfg );
         }
 
-        // TODO better error handling! Use Error once it exist!
-        return ValueObject( TypeNaV, false ); // false and null (NaV) is a valid return value, so we use TypeInfo for NaV to indicate error!       
+        return ValueObject( Error::MakeRuntimeError( "Unhandled json type!" ), ValueConfig( ValueUnshared, ValueMutable ) );
     }
 
     static void FromValueObject( ValueObject const &rObj, JsonType &rOut )

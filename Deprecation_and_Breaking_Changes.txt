@@ -3,6 +3,14 @@ TeaScript Breaking Changes in the actual release
 
     Changes in TeaScript language
     ------------------------------------
+    Introduced distinct Error type for a clean error handling.
+    Added catch statement for easy error handling similar as in Zig.
+    examples (assuming _strtonum returns an Error on error):
+    def number := _strtonum( "abc" ) catch 2 // on error number is 2
+    def number := _strtonum( "abc" ) catch( err ) return err // on error early return with err
+    see examples_v0.16.tea ore corelibrary_test06.tea for more examples.
+    
+    
     Function parameters without assign specifier are shared assign by default now.
     Furthermore, explicit shared function parameters without 'const' or 'def' specifier are set
     implicit to 'auto' now. They will be either 'const' or 'def' depending on the rhs argument/passed parameter.
@@ -37,7 +45,17 @@ TeaScript Breaking Changes in the actual release
     strtrim() first parameter was a const @= by accident. changed to correct def @=.
     Now the function will not take a const string as input parameter anymore!
     This worked because of a const correct bug, which has been fixed now (see C++ API level breaking changes below).
-
+    
+    Following functions are now returning Error instead of Bool(false):
+    _strtonum/_strtonumex
+    to_i64/to_f64
+    _strfromascii 
+    read[text]file
+    read[toml|json]file
+    read[toml|json]string
+    write[toml|json]string
+    read/writebsonbuffer
+    all _buf_get_x functions
 
     Changes on C++ API level
     ------------------------------------
@@ -57,6 +75,8 @@ TeaScript Breaking Changes in the actual release
     tuple::foreach_element/foreach_named_element are working now with either a const ValueObject or a mutable one.
     If the functor takes mutable objects all nested const objects (if any) will be skipped.
     This is a breaking change but the old behavior was faulty as it allowed to access const elements as mutable reference.
+    
+    fixed typo in Collection::RemoveValueByKeyWithPlaceholder()
 
 
     Visibility of Core Library functions
@@ -87,4 +107,7 @@ TeaScript list of deprecated parts
     
     class LibraryFunction0<> to LibraryFunction5<> are deprecated now.
     Please, use the new and generic one fits for all LibraryFunction<> instead.
+    
+    _f64toi64 is now deprecated.
+    Please, use the cast operator 'as' instead (recommended) (or alternatively to_i64).
 

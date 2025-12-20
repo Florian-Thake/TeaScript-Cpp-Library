@@ -9,95 +9,16 @@
 #pragma once
 
 #include "Types.hpp"
+#include "TypeInfo.hpp"
 #include "IntegerSequence.hpp"
+#include "Error.hpp"
 
-#include <typeindex>
 #include <bitset>
 #include <map>
 #include <memory>
 
 
 namespace teascript {
-
-
-/// The type info class for all types represented in a ValueObject.
-class TypeInfo
-{
-    std::string const mName;
-    std::type_info const &mTypeInfo; // This will probably be splitted in inner and outer for e.g. shared_ptr<T> and others.
-    size_t const mSize;
-    bool const mIsArithmetic;
-    bool const mIsSigned;
-    bool const mIsNaV;
-public:
-    template< typename T >
-    TypeInfo( T const *, std::string const &rName )
-        : mName(rName)
-        , mTypeInfo(typeid(T))
-        , mSize( sizeof(T) )
-        , mIsArithmetic( util::is_arithmetic_v<T> )
-        , mIsSigned( mIsArithmetic && std::is_signed_v<T> )
-        , mIsNaV( typeid(T)==typeid(NotAValue) )
-    {
-
-    }
-
-    inline std::type_index ToTypeIndex() const noexcept
-    {
-        return std::type_index( mTypeInfo );
-    }
-
-    inline bool IsSame( TypeInfo const &rOther ) const noexcept
-    {
-        return mTypeInfo == rOther.mTypeInfo;
-    }
-
-    inline bool IsSame( std::type_info const &rOther ) const noexcept
-    {
-        return mTypeInfo == rOther;
-    }
-
-    template< typename T>
-    inline bool IsSame() const noexcept
-    {
-        return IsSame( typeid(T) );
-    }
-
-    inline std::string const &GetName() const noexcept
-    {
-        return mName;
-    }
-
-    inline size_t GetSize() const noexcept
-    {
-        return mSize;
-    }
-
-    inline bool IsNaV() const noexcept
-    {
-        return mIsNaV;
-    }
-
-    inline bool IsArithmetic() const noexcept
-    {
-        return mIsArithmetic;
-    }
-
-    inline bool IsSigned() const noexcept
-    {
-        return mIsSigned;
-    }
-
-};
-
-
-template< typename T >
-inline
-TypeInfo MakeTypeInfo( std::string const &rName, T const * dummy = nullptr ) noexcept
-{
-    return TypeInfo( dummy, rName );
-}
-
 
 // the primitive types are always there, even without lookup in TypeSystem.
 static TypeInfo const TypeNaV = MakeTypeInfo<NotAValue>("NaV");
@@ -111,39 +32,7 @@ static TypeInfo const TypeTypeInfo = MakeTypeInfo<TypeInfo>("TypeInfo");
 static TypeInfo const TypePassthrough = MakeTypeInfo<Passthrough>( "Passthrough" );
 static TypeInfo const TypeIntegerSequence = MakeTypeInfo<IntegerSequence>( "IntegerSequence" );
 static TypeInfo const TypeBuffer = MakeTypeInfo<Buffer>( "Buffer" );
-
-/// helper class for store TypeInfo instances either as unique_ptr or a as raw pointer (for static instances).
-class TypePtr
-{
-    std::unique_ptr< TypeInfo const > mUPtr;
-    TypeInfo const *mPtr;
-public:
-    inline
-    TypePtr() noexcept
-        : mUPtr()
-        , mPtr( nullptr )
-    {
-    }
-
-    inline
-    TypePtr( std::unique_ptr< TypeInfo const > u ) noexcept
-        : mUPtr( std::move(u) )
-        , mPtr(mUPtr.get())
-    {
-    }
-
-    inline
-    TypePtr( TypeInfo const *p  ) noexcept
-        : mUPtr()
-        , mPtr( p )
-    {
-    }
-
-    TypeInfo const *GetPtr() const noexcept
-    {
-        return mPtr;
-    }
-};
+static TypeInfo const TypeError = MakeTypeInfo<Error>( "Error" );
 
 /// Properties of a type, which might be changeable.
 class TypeProperties
@@ -226,6 +115,7 @@ public:
         mTypes.insert( std::make_pair( TypePassthrough.ToTypeIndex(), TypePtr( &TypePassthrough ) ) );
         mTypes.insert( std::make_pair( TypeIntegerSequence.ToTypeIndex(), TypePtr( &TypeIntegerSequence ) ) );
         mTypes.insert( std::make_pair( TypeBuffer.ToTypeIndex(), TypePtr( &TypeBuffer ) ) );
+        mTypes.insert( std::make_pair( TypeError.ToTypeIndex(), TypePtr( &TypeError ) ) );
     }
 
     template< RegisterableType T>

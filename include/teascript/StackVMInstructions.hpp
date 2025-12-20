@@ -28,9 +28,10 @@ enum class eTSVM_Instr : unsigned int
     Else,           //=NoOp, was start of Else ASTNode, for debugging
     RepeatStart,    //=NoOp, was start of Repeat ASTNode, for debugging
     RepeatEnd,      //=NoOp, was end of Repeat ASTNode, for debugging
-    Push,
-    Pop,
+    Push,           // push a constant value on top of the stack
+    Pop,            // pops one value from the stack
     Replace,        // sets the last value of the stack with a new one (equivalent to Pop+Push)
+    Swap,           // swaps top stack value with top-1
     Load,           // load variable and push
     Stor,           // store (set) variable (shared/unshared is in payload)
     DefVar,         // define mutable variable (shared/unshared is in payload)
@@ -73,6 +74,7 @@ enum class eTSVM_Instr : unsigned int
     ExitProgram,    // exits the program, removes all local scopes, clears stack. (must not be issued for reaching 'ProgramEnd')
     Suspend,        // suspends the prorgam (except Constraints was set to AutoContinue).
     Yield,          // suspends the program with a value.
+    Catch,          // if top stack is Error or NaV 
 };
 
 namespace StackVM {
@@ -106,6 +108,7 @@ struct Instruction
         case eTSVM_Instr::Push:                  return "Push";
         case eTSVM_Instr::Pop:                   return "Pop";
         case eTSVM_Instr::Replace:               return "Replace";
+        case eTSVM_Instr::Swap:                  return "Swap";
         case eTSVM_Instr::Load:                  return "Load";
         case eTSVM_Instr::Stor:                  return "Stor";
         case eTSVM_Instr::DefVar:                return "DefVar";
@@ -148,6 +151,7 @@ struct Instruction
         case eTSVM_Instr::ExitProgram:           return "ExitProgram";
         case eTSVM_Instr::Suspend:               return "Suspend";
         case eTSVM_Instr::Yield:                 return "Yield";
+        case eTSVM_Instr::Catch:                 return "Catch";
         case eTSVM_Instr::NotImplemented:        return "NotImplemented";
         default:
             return "<unknown>";
@@ -184,6 +188,8 @@ struct Instruction
             return eTSVM_Instr::Pop;
         } else if( str == "Replace" ) {
             return eTSVM_Instr::Replace;
+        } else if( str == "Swap" ) {
+            return eTSVM_Instr::Swap;
         } else if( str == "Load" ) {
             return eTSVM_Instr::Load;
         } else if( str == "Stor" ) {
@@ -268,6 +274,8 @@ struct Instruction
             return eTSVM_Instr::Suspend;
         } else if( str == "Yield" ) {
             return eTSVM_Instr::Yield;
+        } else if( str == "Catch" ) {
+            return eTSVM_Instr::Catch;
         } else if( str == "NotImplemented" ) {
             return eTSVM_Instr::NotImplemented;
         } else {

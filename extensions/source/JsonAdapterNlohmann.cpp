@@ -24,9 +24,8 @@ ValueObject JsonAdapterNlohmann::ReadJsonString( Context &rContext, std::string 
     nlohmann::json json;
     try {
         json = nlohmann::json::parse( rJsonStr );
-    } catch( std::exception const & ) {
-        // TODO better error handling! Use Error once it exist!
-        return ValueObject( TypeNaV, false ); // false and null (NaV) is a valid return value, so we use TypeInfo for NaV to indicate error!
+    } catch( std::exception const & ex ) {
+        return ValueObject( Error::MakeRuntimeError( std::string("Error reading JSON String: ") + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
     }
     return ToValueObject( rContext, json );
 }
@@ -36,9 +35,8 @@ ValueObject JsonAdapterNlohmann::WriteJsonString( ValueObject const &rObj )
     JsonType json;
     try {
         FromValueObject( rObj, json );
-    } catch( std::exception const & ) {
-        // TODO better error handling! Use Error once it exist!
-        return ValueObject( false );
+    } catch( std::exception const & ex ) {
+        return ValueObject( Error::MakeRuntimeError( std::string( "Error writing JSON String: " ) + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
     }
     std::ostringstream  os;
     os << json;
@@ -104,10 +102,9 @@ ValueObject JsonAdapterNlohmann::ToValueObject( Context & rContext, JsonType con
         case nlohmann::json::value_t::discarded:
             break;
         default:
-            throw std::runtime_error( "Unknown nlohmann::json::value_t" );   
+            throw std::runtime_error( "Unknown nlohmann::json::value_t" );
     }
-    // TODO better error handling! Use Error once it exist!
-    return ValueObject( TypeNaV, false ); // false and null (NaV) is a valid return value, so we use TypeInfo for NaV to indicate error!
+    return ValueObject( Error::MakeRuntimeError( "Unsupported json type!" ), ValueConfig( ValueUnshared, ValueMutable ) );
 }
 
 void JsonAdapterNlohmann::FromValueObject( ValueObject const &rObj, JsonType & rOut )
@@ -160,8 +157,12 @@ void JsonAdapterNlohmann::FromValueObject( ValueObject const &rObj, JsonType & r
 
 ValueObject JsonAdapterNlohmann::FromBSON( Context &rContext, Buffer const &rBuffer )
 {
-    auto json = nlohmann::json::from_bson( rBuffer );
-    return ToValueObject( rContext, json );
+    try {
+        auto json = nlohmann::json::from_bson( rBuffer );
+        return ToValueObject( rContext, json );
+    } catch( std::exception const &ex ) {
+        return ValueObject( Error::MakeRuntimeError( std::string( "Error reading BSON Buffer: " ) + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
+    }
 }
 
 ValueObject JsonAdapterNlohmann::ToBSON( ValueObject const &rObj )
@@ -169,13 +170,11 @@ ValueObject JsonAdapterNlohmann::ToBSON( ValueObject const &rObj )
     JsonType json;
     try {
         FromValueObject( rObj, json );
-    } catch( std::exception const & ) {
-        // TODO better error handling! Use Error once it exist!
-        return ValueObject( false );
+        Buffer  bson = nlohmann::json::to_bson( json );
+        return ValueObject( std::move( bson ) );
+    } catch( std::exception const & ex ) {
+        return ValueObject( Error::MakeRuntimeError( std::string( "Error writing BSON: " ) + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
     }
-
-    Buffer  bson = nlohmann::json::to_bson( json );
-    return ValueObject( std::move( bson ) );
 }
 
 

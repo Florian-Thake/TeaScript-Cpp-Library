@@ -311,7 +311,7 @@ public:
     /// With that the storage will stay stable and a lookup data update is not needed. But the storage never shrinks, only grows!
     /// \return the original value or std::nullopt.
     /// \note when iterating or access by index the placeholders are present/visible. The user of this class must handle it.
-    std::optional<ValueType> RemveValueByKeyWithPlaceholder( KeyType const rKey, ValueType const &rVal ) noexcept
+    std::optional<ValueType> RemoveValueByKeyWithPlaceholder( KeyType const rKey, ValueType const &rVal ) noexcept
     {
         auto it = mLookup.find( rKey );
         if( it == mLookup.end() ) {

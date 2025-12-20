@@ -1,0 +1,190 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText:  Copyright (C) 2025 Florian Thake, <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MIT
+ * see included file MIT_LICENSE.txt
+ */
+
+
+// This demo script shows some use cases of the new catch statement together with the distinct error type.
+// Additionally it shows a little of the BSON support (which comes from the nlohmann::json adapter).
+// NOTE: In order to keep this script simple, we assume that the 'full' Core Library is loaded (this is the default).
+//       If this is not the case, you will get 'unknown identifier' errors for certain function calls.
+
+
+// we rely on the new features.
+##minimum_version 0.16
+
+// Some features are optional for the TeaScript C++ Library as they must be added as third-party libraries first.
+// However, the pre-build and free TeaScript Host Application has all of the features always enabled.
+
+
+// -- some helper functions
+
+// helper construct for (optional feature) color printing:
+// If cprint is not defined, we define it but just call print without color.
+// HINT: You need to add the {fmt} lib to your project in order to have color and format printing.
+//       The pre-build TeaScript Host Application has this feature always enabled.
+is_defined cprint or (func cprint( color, text )
+{
+    print( text )
+})
+
+// pink color
+const pink  := make_rgb( 255, 0, 255 )
+// ocher / light golden color
+const ocher := make_rgb( 210, 170, 90 )
+// red color
+const red   := make_rgb( 255, 0, 0 )
+// green color
+const green := make_rgb( 0, 255, 0 )
+// white color
+const white := make_rgb( 255, 255, 255 )
+
+
+func print_warning( text )
+{
+    cprint( pink, text )
+}
+
+// this functions takes an Error or String, prints it in red and exit the script.
+func print_error_and_fail( error_or_text )
+{
+    cprint( red, error_or_text % "\n" )
+    _Exit void
+}
+
+// You must use nlohmann as JSON adapter for have BSON support!
+const bson_present := is_defined readbsonbuffer and is_defined writebsonbuffer
+
+if( not bson_present ) {
+    print_warning( "\nBSON support is not present!\n")
+    print_warning( "You need ")
+    cprint( ocher, "nlohmann::json" )
+    print_warning( " as JSON adapter, you have " )
+    cprint( ocher, features.json_adapter % "\n" )
+    // _Exit statement is the most clean way to exit early
+    // could also use the fail[_with_error|_with_message] functions, or _exit( _exit_failure )
+    // or even just a return (from 'main') statement.
+    _Exit void // no specific exit code/value!
+    
+}
+
+
+// some example json string as raw string
+const json_str := """"
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": null,
+      "version": 3,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [4.483605784808901, 51.907188449679325]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "magic": 9223372036854775807,
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [3.974369110811523 , 51.907355547778565],
+            [4.173944459020191 , 51.86237166892457 ],
+            [4.3808076710679416, 51.848867725914914],
+            [4.579822414365026 , 51.874487141880024],
+            [4.534413416598767 , 51.9495302480326  ],
+            [4.365110733567974 , 51.92360787140825 ],
+            [4.179550508127079 , 51.97336560819281 ],
+            [4.018096293847009 , 52.00236546429852 ],
+            [3.9424146309028174, 51.97681895676649 ],
+            [3.974369110811523 , 51.907355547778565]
+          ]
+        ]
+      }
+    }
+  ]
+} 
+""""
+
+println( "The example json string looks like this:" )
+cprint( ocher, json_str )
+
+// read it into Tuple
+def json := readjsonstring( json_str ) catch (err) print_error_and_fail( err )
+
+println( "The json tuple looks like this (output is shortened):" )
+
+cprint( pink, json )
+
+// write json tuple to bson.
+def bson := writebsonbuffer( json ) catch (err) print_error_and_fail( err )
+
+println( "\nThe bson buffer looks like this:" )
+
+cprint( white, bson )
+println("")
+
+// back to json...
+def json_roundtrip := readbsonbuffer( bson ) catch( err ) print_error_and_fail( err )
+if( json_roundtrip != json ) {
+    print_error_and_fail( "roundtrip json --> bson --> json failed!" )
+} else {
+    cprint( green, "Roundtrip json --> bson --> json succeeded!\n" )
+}
+
+
+// ----------------------------------------------------------------
+// that was the good case, now we make some intentional errors....
+// ----------------------------------------------------------------
+
+cprint( red, "Time for some (intentional) errors!\n" )
+
+// this factory function either creates a json tuple, or prints an error and return the Error as well.
+func json_factory( str )
+{
+    readjsonstring( str ) catch (err) {
+        cprint( red, "Caught error: %(err)\n" )
+        return err
+    }
+}
+
+def json_test01 := json_factory( "{ \"blub\" ]" )
+println( "json_test01 is type %(typeof json_test01)" )
+
+println( "using default value in case of an error..." )
+
+// catch statment don't need to catch the error, it can be a generic catch. 
+// ride-hand-side will be executed only if left-hand-side returned an Error (or NaV)
+def json_test02 := readjsonstring( "{ \"blub\" ]" ) catch _tuple_create() // empty tuple in case of an error.
+
+println( "json_test02 is type %(typeof json_test02) and contains %(json_test02)" )
+
+// catches can be chained ...
+def json_test03 := readjsonstring( "{ \"blub\" ]" ) catch readjsonstring( "{ \"empty\": null }" ) catch( err ) print_error_and_fail( err )
+println( "json_test03 is type %(typeof json_test03) and contains %(json_test03)" )
+
+
+// easy to use for early error return
+
+func bson_string_factory( str )
+{
+    def j := readjsonstring( str ) catch (err) return err
+    def b := writebsonbuffer( j ) catch (err) return err
+    // reaching here only if no error occured so far.
+    to_string( b )
+}
+
+def str := bson_string_factory( "{ \"blub\": \"🍀 🍀 🍀\"" ) catch( err ) { cprint( red, err % "\n" ), err }
+
+// fixed version
+def str2 := bson_string_factory( "{ \"blub\": \"🍀 🍀 🍀\" }" ) catch( err ) { cprint( red, err % "\n" ), err }
+
+println("Fixed the error...")
+println("The bson buffer as string looks like %(str2)" ) 
+
+cprint( green, "🍀🍀🍀 END!\n" )

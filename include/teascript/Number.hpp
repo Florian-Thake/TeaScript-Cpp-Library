@@ -221,7 +221,7 @@ class ArithmeticFactory
     template< ArithmeticNumber T, ArithmeticNumber U >
     inline static T DoConvert( U const v )
     {
-        if constexpr( std::is_floating_point_v<T> ) {
+        if constexpr( std::is_floating_point_v<T> || std::is_same_v<T, U> ) {
         } else if constexpr( std::is_floating_point_v<U> ) {
             if( static_cast<U>(std::numeric_limits<T>::max()) < v || static_cast<U>(std::numeric_limits<T>::min()) > v ) {
                 throw exception::integer_overflow( v, T{} );

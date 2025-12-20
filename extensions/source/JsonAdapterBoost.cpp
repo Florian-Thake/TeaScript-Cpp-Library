@@ -26,9 +26,8 @@ ValueObject JsonAdapterBoost::ReadJsonString( Context &rContext, std::string con
     try {
         std::istringstream is( rJsonStr );
         json = boost::json::parse( is );
-    } catch( std::exception const & ) {
-        // TODO better error handling! Use Error once it exist!
-        return ValueObject( TypeNaV, false ); // false and null (NaV) is a valid return value, so we use TypeInfo for NaV to indicate error!
+    } catch( std::exception const & ex ) {
+        return ValueObject( Error::MakeRuntimeError( std::string( "Error reading JSON String: " ) + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
     }
     return ToValueObject( rContext, json );
 }
@@ -38,9 +37,8 @@ ValueObject JsonAdapterBoost::WriteJsonString( ValueObject const &rObj )
     JsonType json;
     try {
         FromValueObject( rObj, json );
-    } catch( std::exception const & ) {
-        // TODO better error handling! Use Error once it exist!
-        return ValueObject( false );
+    } catch( std::exception const & ex ) {
+        return ValueObject( Error::MakeRuntimeError( std::string( "Error writing JSON String: " ) + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
     }
     std::ostringstream  os;
     os << json;

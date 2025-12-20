@@ -89,10 +89,11 @@ public:
         size_t      ret;     // ret address to the program before this entry.
         ProgramPtr  prog;    // the program where the code reside which is being executed. (must be always valid.)
         FunctionPtr func;    // function object which is being executed. NOTE: might be nullptr!
+        size_t      stacksize; // current stack size during start of the call (for proper cleanup on return)
 
         // not sure why clang need this help for construct this simple struct...
 #if defined( __clang__ )
-    inline CallStackEntry( std::string const &n, size_t r, ProgramPtr const &p, FunctionPtr const &f ) : name(n), ret(r), prog(p), func(f) {}
+    inline CallStackEntry( std::string const &n, size_t r, ProgramPtr const &p, FunctionPtr const &f, size_t sz = 0 ) : name(n), ret(r), prog(p), func(f), stacksize(sz) {}
 #endif
     };
 
@@ -380,7 +381,7 @@ public:
             }
 
             mProgram = rProgram;
-            mCallStack.emplace_back( "<main>", mProgram->GetInstructions().size(), mProgram, nullptr ); // return from main is end
+            mCallStack.emplace_back( "<main>", mProgram->GetInstructions().size(), mProgram, nullptr, static_cast<size_t>(0) ); // return from main is end
             mState = eState::Running;
         }
 
@@ -432,7 +433,7 @@ public:
             mStack.emplace_back( ValueObject( static_cast<U64>( rParams.size() ) ) );
             mProgram = rProgram;
             mCurrent = start;
-            mCallStack.emplace_back( "<subroutine>", mProgram->GetInstructions().size(), mProgram, nullptr ); // return from main is end
+            mCallStack.emplace_back( "<subroutine>", mProgram->GetInstructions().size(), mProgram, nullptr, mStack.size() - (rParams.size() + 1 + 1)); // return from main is end
 
             mState = eState::Running;
         }
@@ -512,9 +513,12 @@ private:
                 assert( mCurrent == program_size - 1 );
                 break;
             case eTSVM_Instr::NoOp: break;
-            case eTSVM_Instr::NoOp_NaV: mStack.emplace_back(); break;
-            case eTSVM_Instr::Debug:
-                // in payload is the name of the variable/tuple element. (is a NoOp here, just for debugging)
+            case eTSVM_Instr::Debug: // in payload is the name of the variable/tuple element.
+                // Debug AST node produces a NaV, so we do it here as well...
+                mStack.emplace_back();
+                break;
+            case eTSVM_Instr::NoOp_NaV:
+                mStack.emplace_back();
                 break;
                 // These are all debug only instructions and act like a NoOp
             case eTSVM_Instr::ExprStart:
@@ -538,6 +542,12 @@ private:
                     continue;
                 }
                 mStack.back() = current_instr.payload;
+                break;
+            case eTSVM_Instr::Swap:
+                if( stack_error( 2 ) ) [[unlikely]] {
+                    continue;
+                }
+                std::swap( mStack[mStack.size() - 1], mStack[mStack.size() - 2] );
                 break;
             case eTSVM_Instr::Load:
                 try {
@@ -1036,7 +1046,7 @@ private:
                     auto func = mStack[ mStack.size() - (param_count + 1 + 1)].GetValueCopy<FunctionPtr>();
                     auto cfunc = std::dynamic_pointer_cast<CompiledFuncBase>(func);
                     if( cfunc ) {
-                        mCallStack.emplace_back( current_instr.payload.template GetValue<std::string>(), mCurrent + 1, cfunc->GetProgram(), func );
+                        mCallStack.emplace_back( current_instr.payload.template GetValue<std::string>(), mCurrent + 1, cfunc->GetProgram(), func, mStack.size() - (param_count + 1 + 1));
                         program_instr = mCallStack.back().prog->GetInstructions().data();
                         program_size  = mCallStack.back().prog->GetInstructions().size();
                         last = mCurrent;
@@ -1105,6 +1115,15 @@ private:
                 } else {
                     last = mCurrent;
                     mCurrent = mCallStack.back().ret;
+                    // eventually clean dirty stack for early returns (e.g., def x := 1 + return 10)
+                    if( mStack.size() > 1 && mCallStack.back().stacksize < mStack.size() - 1 ) {
+                        // save ret value
+                        mStack[mCallStack.back().stacksize] = std::move( mStack[mStack.size() - 1] );
+                        // clean stack
+                        while( mStack.size() > mCallStack.back().stacksize + 1 ) {
+                            mStack.pop_back();
+                        }
+                    }
                     if( mCallStack.size() > 1 ) { // don't remove 'main' here
                         mCallStack.pop_back();
                     }
@@ -1215,6 +1234,25 @@ private:
                     // dont't pop here for not break other inserted cleanup code! (every statement must have a result, actually!)
                 }
                 run = false;
+                break;
+            case eTSVM_Instr::Catch:
+                if( stack_error( 1 ) ) [[unlikely]] {
+                    continue;
+                } else {
+                    switch( mStack.back().InternalType() ) {
+                    case ValueObject::TypeNaV:
+                        mStack.back() = ValueObject( Error::MakeNotAValueError() );
+                        break;
+                    case ValueObject::TypeError:
+                        break;
+                    default: // no error, jump (over error path) to normal code path
+                        // set to new instruction
+                        last = mCurrent;
+                        mCurrent += current_instr.payload.template GetValue<Integer>();
+                        jumped = true;
+                        continue;
+                    }
+                }
                 break;
             case eTSVM_Instr::NotImplemented:
                 mError = eError::NotImplemented;

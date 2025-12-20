@@ -11,6 +11,7 @@
 #include "ConfigEnums.hpp"
 #include "Context.hpp"
 #include "Type.hpp"
+#include "Error.hpp"
 #include "TupleUtil.hpp"
 #include "IntegerSequence.hpp"
 #include "TomlSupport.hpp"
@@ -40,7 +41,10 @@ class CoreLibrary
 {
     // The Core Library C++ API - now public
 public:
-    static constexpr long long API_Version = 0LL;
+    // API History:
+    // 0   - (since 0.6  ): without Error
+    // 1   - (since 0.16 ): changed error return from Bool(false) to Error for all functions which don't return a Bool on success
+    static constexpr long long API_Version = 1LL;
 
     static void PrintVersion()
     {
@@ -83,6 +87,26 @@ public:
         return line;
     }
 
+    static Error MakeRuntimeError( std::string const &rMessage )
+    {
+        return Error( eError::RuntimeError, rMessage );
+    }
+
+    static long long ErrorGetCode( Error const &rError )
+    {
+        return static_cast<long long>(rError.Code());
+    }
+
+    static std::string ErrorGetName( Error const &rError )
+    {
+        return rError.Name();
+    }
+
+    static std::string ErrorGetMessage( Error const &rError )
+    {
+        return rError.Message();
+    }
+
     static double Sqrt( double const d )
     {
         return std::sqrt( d );
@@ -98,14 +122,14 @@ public:
         try {
             return ValueObject( ValueObject( rStr, false ).GetAsInteger() ); // ensure same conversion routine is used.
         } catch( ... ) {
-            return ValueObject( false ); // First attempt of error handling. TODO: change to error code! Need match operator for dispatch nicely at user side!
+            //return ValueObject( false ); // First attempt of error handling.
+            return ValueObject( Error::MakeRuntimeError( "Could not convert to Integer!" ) );
         }
     }
 
-    /// Converts string to either f64, u8, u64 or i64 or a Bool( false )
+    /// Converts string to either f64, u8, u64 or i64 (or an Error)
     static ValueObject StrToNumEx( std::string  const &rStr )
     {
-        // Use Parser for parse a number, will either return a f64 or i64 or a Bool( false )
         try {
             Content content( rStr );
             Parser::SkipWhitespace( content );
@@ -117,10 +141,10 @@ public:
                     return ast->Eval( dummy );
                 }
             }
-            return ValueObject( false );
         } catch( ... ) {
-            return ValueObject( false ); // First attempt of error handling. TODO: change to error code! Need match operator for dispatch nicely at user side!
         }
+        //return ValueObject( false ); // First attempt of error handling.
+        return ValueObject( Error::MakeRuntimeError( "Could not convert to Number!" ) );
     }
 
 
@@ -221,7 +245,7 @@ public:
     static ValueObject StrFromAscii( ValueObject const &val )
     {
         if( not val.GetTypeInfo()->IsArithmetic() ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Not a number!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
         try {
             auto const v = val.GetAsInteger();
@@ -230,7 +254,7 @@ public:
             }
         } catch( ... ) {
         }
-        return ValueObject( false );
+        return ValueObject( MakeRuntimeError( "Not in ASCII range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
     }
 
     /// gets the local wall clock time in fractional seconds.
@@ -439,8 +463,6 @@ public:
 
     static ValueObject ReadTextFileEx( std::filesystem::path const &rPath )
     {
-        // TODO: error handling! return an Error instead of Bool / throw!
-        
         std::ifstream  file( rPath, std::ios::binary | std::ios::ate ); // ate jumps to end.
         if( file ) {
             auto size = file.tellg();
@@ -458,12 +480,12 @@ public:
             buf.resize( static_cast<size_t>(size) );
             file.read( buf.data(), size );
             if( !file.good() ) {
-                return ValueObject( false );
+                return ValueObject( MakeRuntimeError( "Cannot read file!" ), ValueConfig( ValueUnshared, ValueMutable ) );
             }
 #if 1
             auto const span = std::span( buf.data(), buf.size() );  // libc++14 needs the constructor call, std::span( buf ) won't compile!
             if( not util::is_valid_utf8( span, true ) ) {
-                return ValueObject( false ); // FIXME: return a better error!
+                return ValueObject( MakeRuntimeError( "Not valid UTF-8 (or ASCII control chars)!" ), ValueConfig( ValueUnshared, ValueMutable ) );
             }
 #else // the old check was very relaxed...
             for( size_t idx = 0; idx < buf.size(); ++idx ) {
@@ -488,9 +510,9 @@ public:
                 }
             }
 #endif
-            return ValueObject( std::move( buf ), false );
+            return ValueObject( std::move( buf ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
-        return ValueObject( false );
+        return ValueObject( MakeRuntimeError( "Cannot open/read file!" ), ValueConfig( ValueUnshared, ValueMutable ) );
     }
 
     static bool WriteTextFile( std::string const &rFile, std::string const &rContent, bool const overwrite, bool const bom )
@@ -538,7 +560,6 @@ public:
 
     static ValueObject ReadBinaryFileEx( std::filesystem::path const &rPath )
     {
-        // TODO: error handling! return an Error instead of Bool / throw!
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable:4996) // if you get an error here use /w34996 or disable sdl checks
@@ -548,7 +569,7 @@ public:
 #pragma warning(pop)
 #endif
         if( !fp ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Cannot open file!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         struct FClose
@@ -566,9 +587,9 @@ public:
         Buffer buf( size );
         auto const read = fread( buf.data(), 1, size, fp );
         if( read == size ) {
-            return ValueObject( std::move( buf ), false );
+            return ValueObject( std::move( buf ), ValueConfig( ValueUnshared, ValueMutable ) );
         } else {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Cannot read file!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
     }
 
@@ -1070,11 +1091,11 @@ public:
     static ValueObject BufGetU8( Buffer const &rBuffer, ValueObject const &pos )
     {
         if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: idx is invalid type or negative!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
         auto const idx = ToSize( pos );
         if( not CheckBufferPosForRead( rBuffer, idx, sizeof( U8 ) ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         return ValueObject( rBuffer[idx] );
@@ -1083,11 +1104,11 @@ public:
     static ValueObject BufGetI8( Buffer const &rBuffer, ValueObject const &pos )
     {
         if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: idx is invalid type or negative!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
         auto const idx = ToSize( pos );
         if( not CheckBufferPosForRead( rBuffer, idx, sizeof( signed char ) ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         I64 const val = static_cast<I64>(static_cast<signed char>(rBuffer[idx]));
@@ -1098,11 +1119,11 @@ public:
     static ValueObject BufGet_T( Buffer const &rBuffer, ValueObject const &pos )
     {
         if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: idx is invalid type or negative!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
         auto const idx = ToSize( pos );
         if( not CheckBufferPosForRead( rBuffer, idx, sizeof( Intermediate ) ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         Intermediate val_i{};
@@ -1149,20 +1170,20 @@ public:
     static ValueObject BufGetString( Buffer const &rBuffer, ValueObject const &pos, ValueObject const &len )
     {
         if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: idx is invalid type or negative!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
         if( not CheckValueObjectForBufferPos_NoThrow( len ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: len is invalid type or negative!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
         auto const idx = ToSize( pos );
         auto const l   = ToSize( len );
         if( not CheckBufferPosForRead( rBuffer, idx, l ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         auto const span = std::span( rBuffer.data() + idx, l );
         if( not util::is_valid_utf8( span ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: no valid UTF-8!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         std::string  res;
@@ -1174,25 +1195,25 @@ public:
     static ValueObject BufGetAscii( Buffer const &rBuffer, ValueObject const &pos, ValueObject const &len )
     {
         if( not CheckValueObjectForBufferPos_NoThrow( pos ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: idx is invalid type or negative!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
         if( not CheckValueObjectForBufferPos_NoThrow( len ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: len is invalid type or negative!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
         auto const idx = ToSize( pos );
         auto const l   = ToSize( len );
         if( not CheckBufferPosForRead( rBuffer, idx, l ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         auto const span = std::span( rBuffer.data() + idx, l );
 #if !defined(_LIBCPP_VERSION) // libc++14 does not have ranges::all_of yet!
         if( not std::ranges::all_of( span, []( auto const c ) { return c < 128; } ) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: no valid ASCII!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 #else
         if( not std::all_of( span.begin(), span.end(), [](auto const c) { return c < 128; }) ) {
-            return ValueObject( false );
+            return ValueObject( MakeRuntimeError( "Buffer: no valid ASCII!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 #endif
         
@@ -1336,7 +1357,7 @@ protected:
         //       on the loading level, the set opt out bits and also on user code (e.g., undef a function).
         {
             Tuple  feat;
-            feat.Reserve( 3 );
+            feat.Reserve( 5 );
             feat.AppendKeyValue( "format", ValueObject( (TEASCRIPT_FMTFORMAT == 1), cfg ) );
             feat.AppendKeyValue( "color", ValueObject( (TEASCRIPT_FMTFORMAT == 1), cfg ) );
             feat.AppendKeyValue( "toml", ValueObject( (TEASCRIPT_TOMLSUPPORT == 1), cfg ) );
@@ -1359,6 +1380,7 @@ protected:
             tea_add_var( "u64", ValueObject( TypeU64, cfg ) );
             tea_add_var( "f64", ValueObject( TypeDouble, cfg ) );
             tea_add_var( "String", ValueObject( TypeString, cfg ) );
+            tea_add_var( "Error", ValueObject( TypeError, cfg ) );
             tea_add_var( "Number", ValueObject( MakeTypeInfo<Number>("Number"), cfg)); // Fake concept for 'Number'
             tea_add_var( "Function", ValueObject( MakeTypeInfo<FunctionPtr>("Function"), cfg));
             tea_add_var( "Tuple", ValueObject( MakeTypeInfo<Tuple>( "Tuple" ), cfg ) );
@@ -1384,9 +1406,9 @@ protected:
             return;
         }
 
-        // NOTE: since we have an explicit cast (as operator) this is a relict and will be deprecated at some time point.
+        // NOTE: since we have an explicit cast (as operator) this is a relict.
         //       But it stays here for a while since it was the only possible way to get an i64 from a f64 for a long time.
-        // _f64toi64 : i64 (f64) --> converts a f64 to i64. same effect as trunc() but yields a i64.
+        // _f64toi64 : i64 (f64) --> converts a f64 to i64. same effect as trunc() but yields a i64. DEPRECATED, use a cast instead!
         {
             auto func = std::make_shared< LibraryFunction< decltype(f64toi64) > >( &f64toi64 );
             ValueObject val{std::move( func ), cfg};
@@ -1427,6 +1449,35 @@ protected:
             tea_add_var( "_exit", std::move( func_node_val ) );
         }
 
+        // error
+
+        // _error_get_code : i64 ( Error ) --> returns the code of the Error as i64.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(ErrorGetCode) > >( &ErrorGetCode );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_error_get_code", std::move( val ) );
+        }
+
+        // _error_get_name : String ( Error ) --> returns the name of the Error as String.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(ErrorGetName) > >( &ErrorGetName );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_error_get_name", std::move( val ) );
+        }
+
+        // _error_get_message : String ( Error ) --> returns the message of the Error as String.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(ErrorGetMessage) > >( &ErrorGetMessage );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_error_get_message", std::move( val ) );
+        }
+
+        // make_runtime_error : Error ( message: String ) --> creates a Runtime Error with given message. alternative for: "str" as Error.
+        if( core_level >= config::LevelUtil ) {
+            auto func = std::make_shared< LibraryFunction< decltype(MakeRuntimeError) > >( &MakeRuntimeError );
+            ValueObject val{std::move( func ), cfg_mutable};
+            tea_add_var( "make_runtime_error", std::move( val ) ); // missing _ is intended for now.
+        }
 
         // sequence
 
@@ -1633,14 +1684,14 @@ protected:
         }
 
         if( core_level >= config::LevelCore ) {
-            // _strtonum : i64|Bool (String) --> converts a String to i64. this works only with real String objects. alternative for '+str'.
+            // _strtonum : i64|Error (String) --> converts a String to i64. Returns Error on error. this works only with real String objects. alternative for '+str'.
             {
                 auto func = std::make_shared< LibraryFunction< decltype(StrToNum) > >( &StrToNum );
                 ValueObject val{std::move( func ), cfg};
                 tea_add_var( "_strtonum", std::move( val ) );
             }
 
-            // _strtonumex : i64|u8|u64|f64|Bool (String) --> converts a String to i64,u8,u64 or f64, Bool(false) on error. this works only with real String objects.
+            // _strtonumex : i64|u8|u64|f64|Error (String) --> converts a String to i64,u8,u64 or f64. Returns Error on error. this works only with real String objects.
             {
                 auto func = std::make_shared< LibraryFunction< decltype(StrToNumEx) > >( &StrToNumEx );
                 ValueObject val{std::move( func ), cfg};
@@ -1889,7 +1940,7 @@ protected:
             tea_add_var( "_strfind", std::move( val ) );
         }
 
-        // _strfromascii : String|Bool ( char: Number ) --> returns a String build from the ascii char. For invalid chars (>127) Bool(false) will be returned.
+        // _strfromascii : String|Error ( char: Number ) --> returns a String build from the ascii char. For invalid chars (>127) Error will be returned.
         {
             auto func = std::make_shared< LibraryFunction< decltype(StrFromAscii) > >( &StrFromAscii );
             ValueObject val{std::move( func ), cfg};
@@ -1953,14 +2004,14 @@ protected:
             }
 
 #if TEASCRIPT_TOMLSUPPORT
-            // readtomlstring : Tuple|Bool ( String ) --> creates a named tuple from the given TOML formatted string (or false on error).
+            // readtomlstring : Tuple|Error ( String ) --> creates a named tuple from the given TOML formatted string (or Error on error).
             {
                 auto func = std::make_shared< LibraryFunction< decltype(TomlSupport::ReadTomlString) > >( &TomlSupport::ReadTomlString );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readtomlstring", std::move( val ) ); // missing _ is intended
             }
 
-            // writetomlstring : String|Bool ( Tuple ) --> creates a TOML formatted string from the given tuple (or false on error).
+            // writetomlstring : String|Error ( Tuple ) --> creates a TOML formatted string from the given tuple (or Error on error).
             {
                 auto func = std::make_shared< LibraryFunction< decltype(TomlSupport::WriteTomlString) > >( &TomlSupport::WriteTomlString );
                 ValueObject val{std::move( func ), cfg_mutable};
@@ -2011,14 +2062,14 @@ protected:
 #endif
 
 #if TEASCRIPT_JSONSUPPORT
-            // readjsonstring : Any ( String ) --> creates a value of appropriate type from the given JSON formatted string (or a TypeInfo on error).
+            // readjsonstring : Any ( String ) --> creates a value of appropriate type from the given JSON formatted string (or Error on error).
             {
                 auto func = std::make_shared< LibraryFunction< decltype(JsonSupport<>::ReadJsonString) > >( &JsonSupport<>::ReadJsonString );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readjsonstring", std::move( val ) ); // missing _ is intended
             }
 
-            // writejsonstring : String|Bool ( Any ) --> creates a Json formatted string (or false on error).
+            // writejsonstring : String|Error ( Any ) --> creates a Json formatted string (or Error on error).
             {
                 auto func = std::make_shared< LibraryFunction< decltype(JsonSupport<>::WriteJsonString) > >( &JsonSupport<>::WriteJsonString );
                 ValueObject val{std::move( func ), cfg_mutable};
@@ -2069,14 +2120,14 @@ protected:
 
             // EXPERIMENTAL BSON support (nlohmann adapter must be used!)
 # if TEASCRIPT_BSONSUPPORT
-            // readbsonbuffer : Any ( Buffer ) --> creates a value of appropriate type from the given BSON buffer (or a TypeInfo on error).
+            // readbsonbuffer : Any ( Buffer ) --> creates a value of appropriate type from the given BSON buffer (or Error on error).
             {
                 auto func = std::make_shared< LibraryFunction< decltype(JsonSupport<>::ReadBsonBuffer) > >( &JsonSupport<>::ReadBsonBuffer );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readbsonbuffer", std::move( val ) ); // missing _ is intended
             }
 
-            // writebsonbuffer : Buffer|Bool ( Any ) --> creates a Bson buffer (or false on error).
+            // writebsonbuffer : Buffer|Error ( Any ) --> creates a Bson buffer (or Error on error).
             {
                 auto func = std::make_shared< LibraryFunction< decltype(JsonSupport<>::WriteBsonBuffer) > >( &JsonSupport<>::WriteBsonBuffer );
                 ValueObject val{std::move( func ), cfg_mutable};
@@ -2165,7 +2216,7 @@ protected:
             }
         }
 
-        // readtextfile : String|Bool ( String ) --> reads the content of an UTF-8 text file and returns it in a String. An optional BOM is removed.
+        // readtextfile : String|Error ( String ) --> reads the content of an UTF-8 text file and returns it in a String. An optional BOM is removed.
         if( core_level >= config::LevelFull && not (opt_out & config::NoFileRead) )
         {
             auto func = std::make_shared< LibraryFunction< decltype(ReadTextFile) > >( &ReadTextFile );
@@ -2173,7 +2224,7 @@ protected:
             tea_add_var( "readtextfile", std::move( val ) ); // missing _ is intended for now.
         }
 
-        // readfile : Buffer|Bool ( String ) --> reads the content of a file and returns it in a Buffer.
+        // readfile : Buffer|Error ( String ) --> reads the content of a file and returns it in a Buffer.
         if( core_level >= config::LevelFull && not (opt_out & config::NoFileRead) ) {
             auto func = std::make_shared< LibraryFunction< decltype(ReadBinaryFile) > >( &ReadBinaryFile );
             ValueObject val{std::move( func ), cfg_mutable};
@@ -2251,25 +2302,27 @@ func to_string( val )
     val % ""
 }
 
-// converts val to a Number. returns Bool(false) on error. (note: if val is a String _strtonum / _strtonumex is an alternative)
+// converts val to a Number. returns Error on error. (note: if val is a String _strtonum / _strtonumex is an alternative)
 func to_number( val )
 {
     if( val is String ) {
         _strtonumex( val ) // this can convert i64 and f64
+    } else if( val is Number ) {
+        val
     } else {
-        +val //TODO: error handling!
+        val as i64 //TODO: error handling!
     }
 }
 
-// converts val to f64. val must be a number already! returns Bool(false) on error.
+// converts val to f64. val must be a number already! returns Error on error.
 // example use case: to_f64( to_number( some_var ) ) // ensures some_var is converted to f64
 // NOTE: this function is only provisionally and will be replaced by a cast later!
 func to_f64( val )
 {
-    if( val is Number ) { val + 0.0 } else { false }
+    if( val is Number ) { val as f64 } else { "Not a number!" as Error }
 }
 
-// convenience function. ensures given Number is used as i64. returns Bool(false) on error.
+// convenience function. ensures given Number is used as i64. returns Error on error.
 // example use case: to_i64( to_number( some_var ) ) // ensures some_var is converted to i64
 // NOTE: this function is only provisionally and will be replaced by a cast later!
 func to_i64( val )
@@ -2277,7 +2330,7 @@ func to_i64( val )
     if( val is Number ) {
         val as i64
     } else {
-        false
+        "Not a number!" as Error
     }
 }
 
@@ -2326,7 +2379,7 @@ func abs( n )
 func round( n )
 {
     const num := (n + 0.0)
-    0.0 + _f64toi64( num + if( num < 0 ) { -0.5 } else { 0.5 } )
+    _trunc( num + if( num < 0 ) { -0.5 } else { 0.5 } )
 }
 
 // make_rgb : i64 (r: i64, g: i64, b: i64) --> makes a 32 bit rgb color (garbage in, garbage out)
@@ -2376,17 +2429,17 @@ is_defined cprint and (func cprintln( rgb, s )
 )_SCRIPT_";
 
     static constexpr char core_lib_stderr[] = R"_SCRIPT_(
-// prints s + line feed to stderr, will do to string conversion of s
-func print_error( s )
+// prints e + line feed to stderr, will do to string conversion of e (usually e should be String or Error)
+func print_error( e )
 {
     //TODO: add log to common logfile
-    _err( s % "\n" )
+    _err( e % "\n" )
 }
 
-// prints error_str to stderr, exits the script (with stack unwinding/scope cleanup) with error_code
-func fail_with_message( error_str, error_code := _exit_failure )
+// prints err to stderr (usually err should be String or Error), exits the script (with stack unwinding/scope cleanup) with error_code
+func fail_with_message( err, error_code := _exit_failure )
 {
-    print_error( error_str )
+    print_error( err )
     fail_with_error( error_code )
 }
 )_SCRIPT_";
@@ -2417,23 +2470,16 @@ func toml_array_size( const arr @= )
     static constexpr char core_lib_toml_read[] = R"_SCRIPT_(
 func readtomlfile( file )
 {
-    const content := readtextfile( file )
-    if( content is String ) {
-        readtomlstring( content )
-    } else {
-        false
-    }
+    const content := readtextfile( file ) catch( err ) return err
+    readtomlstring( content )
 }
 )_SCRIPT_";
     static constexpr char core_lib_toml_write[] = R"_SCRIPT_(
 func writetomlfile( tuple, file, overwrite := false )
 {
-    const content := writetomlstring( tuple )
-    if( content is String ) {
-        writetextfile( file, content, overwrite, false )
-    } else {
-        false
-    }
+    // writetextfile returns a Bool, so do we!
+    const content := writetomlstring( tuple ) catch return false
+    writetextfile( file, content, overwrite, false )
 }
 )_SCRIPT_";
 #endif
@@ -2457,23 +2503,16 @@ func json_array_size( const arr @= )
     static constexpr char core_lib_json_write[] = R"_SCRIPT_(
 func writejsonfile( tuple, file, overwrite := false )
 {
-    const content := writejsonstring( tuple )
-    if( content is String ) {
-        writetextfile( file, content, overwrite, false )
-    } else {
-        false
-    }
+    // writetextfile returns a Bool, so do we!
+    const content := writejsonstring( tuple ) catch return false
+    writetextfile( file, content, overwrite, false )
 }
 )_SCRIPT_";
     static constexpr char core_lib_json_read[] = R"_SCRIPT_(
 func readjsonfile( file )
 {
-    const content := readtextfile( file )
-    if( content is String ) {
-        readjsonstring( content )
-    } else {
-        false
-    }
+    const content := readtextfile( file ) catch( err ) return err
+    readjsonstring( content )
 }
 )_SCRIPT_";
 #endif
@@ -2659,8 +2698,8 @@ func utf8_next( it @= )
 // computes power of n with integer exponent. if exp is a float it will get truncated. returns a f64.
 func pow( n, exp )
 {
-    const num := n + 0.0 // make a f64
-    def   e   := (+exp) as i64 // ensure an integer is used.
+    const num := (n + 0.0)  // make a f64
+    def   e   := exp as i64 // ensure an integer is used.
     def   res := 1.0
     repeat {
         if( e == 0 ) { stop }
@@ -2721,7 +2760,7 @@ func timevals( t, HH @=, MM @=, S @=, ms @= 0 )
         HH   := secs / 60 / 60
         MM   := (secs - (HH * 60 * 60)) / 60
         S    := (secs - (HH * 60 * 60) - (MM * 60))
-        ms   := _f64toi64( (t - secs) * 1000.0 ) 
+        ms   := ( (t - secs) * 1000.0 ) as i64
         true
     } else {
         false

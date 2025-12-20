@@ -24,8 +24,8 @@
             <Keywords name="Folders in comment, open"></Keywords>
             <Keywords name="Folders in comment, middle"></Keywords>
             <Keywords name="Folders in comment, close"></Keywords>
-            <Keywords name="Keywords1">if else repeat forall in is as typename typeof func def const undef is_defined debug with stop loop return mod not or and false true suspend yield _Exit</Keywords>
-            <Keywords name="Keywords2">TypeInfo i64 f64 u8 u64 Bool String Function Tuple IntegerSequence NaV Number Const Buffer</Keywords>
+            <Keywords name="Keywords1">if else repeat forall in is as typename typeof func def const undef is_defined debug with stop loop return mod not or and false true suspend yield _Exit catch</Keywords>
+            <Keywords name="Keywords2">TypeInfo i64 f64 u8 u64 Bool String Function Tuple IntegerSequence NaV Number Const Buffer Error</Keywords>
             <Keywords name="Keywords3"></Keywords>
             <Keywords name="Keywords4"></Keywords>
             <Keywords name="Keywords5"></Keywords>

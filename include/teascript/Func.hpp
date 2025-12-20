@@ -75,6 +75,13 @@ public:
         return res;
     }
 
+    // for debugging / inspection
+    void Apply( std::function<bool( ASTNode const *, int )> const &callback, int depth = 1 ) const
+    {
+        mParamSpec->Apply( callback, depth );
+        mBlock->Apply( callback, depth );
+    }
+
 };
 
 } // namespace teascript

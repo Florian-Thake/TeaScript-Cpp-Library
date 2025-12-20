@@ -365,6 +365,54 @@ private:
 
             // done!
             return;
+        } else if( rNode->GetName() == "BinOp" && rNode->GetDetail() == "catch" ) {
+
+            // lhs is always evaluated
+            auto it = rNode->begin();
+            RecursiveBuildTSVMCode( *it );
+            ++it; // advance to rhs!
+
+            auto const pos = mInstructions.size(); // this will be the idx of our Jump below.
+
+            // add the catch
+            mInstructions.emplace_back( eTSVM_Instr::Catch, teascript::ValueObject() );
+            if( mOptLevel == eOptimize::Debug ) {
+                mDebuginfo.emplace( mInstructions.size() - 1, rNode->GetSourceLocation() );
+            }
+
+            auto const &variable_name = static_cast<ASTNode_Catch const *>(rNode.get())->GetErrorVariableName();
+
+            // if we need an Error-Variable...
+            if( not variable_name.empty() ) {
+                mInstructions.emplace_back( eTSVM_Instr::Push, teascript::ValueObject( variable_name ) );
+                // now we have [val, id] on the stack but we need [id, val] :-(
+                mInstructions.emplace_back( eTSVM_Instr::Swap, teascript::ValueObject() );
+                mInstructions.emplace_back( eTSVM_Instr::EnterScope, teascript::ValueObject() );
+                ++mState.scope_level;
+                mInstructions.emplace_back( eTSVM_Instr::DefVar, teascript::ValueObject(false) );
+            }
+
+            // for the case we did not jump remove the last value from stack
+            mInstructions.emplace_back( eTSVM_Instr::Pop, teascript::ValueObject() );
+
+            // now build the rhs part
+            RecursiveBuildTSVMCode( *it );
+
+            // remove eventually added scope
+            if( not variable_name.empty() ) {
+                mInstructions.emplace_back( eTSVM_Instr::ExitScope, teascript::ValueObject() );
+                --mState.scope_level;
+            }
+
+            // calculate relative index for jump to in case lhs was enough to check.
+            auto const diff = mInstructions.size() - pos;
+
+            // set it in the jump
+            mInstructions[pos].payload = teascript::ValueObject( static_cast<teascript::Integer>(diff) );
+
+            // done
+            return;
+
         } else if( rNode->GetName() == "BinOp" && rNode->GetDetail() == "." ) {
 
             auto c = rNode->begin(); // lhs, the tuple (or the branch for it).
@@ -483,6 +531,9 @@ private:
                         }
                         mInstructions.emplace_back( eTSVM_Instr::Debug, ValueObject( name ) );
                         mDebuginfo.emplace( mInstructions.size() - 1, rNode->GetSourceLocation() );
+                    } else {
+                        // we add a fake push here, which will be either removed or changed to a NoOp.
+                        mInstructions.emplace_back( eTSVM_Instr::Push, ValueObject() );
                     }
                     // done
                     return;

@@ -242,7 +242,7 @@ class TomlSupport
     }
 
 public:
-    /// Constructs a Tuple structure from the given Toml formatted string.
+    /// Constructs a Tuple structure from the given Toml formatted string. \returns the Tuple or Error on error.
     static ValueObject ReadTomlString( Context &rContext, std::string const &rTomlStr )
     {
         Tuple res;
@@ -250,9 +250,8 @@ public:
         try {
             auto const toml_table_root = toml::parse( rTomlStr );
             DispatchTable( rContext, res, toml_table_root );
-        } catch( std::exception const & /*ex*/ ) {
-            //TODO better error handlung.//auto s = ex.what();
-            return ValueObject( false );
+        } catch( std::exception const & ex ) {
+            return ValueObject( Error::MakeRuntimeError( std::string("Error reading TOML String: ") + ex.what() ), ValueConfig(ValueUnshared,ValueMutable) );
         }
 
         auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
@@ -267,16 +266,15 @@ public:
     }
 
     /// Constructs a Toml formatted string from the given Tuple.
-    /// \return the constructed string or false on error.
+    /// \return the constructed string or Error on error.
     /// \note the Tuple must only contain supported types and layout for Toml.
     static ValueObject WriteTomlString( Tuple const &rTuple )
     {
         toml::table  table;
         try {
             DispatchTuple( rTuple, table );
-        } catch( std::exception const & /*ex*/ ) {
-            //TODO better error handlung.//auto s = ex.what();
-            return ValueObject( false );
+        } catch( std::exception const & ex ) {
+            return ValueObject( Error::MakeRuntimeError( std::string( "Error writing TOML String: " ) + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
         std::ostringstream  os;
         os << table;

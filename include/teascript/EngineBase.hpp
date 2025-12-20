@@ -32,7 +32,7 @@ protected:
     virtual ValueObject EvaluateContent( Content const &rContent, std::string const &rName ) = 0;
 
     /// Adds the given ValuObject \param val to the current scope as name \praam rName.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     virtual void AddValueObject( std::string const &rName, ValueObject val ) = 0;
 
 public:
@@ -59,8 +59,22 @@ public:
     /// \note The legacy form of the arg variables "arg1", "arg2", ... is available via the compile setting TEASCRIPT_ENGINE_USE_LEGACY_ARGS=1
     /// \note It is implementation defined whether the content of the file or a further cached object (of a different form) will be used.
     /// \note Further it is implementation defined whether EvaluateContent() will be called or another way is used to execute the script.
+    /// \note This function stays virtual for backward compatibility reasons.
     /// \throw May throw exception::load_file_error or any exception based on exception::parsing_error/eval_error/runtime_error.
-    virtual ValueObject ExecuteScript( std::filesystem::path const &path, std::vector<std::string> const &args = {} ) = 0;
+    virtual ValueObject ExecuteScript( std::filesystem::path const &path, std::vector<std::string> const &args = {} )
+    {
+        std::vector<ValueObject> val_args;
+        for( auto const &s : args ) {
+            val_args.emplace_back( ValueObject( s, ValueConfig{ValueShared, ValueMutable} ) );
+        }
+        return ExecuteScript( path, val_args );
+    }
+
+    /// Executes the script referenced by file path \param path with the (optional) script parameters \param args.
+    /// This variant uses full blown ValueObjects as script parameters.
+    /// \see other ExecuteScript overload for more details.
+    /// \throw May throw exception::load_file_error or any exception based on exception::parsing_error/eval_error/runtime_error.
+    virtual ValueObject ExecuteScript( std::filesystem::path const &path, std::vector<ValueObject> const &args ) = 0;
 
     /// Execute given TeaScript code and returns the result. \param name is arbitrary user defined name for referring to the code.
     /// \throw May throw any exception based on exception::parsing_error/eval_error/runtime_error.

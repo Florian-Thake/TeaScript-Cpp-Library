@@ -27,7 +27,7 @@ Dependencies:
 
 None - for fully C++20 supporting compilers / C++ standard libraries.
 
-Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 11.0.2, 10.2.1 and 10.1.1)
+Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 11.1.4, 11.0.2, 10.2.1 and 10.1.1)
 Libfmt can be downloaded here https://fmt.dev/latest/index.html
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 
@@ -57,9 +57,11 @@ JsonAdapter - You can change the Json library which is used by TeaScript to one 
 Per default PicoJson is used and is enabled by default.
 For use a different adapter you must do the following steps:
 1.) Add include to <TeaScriptRoot>/extensions/include/.
-2.) Add the corresponding JsonAdapter.cpp to your project, e.g., extenstions/JsonAdapterNlohmann.cpp
+2.) Add the corresponding JsonAdapter.cpp to your project, e.g., extensions/JsonAdapterNlohmann.cpp
 3.) Add include for the json library of use, e.g., <rootpath>/nlohmann_3.11.3/single_inlude/
 4.) Set the define TEASCRIPT_JSON_FLAVOR to the desired Json flavor, e.g., TEASCRIPT_JSON_NLOHMANN
+
+BSON Support - Currently BSON support is only available if the used JsonAdapter is nlohmann::json (see above how to change).
 
 
 For building the demo app:

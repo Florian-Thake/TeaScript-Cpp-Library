@@ -6,8 +6,57 @@ NOTE: The dates are not the release dates, but a last commit date.
 
 
 ================
-VERSION 0.16.0 (not released yet, pre-release)
+VERSION 0.16.0, Sa Dec 20 12:24:43 2025
 ================
+    VERSION: 0.16.0 - Error type, catch statement, default shared params, BSON.
+
+    EXAMPLES: added example_v0.16.tea for demo catch, Error and bson.
+    - added bson test to corelibrary_test05.tea
+    COLLECTION: fixed typo in RemoveValueByKeyWithPlaceholder().
+    ARITHMETIC: (optimized) don't check for overflow if types are same in Convert function.
+
+    CORELIB: raised API level to 1 (because changed to Error return).
+    CORELIB: made _f64toi64 DEPRECATED!
+    - removed all internal usage of _f64toi64.
+
+    CORELIB (BREAKING!): changed all _buf_get_x functions to return Error instead of Bool(false).    
+    CORELIB (BREAKING!): clean and proper Error handling for more functions which
+    ... returned Bool(false) on error but has a different type as Bool on success.
+    ... They will now return the new Error type on error.
+    - changed functions: _strfromascii, read[text]file, read[toml|json]file,
+      read[toml|json]string, write[toml|json]string, read/writebsonbuffer
+
+    CORELIB (BREAKING!): _strtonum/_strtonumex now return an Error instead of a Bool(false)
+    CORELIB (BREAKING!): changed to_i64/to_f64 return an Error instead of Bool(false).
+    - improved to_number() for Number input (and Error input)
+
+    TSVM: added TSVM instruction Catch for execute Error path if Error/NaV is on top stack.
+    TSVM: added TSVM instruction Swap for swapping top and top-1
+    FIXED: (in TSVM) stack cleanup for some early return cases, e.g. def x := 10 + return 123
+    ... needed for def n := foo() catch return -1  /  def m := baz() catch( err ) { return err }
+    FIXED: (in TSVM) broken stack after debug operator.
+
+    CORELIB: added _error_[get_code/get_name/get_message], make_runtime_error
+    TEST: added corelibrary_test06.tea and v0.16 test in test01
+    TEASCRIPT: as operator: added cast from NaV to Error, don't cast if type is same already
+    - as operator: Error cannot be casted and stays as Error.
+    MISC: Added syntaxhighlighting for catch and Error.
+
+    TEASCRIPT: added catch statement for easy error handling similar as in Zig.
+    - examples (assuming _strtonum returns an Error on error):
+      def number := _strtonum( "abc" ) catch 2 // on error number is 2
+      def number := _strtonum( "abc" ) catch( err ) return err // on error early return with err
+
+    TEASCRIPT: Introduced distinct Error type for a clean error handling.
+    - Errors consist of an error code and a message.
+    - Errors can be created via make_runtime_error(s) or simply cast a String into Error.
+    - Errors can be concatenated to strings and in boolean contexts they evaluate to false.
+    - For the time being all Error related classes and functions are considered EXPERIMENTAL.
+    PROJ: split class TypeInfo and TypePtr into new TypeIinfo.hpp.
+
+    HOST: added :inspect function command printing AST or TSVM instruction of a function.
+
+    BUILD: Support VS 17.14 by targeting latest installed WinSDK
     BUILD: Support Visual Studio 2022 17.13 with C++23 preview.
     FIX: C++23 - Printing without libfmt. Use std::print again instead of std::vprint_unicode.
     ... On Linux it just works, 
@@ -18,6 +67,10 @@ VERSION 0.16.0 (not released yet, pre-release)
     CORELIB|JSON: added experimental BSON support if nlohmann::json Adapter is used.
     - added readbsonbuffer and writebsonbuffer to core library for ...
     ... Tuple <--> BSON Buffer conversion.
+
+    HOST: added ascii/uttf-8 art logo to welcome screen of interactive shell.
+    - can be suppressed with --no-logo
+    - fixed default eval mode for some implicit interactive shell launches, e.g., -i or --silent.
 
     CLEAN: finally removed deprecated CoreLibrary::ExitScript().
     - Please, use _Exit val instead or directly throw teascript::control::Exit_Script from C++.
@@ -62,6 +115,7 @@ VERSION 0.16.0 (not released yet, pre-release)
       The leap seconds are not counted anymore. Thus, the annoying offset to the system time is gone.
     ASTNODE: as operator - optimized the ifs to a switch.
     HOST: changed copyright year to 2025
+
 
 ================
 VERSION 0.15.1, Sun Nov 03 13:25:32 2024
