@@ -16,21 +16,32 @@ https://tea-age.solutions/downloads/<br>
 Also, a Library bundle with more example scripts is available in the download section as well.
 
 # About TeaScript
-**What is new in TeaScript 0.15.0?** TeaScript 0.15 comes with a Web Server / Web Client module preview, full JSON read/write support and more.<br>
+**What is new in TeaScript 0.16.0?** TeaScript 0.16 comes with a distinct Error type, a catch statement, default shared params, BSON support and more.<br>
+<br>Get all infos in the **latest blog post**:<br>
+https://tea-age.solutions/2025/12/22/release-of-teascript-0-16-0/ <br>
+<br>**What was new in TeaScript 0.15.0?** TeaScript 0.15 comes with a Web Server / Web Client module preview, full JSON read/write support and more.<br>
 <br>**Watch the web feature demo on YouTube:** <br>
 https://youtu.be/31_5-IrHcaE <br>
-<br>Get all infos in the **latest blog post**:<br>
+<br>Read all infos in the corresponding blog post:<br>
 https://tea-age.solutions/2024/09/01/release-of-teascript-0-15-0/ <br>
 
-## Summary of the latest release
+## Summary of the last releases
+### TeaScript 0.16.0
+- a new and distinct **Error** type
+- a **catch** statement similar as in and highly inspired by [Zig](https://ziglang.org/documentation/master/#catch).
+- Function parameters are **shared assign** by default now.
+- experimental **BSON** support.
+### TeaScript 0.15.0
 - **Web module** as a preview for **http client / server** functionality with enhanced build-in **JSON** support.
 - Full **JSON** support for read and write operations (String/File ⟷ (Named) Tuple).
 - Provided C++ JSON adapter for nlohmann::json, RapidJSON, Boost.Json and PicoJson.
 - Added missing write support for TOML (now TOML is complete as well).
 - Import/export of C++ JSON / TOML objects from/to ValueObject of TeaScript (as a Named Tuple)
 
-### Example Files for the latest release
-[web_client.tea](demo/web_client.tea), [web_server.tea](demo/web_server.tea), [JSON Support UniTest](demo/corelibrary_test05.tea), [Json C++ Import/Export](https://github.com/Florian-Thake/TeaScript-Cpp-Library/blob/6a7f348a7d8c959187b6f7ddcb5ed0c4e0e092c9/demo/teascript_demo.cpp#L90)
+### Example Files for the last releases
+[web_client.tea](demo/web_client.tea), [web_server.tea](demo/web_server.tea), [JSON Support UnitTest](demo/corelibrary_test05.tea), [Json C++ Import/Export](https://github.com/Florian-Thake/TeaScript-Cpp-Library/blob/6a7f348a7d8c959187b6f7ddcb5ed0c4e0e092c9/demo/teascript_demo.cpp#L90), [Error and Catch UnitTest](demo/corelibrary_test06.tea), [Catch and BSON example](demo/example_v0.16.tea)
+
+**Hint:** Better syntax highlighting is on the TeaScript home page or in Notepad++ with the provided [SyntaxHighlighting.xml](TeaScript_SyntaxHighlighting_Notepad%2B%2B.xml)
 
 ## Example HTTP GET
 **Please, note:** The pre-compiled Windows and Linux packages of the TeaScript Host Application have this feature enabled by default (download link above).<br>
@@ -62,6 +73,43 @@ println( reply.json.Host )
 println( reply.json["User-Agent"] )
 // dot access possible as well!
 println( reply.json."User-Agent" )
+```
+## Example for convenient error handling with the new catch statement
+```cpp
+// _strtonum returns an Error if the String cannot be parsed to an integer.
+// Here catch is used for yielding default values on error.
+def x := _strtonum( "3" ) catch -1    // no Error, x is 3
+ 
+def y := _strtonum( "xyz" ) catch -1  // Error, y is -1
+ 
+// catch can be chained
+def z := _strtonum( "xyz" ) catch _strtonum( "3" ) catch -1 // z is 3
+ 
+ 
+// catch the error and do sth. with it.
+def a := _strtonum( "uvw" ) catch( err ) { 
+    println("Error: %(err)\nReturning default: 100!" )
+    100 
+} 
+ 
+// catch can be used for early return on errors
+func test(s1, s2)
+{
+    def n1 := _strtonum( s1 ) catch( err ) return err
+    def n2 := _strtonum( s2 ) catch( err ) return err
+    if( n2 == 0 ) { return "n2 is zero!" as Error }
+ 
+    // reaching here only if no Error occurred!
+    n1 / n2
+}
+ 
+def baz := test( "4", "2" )     // baz is 2
+def foo := test( "10", "xyz" )  // foo is Error
+ 
+// handle error by exiting script
+def bar := test( "qwert", "2" ) catch (err) {
+    fail_with_message( err ) // prints err and exit
+}
 ```
 
 ## General information
@@ -363,7 +411,7 @@ All compilers are compiling in **C++20** and for **x86_64**.<br>
 
 **None** -- for fully C++20 supporting compilers / C++ standard libraries.
 
-**Libfmt (as header only)** -- for gcc 11 / clang 14 (tested with **libfmt 11.0.2**, **libfmt 10.2.1** and **libfmt 10.1.1**)<br>
+**Libfmt (as header only)** -- for gcc 11 / clang 14 (tested with **libfmt 11.1.4**, **libfmt 11.0.2**, **libfmt 10.2.1** and **libfmt 10.1.1**)<br>
 - Libfmt can be downloaded here https://fmt.dev/latest/index.html <br>
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 
@@ -392,6 +440,8 @@ For use a different adapter you must do the following steps:<br>
 2.) Add the corresponding JsonAdapter.cpp to your project, e.g., extenstions/JsonAdapterNlohmann.cpp<br>
 3.) Add include for the json library of use, e.g., <rootpath>/nlohmann_3.11.3/single_inlude/<br>
 4.) Set the define TEASCRIPT_JSON_FLAVOR to the desired Json flavor, e.g., TEASCRIPT_JSON_NLOHMANN<br>
+
+**BSON Support** - Currently BSON support is only available if the used JsonAdapter is nlohmann::json (see above how to change).
 
 # Building the demo app
 
