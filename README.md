@@ -75,6 +75,7 @@ println( reply.json["User-Agent"] )
 println( reply.json."User-Agent" )
 ```
 ## Example for convenient error handling with the new catch statement
+More information to the new Error type can be found here https://tea-age.solutions/2025/12/22/release-of-teascript-0-16-0/#error_type
 ```cpp
 // _strtonum returns an Error if the String cannot be parsed to an integer.
 // Here catch is used for yielding default values on error.
