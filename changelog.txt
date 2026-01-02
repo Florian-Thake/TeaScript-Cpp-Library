@@ -6,6 +6,12 @@ NOTE: The dates are not the release dates, but a last commit date.
 
 
 ================
+VERSION 0.17.0 (not released yet, pre-release)
+================
+    HOST: changed copyright year to 2026
+
+
+================
 VERSION 0.16.0, Sa Dec 20 12:24:43 2025
 ================
     VERSION: 0.16.0 - Error type, catch statement, default shared params, BSON.
