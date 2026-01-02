@@ -8,6 +8,10 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.17.0 (not released yet, pre-release)
 ================
+    CLEAN: removed TEASCRIPT_DISABLE_GETVALUE_CONSTCHECK switch.
+    - Please, call GetValue< Type const >() for inner const values
+      or use one of the more clean GetConstValue()|GetMutableValue() or GetValueCopy() instead.
+
     HOST: changed copyright year to 2026
 
 

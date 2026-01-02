@@ -25,9 +25,6 @@
 #include "Print.hpp"  // we need to know if fmt is in use for double -> string conversion
 
 
-// Define this for disable the const correct behavior in T& GetValue() for the case that the inner value is const.
-// This will disable the const correct bugfix and is meant for a temporary transition only. Please, change your code accordingly. This switch will be removed in next release!
-//#define TEASCRIPT_DISABLE_GETVALUE_CONSTCHECK    1
 
 
 namespace teascript {
@@ -850,13 +847,11 @@ public:
     template< typename T >
     T &GetValue()
     {
-#if !defined(TEASCRIPT_DISABLE_GETVALUE_CONSTCHECK)
         if constexpr( not std::is_const_v<T> ) {
             if( mProps.IsConst() ) {
                 throw exception::bad_value_cast( "Value of ValueObject is const! Cannot return a mutable reference!" );
             }
         }
-#endif
         // one of the rare unevil const_cast: first make this const to can re-use the GetValue code, then remove the const again from result.
         return const_cast<T &>(const_cast<ValueObject const &>(*this).GetValue<std::remove_const_t<T>>());
     }
