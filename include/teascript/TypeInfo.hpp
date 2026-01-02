@@ -12,18 +12,19 @@
 
 #include <typeindex>
 #include <memory>
+#include <functional> // std::reference_wrapper
 
 namespace teascript {
 
 /// The type info class for all types represented in a ValueObject.
 class TypeInfo
 {
-    std::string const mName;
-    std::type_info const &mTypeInfo; // This will probably be splitted in inner and outer for e.g. shared_ptr<T> and others.
-    size_t const mSize;
-    bool const mIsArithmetic;
-    bool const mIsSigned;
-    bool const mIsNaV;
+    std::string  mName;
+    std::reference_wrapper<std::type_info const>  mTypeInfo;
+    size_t  mSize;
+    bool    mIsArithmetic;
+    bool    mIsSigned;
+    bool    mIsNaV;
 public:
     template< typename T >
     TypeInfo( T const *, std::string const &rName )
@@ -44,7 +45,7 @@ public:
 
     inline bool IsSame( TypeInfo const &rOther ) const noexcept
     {
-        return mTypeInfo == rOther.mTypeInfo;
+        return IsSame( rOther.mTypeInfo );
     }
 
     inline bool IsSame( std::type_info const &rOther ) const noexcept

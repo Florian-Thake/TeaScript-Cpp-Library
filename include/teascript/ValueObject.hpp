@@ -139,6 +139,7 @@ public:
         TypeBuffer,
         TypeIntSeq,   // IntegerSequence
         TypeFunction,
+        TypeTypeInfo,
         TypeAny,
 
         TypeLast = TypeAny,
@@ -149,7 +150,7 @@ private:
 
     //TODO [ITEM 98]: Think of a better storage layout. sizeof 64 would be great! Maybe we can get rid of the nested variant and also store any always as shared_ptr?
     // sizeof BareTypes == 72 (std::any == 64 + 8 for std::variant)
-    using BareTypes = std::variant< NotAValue, Bool, U8, I64, U64, F64, String, Error, Tuple, Buffer, IntegerSequence, FunctionPtr, std::any >;
+    using BareTypes = std::variant< NotAValue, Bool, U8, I64, U64, F64, String, Error, Tuple, Buffer, IntegerSequence, FunctionPtr, TypeInfo, std::any >;
     // sizeof ValueVariant == 80 (BarTypes == 72 + 8 for std::variant)
     using ValueVariant = std::variant< BareTypes, std::shared_ptr<BareTypes> >;
 
@@ -206,6 +207,8 @@ private:
             return std::get_if<IntegerSequence>( mpValue );
         } else if constexpr( std::is_same_v<T, FunctionPtr> ) {
             return std::get_if<FunctionPtr>( mpValue );
+        } else if constexpr( std::is_same_v<T, TypeInfo> ) {
+            return std::get_if<TypeInfo>( mpValue );
         } else {
             std::any *any = std::get_if<std::any>( mpValue );
             if( any ) {
@@ -493,7 +496,7 @@ public:
     explicit ValueObject( TypeInfo const & rTypeInfo, ValueConfig const &cfg )
         : mValue( create_helper( true, BareTypes( rTypeInfo ) ) )
         , mpValue( std::get<1>( mValue ).get() )
-        , mpType( &TypeTypeInfo )
+        , mpType( &teascript::TypeTypeInfo )
         , mProps( cfg.IsConst() )
     {
 

@@ -8,6 +8,9 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.17.0 (not released yet, pre-release)
 ================
+    VALUE: finally made TypeInfo a first class citizen.
+    - TypeInfo is now copyable and movable directly (was a requirement for be first class citizen)
+
     CLEAN: finally removed deprecated class LibraryFunction0<> to LibraryFunction5<>.
     - Please, use the new and generic one fits for all LibraryFunction<> instead.
 
