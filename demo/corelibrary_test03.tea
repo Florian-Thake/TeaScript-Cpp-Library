@@ -21,8 +21,13 @@ if( version_major < 1 and version_minor < 6 ) {
     version_major, version_major // if you get an error here, version is too old!
 }
 
+// Version 0.6.0 up to 0.9.0 don't have Tuples, so they are struggling to parse the dot operator, e.g., tup.0.
+// In order to produce a helpful error message, we must add a parse error early and try to build a usefull error message with it.
+// We cannot use raw string literals, because version 0.10 cannot parse them either. So, we use the dot operator as well.
 if( version_major < 1 and version_minor < 10 ) {
-    fail_with_message( "version too old or set wrong!", _exit_failure )
+    def dummy := _tuple_create() // we don't really need this b/c this code will never be evaluated anyway, but...
+    def dummy."Version too old or set wrong! Please, use 0.10 or newer." := true  // intentional parsing error for 0.6.0 - 0.9.0
+    fail_with_message( "Version too old or set wrong! Please, use 0.10 or newer.", _exit_failure )
 } else if( not is_defined _core_config or _core_config mod 16 < 8 /* LevelFull */ ) {
     return "Tests must always run with CoreLibrary LevelFull."
 }
