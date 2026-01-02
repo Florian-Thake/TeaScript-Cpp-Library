@@ -1383,7 +1383,7 @@ protected:
             tea_add_var( "Error", ValueObject( TypeError, cfg ) );
             tea_add_var( "Number", ValueObject( MakeTypeInfo<Number>("Number"), cfg)); // Fake concept for 'Number'
             tea_add_var( "Function", ValueObject( MakeTypeInfo<FunctionPtr>("Function"), cfg));
-            tea_add_var( "Tuple", ValueObject( MakeTypeInfo<Tuple>( "Tuple" ), cfg ) );
+            tea_add_var( "Tuple", ValueObject( tuple::get_type_info(), cfg));
             tea_add_var( "Const", ValueObject( MakeTypeInfo<Const>( "Const" ), cfg ) ); // Fake concept for 'const'
             tea_add_var( "IntegerSequence", ValueObject( TypeIntegerSequence, cfg ) );
             tea_add_var( "Buffer", ValueObject( TypeBuffer, cfg ) );
@@ -2806,7 +2806,6 @@ func rolldice( eyes := 6 )
             TypeSystem  sys;
             sys.RegisterType<FunctionPtr>("Function");
             sys.RegisterType<std::vector<ValueObject>>("ValueObjectVector");
-            sys.RegisterType<Tuple>( "Tuple" );
 
             Context tmp{ std::move( sys ), true };
             tmp.is_debug = rContext.is_debug; // take over from possible old instance.

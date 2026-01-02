@@ -8,6 +8,9 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.17.0 (not released yet, pre-release)
 ================
+    TYPES: removed the need to manual register Tuple as TypeInfo.
+    - this will lead to some easier usage and upcoming refactorings for some parts of the C++ API.
+
     VALUE: finally made TypeInfo a first class citizen.
     - TypeInfo is now copyable and movable directly (was a requirement for be first class citizen)
 

@@ -34,6 +34,8 @@ class ValueObject;
 class ValueConfig;
 using Tuple = Collection<ValueObject>;
 namespace tuple {
+inline
+TypeInfo const &get_type_info() noexcept;
 namespace {
 std::strong_ordering compare_values( Tuple const &, Tuple const & );
 ValueObject deep_copy( ValueObject const &, bool const );
@@ -471,15 +473,10 @@ public:
     explicit ValueObject( Tuple &&rVals, ValueConfig const &cfg )
         : mValue( create_helper( true, BareTypes( std::move( rVals ) ) ) )
         , mpValue( std::get<1>( mValue ).get() )
-        , mpType( cfg.mpTypeSystem != nullptr
-                  ? cfg.mpTypeSystem->Find< Tuple >()
-                  : cfg.mpTypeInfo )
+        , mpType( &tuple::get_type_info() )
         , mProps( cfg.IsConst() )
     {
-        // not allow nullptr and wrong type for this usage. also we don't want manually alloc a type here.
-        if( nullptr == mpType || not mpType->IsSame<Tuple>() ) {
-            throw exception::runtime_error( "Usage Error! No TypeSystem or wrong TypeInfo for ValueObject Tuple constructor!" );
-        }
+
     }
 
     inline

@@ -19,6 +19,13 @@ namespace teascript {
 
 namespace tuple {
 
+inline
+TypeInfo const & get_type_info() noexcept
+{
+    static TypeInfo const TypeTuple = MakeTypeInfo<Tuple>( "Tuple" );
+    return TypeTuple;
+}
+
 // using ForEachElementFunctor = std::function< bool( ValueObject &, int )>;
 
 /// applies recursively all values to given functor for all elements or stops

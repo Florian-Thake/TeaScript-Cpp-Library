@@ -20,6 +20,12 @@
 
 namespace teascript {
 
+
+namespace tuple {
+inline
+TypeInfo const & get_type_info() noexcept;
+} // namespace tuple
+
 // the primitive types are always there, even without lookup in TypeSystem.
 static TypeInfo const TypeNaV = MakeTypeInfo<NotAValue>("NaV");
 static TypeInfo const TypeBool = MakeTypeInfo<Bool>("Bool");
@@ -116,6 +122,8 @@ public:
         mTypes.insert( std::make_pair( TypeIntegerSequence.ToTypeIndex(), TypePtr( &TypeIntegerSequence ) ) );
         mTypes.insert( std::make_pair( TypeBuffer.ToTypeIndex(), TypePtr( &TypeBuffer ) ) );
         mTypes.insert( std::make_pair( TypeError.ToTypeIndex(), TypePtr( &TypeError ) ) );
+        TypeInfo const &TupleInfo = tuple::get_type_info();
+        mTypes.insert( std::make_pair( TupleInfo.ToTypeIndex(), TypePtr( &TupleInfo ) ) );
     }
 
     template< RegisterableType T>
