@@ -110,7 +110,7 @@ public:
     static bool IsTupAnArray( Tuple const &rTuple )
     {
         if( rTuple.IsEmpty() ) {
-            return false; // empty tuples are always interpreted as josn objects/toml tables.
+            return false; // empty tuples are always interpreted as json objects/toml tables.
         }
         auto const &[key, _] = *rTuple.begin();
         // For Toml and Json an empty string "" is allowed as key, so we must check that.

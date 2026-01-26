@@ -50,7 +50,7 @@ public:
     virtual void ResetState() = 0;
 
     /// Returns the stored variable with name \param rName starting search in the current scope up to toplevel scope.
-    /// \throw May throw exception::unknown_identifier or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::unknown_identifier or a different exception based on exception::eval_eror/runtime_error.
     virtual ValueObject GetVar( std::string const &rName ) const = 0;
 
     /// Executes the script referenced by file path \param path with the (optional) script parameters \param args.
@@ -100,12 +100,12 @@ public:
 
     /// Invokes the TeaScript function with name rName with parameters in rParams.
     /// \returns the ValueObject result from the called fuction.
-    /// \throw May throw exception::unknown_identifier or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::unknown_identifier or a different exception based on exception::eval_eror/runtime_error.
     virtual ValueObject CallFunc( std::string const &rName, std::vector<ValueObject> &rParams ) = 0;
 
     /// Invokes the TeaScript function with name rName with the additional parametes, which will be converted to ValueObjects.
     /// \returns the ValueObject result from the called fuction.
-    /// \throw May throw exception::unknown_identifier or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::unknown_identifier or a different exception based on exception::eval_eror/runtime_error.
     /// \note Every parameter t must be a type which can be passed to a public ValueObject consructor.
     template< typename ...T> requires ((not std::is_same_v<T, ValueObject> && not std::is_same_v<T, std::vector<ValueObject>> && std::is_constructible_v<ValueObject, T, ValueConfig>) && ...)
     ValueObject CallFuncEx( std::string const &rName, T ... t ) /* different name for overload resolution in derived classes! */
@@ -123,7 +123,7 @@ public:
     virtual void RegisterUserCallback( std::string const &rName, CallbackFunc const &rCallback ) = 0;
 
     /// Adds the given value as a mutable Bool with name \param rName to the current scope.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddBoolVar( std::string const &rName, teascript::Bool const b )
     {
@@ -131,7 +131,7 @@ public:
     }
 
     /// Adds the given value as a mutable Integer with name \param rName to the current scope.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddVar( std::string const &rName, teascript::Integer const i )
     {
@@ -139,7 +139,7 @@ public:
     }
 
     /// Adds the given value as a mutable Integer with name \param rName to the current scope. NOTE: will change to I32 if this type is added!
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddVar( std::string const &rName, int const i )
     {
@@ -147,7 +147,7 @@ public:
     }
 
     /// Adds the given value as a mutable U64 with name \param rName to the current scope.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddVar( std::string const &rName, teascript::U64 const u )
     {
@@ -155,7 +155,7 @@ public:
     }
 
     /// Adds the given value as a mutable U64 with name \param rName to the current scope. NOTE: will change to U32 if this type is added!
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddVar( std::string const &rName, unsigned int const u )
     {
@@ -163,7 +163,7 @@ public:
     }
 
     /// Adds the given value as a mutable U8 with name \param rName to the current scope.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddVar( std::string const &rName, teascript::U8 const u )
     {
@@ -171,7 +171,7 @@ public:
     }
 
     /// Adds the given value as a mutable Decimal with name \param rName to the current scope.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddVar( std::string const &rName, teascript::Decimal const d )
     {
@@ -179,7 +179,7 @@ public:
     }
 
     /// Adds the given value as a mutable String with name \param rName to the current scope.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddVar( std::string const &rName, teascript::String const &s )
     {
@@ -187,7 +187,7 @@ public:
     }
 
     /// Adds the given value as a mutable String with name \param rName to the current scope.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddVar( std::string const &rName, teascript::String  &&s )
     {
@@ -195,7 +195,7 @@ public:
     }
 
     /// Adds the given value as a mutable String with name \param rName to the current scope. The char array \param s must be zero terminated.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     template<size_t N>
     inline
     void AddVar( std::string const &rName, char const (&s)[N] )
@@ -204,7 +204,7 @@ public:
     }
 
     /// Adds the given value as a mutable Buffer with name \param rName to the current scope.
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddVar( std::string const &rName, teascript::Buffer &&rBuffer )
     {
@@ -212,7 +212,7 @@ public:
     }
 
     /// Adds the given value (mutable or const) with name \param rName to the current scope. The ValueObejct must be a shared one!
-    /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
+    /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     inline
     void AddSharedValueObject( std::string const &rName, teascript::ValueObject const &rValueObject )
     {

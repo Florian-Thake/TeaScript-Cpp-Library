@@ -73,11 +73,11 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>../include/;$(IncludePath)</IncludePath>
+    <IncludePath>../extensions/include/;../include/;$(IncludePath)</IncludePath>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>../include/;$(IncludePath)</IncludePath>
+    <IncludePath>../extensions/include/;../include/;$(IncludePath)</IncludePath>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -138,6 +138,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="coroutine_demo.cpp" />
+    <ClCompile Include="reflectcpp_demo.cpp" />
     <ClCompile Include="suspend_thread_demo.cpp" />
     <ClCompile Include="teascript_demo.cpp" />
   </ItemGroup>

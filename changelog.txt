@@ -8,6 +8,12 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.17.0 (not released yet, pre-release)
 ================
+    EXTENSION: added reflectcpp extension for reflect C++ structs into TeaScript
+    - ... and reflect Tuples back into C++ structs.
+    - DEMO: added reflectcpp_demo code (invoke via teascript_demo[.exe] reflect )
+    - 3RDPARTY: added optional dependency via extension: reflectcpp 0.23.0
+    - tested with g++11, clang-14, VS2022 17.14
+
     TYPES: removed the need to manual register Tuple as TypeInfo.
     - this will lead to some easier usage and upcoming refactorings for some parts of the C++ API.
 

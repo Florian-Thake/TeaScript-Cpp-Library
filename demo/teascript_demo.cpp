@@ -77,6 +77,9 @@
 
 
 
+// forward declaration, see reflectcpp_demo.cpp for implementation.
+void teascript_reflectcpp_demo();
+
 // forward declaration, see coroutine_demo.cpp for implementation.
 void teascript_coroutine_demo();
 
@@ -869,6 +872,8 @@ int main( int argc, char **argv )
         teascript_coroutine_demo();
     } else if( argc == 2 && args[1] == "web" ) {
         webpreview_code();
+    } else if( argc == 2 && args[1] == "reflect" ) {
+        teascript_reflectcpp_demo();
     } else if( argc >= 2 ) {
         return exec_script_file( args );
     } else {
@@ -879,6 +884,7 @@ int main( int argc, char **argv )
                   << args[0] << " web               --> execs web preview\n"
                   << args[0] << " coro              --> execs coroutine demo\n"
                   << args[0] << " suspend           --> execs thread suspend demo\n"
+                  << args[0] << " reflect           --> execs thread reflectcpp demo\n"
                   << args[0] << " filename [args]   --> execs TeaScript \"filename\" with \"args\"" << std::endl;
         std::cout << "\n\nContact: " << teascript::contact_info() << std::endl;
         std::cout << "The TeaScript Host Application for execute standalone TeaScript files\n"
