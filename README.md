@@ -43,6 +43,63 @@ https://tea-age.solutions/2024/09/01/release-of-teascript-0-15-0/ <br>
 
 **Hint:** Better syntax highlighting is on the TeaScript home page or in Notepad++ with the provided [SyntaxHighlighting.xml](TeaScript_SyntaxHighlighting_Notepad%2B%2B.xml)
 
+## Example Reflection of C++ structs (Preview)
+**Note** You must use the 'not-released-yet' **0.17.0** from the main branch for reflection.
+Try the [Reflection Demo](demo/reflectcpp_demo.cpp) by yourself with the help of the demo project. This file also contains a usage instruction.
+
+Imagine you have the following C++ struct and instance:
+```cpp
+// some C++ struct (note the self reference in children)
+struct Person
+{
+    std::string first_name;
+    std::string last_name;
+    int age{0};
+    std::vector<Person> children;
+};
+
+// create an example instance of the C++ struct.
+auto  homer = Person{.first_name = "Homer",
+                     .last_name = "Simpson",
+                     .age = 45};
+homer.children.emplace_back( Person{"Maggie", "Simpson", 1} );
+homer.children.emplace_back( Person{"Bart", "Simpson", 10} );
+```
+If you want to use a copy of homer in TeaScript you can reflect it in without macros, registratrion or other prerequisites like this:
+```cpp
+// create the default teascript engine.
+teascript::Engine engine;
+
+// import the C++ struct instance into TeaScript.
+teascript::reflect::into_teascript( engine, "homer", homer );
+
+// nothing more to to, thats all!
+```
+Now, within TeaScript we can use 'homer':
+```cpp
+tuple_print( homer, "homer", 10 )  // prints all (nested) elements with name and value
+
+// access some fields
+homer.first_name    // "Homer"
+homer.age           // 45
+homer["last_name"]  // "Simpson" (alternative way of accessing elements by key, by index and ."key name" is also possible)
+homer.children[0].first_name  // Maggie
+homer.children[1].first_name  // Bart
+
+// NOW modifying it by adding Lisa as a child
+_tuple_append( homer.children, _tuple_named_create( ("first_name", "Lisa"), ("last_name", "Simpson"), ("age", 8), ("children", json_make_array() ) ) )
+// create a shared reference to Lisa
+def lisa @= homer.children[2]
+```
+Now we can reflect Lisa back into a new C++ Person struct instance via this code:
+```cpp
+// exporting from TeaScript into a new C++ struct instance!
+// !!!
+Person lisa = teascript::reflect::from_teascript<Person>( engine, "lisa" );
+// !!! - Thats all !
+```
+Use lisa in C++ freely now. This is possible with the current supported minimum compiler versions (see below) in C++20.
+
 ## Example HTTP GET
 **Please, note:** The pre-compiled Windows and Linux packages of the TeaScript Host Application have this feature enabled by default (download link above).<br>
 For the TeaScript C++ Library it is an opt-in feature and must be enabled first before compilation (see optional feature section below).
