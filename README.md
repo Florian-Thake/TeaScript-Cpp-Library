@@ -98,7 +98,7 @@ Now we can reflect Lisa back into a new C++ Person struct instance via this code
 Person lisa = teascript::reflect::from_teascript<Person>( engine, "lisa" );
 // !!! - Thats all !
 ```
-Use lisa in C++ freely now. This is possible with the current supported minimum compiler versions (see below) in C++20.
+Use lisa in C++ freely now. This is possible with the current supported minimum compiler versions (see below) in <nobr>C++20</nobr>.
 
 ## Example HTTP GET
 **Please, note:** The pre-compiled Windows and Linux packages of the TeaScript Host Application have this feature enabled by default (download link above).<br>
