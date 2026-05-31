@@ -4,26 +4,33 @@ Extend your applications dynamically during runtime with TeaScript.<br>
 Once your application has customization points for TeaScript each installation/distribution can be extended/modified without expensive re-compile and deployment procedure with arbitrary and individual functionality.
 
 TeaScript is an embeddable and standalone **Multi-Paradigm script language** close to C++ syntax but easier to use.<br>
-More information about TeaScript is available here: https://tea-age.solutions/teascript/overview-and-highlights/
+More information about TeaScript is available here: https://teascript.run-by-ai.cloud/teascript/overview-and-highlights/
 
 This Library can be used as a **header only** library and can be **dependency free** for fully C++20 supporting compilers / C++ standard libraries (optional features require to include other free software libraries).
 
 Provided with this Library is a demo app for illustrating the C++ API usage and a basic way for execute TeaScript files.
 
 The full featured **TeaScript Host Application** for execute standalone script files, an interactive shell, a REPL, debugging capabilities, time measurement and more can be downloaded **for free** as a **pre-compiled** Windows and Linux bundle and with included source code here:<br>
-https://tea-age.solutions/downloads/<br>
+https://teascript.run-by-ai.cloud/teascript/downloads/<br>
 
 Also, a Library bundle with more example scripts is available in the download section as well.
+
+## 🎉 TeaScript has a new home!
+TeaScript moved to a new website — have a look:<br>
+https://teascript.run-by-ai.cloud/ <br>
+<br>
+Read all about the re-launch in the corresponding blog post:<br>
+https://teascript.run-by-ai.cloud/blog/relaunch-of-the-teascript-home-page/
 
 # About TeaScript
 **What is new in TeaScript 0.16.0?** TeaScript 0.16 comes with a distinct Error type, a catch statement, default shared params, BSON support and more.<br>
 <br>Get all infos in the **latest blog post**:<br>
-https://tea-age.solutions/2025/12/22/release-of-teascript-0-16-0/ <br>
+https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-16-0/ <br>
 <br>**What was new in TeaScript 0.15.0?** TeaScript 0.15 comes with a Web Server / Web Client module preview, full JSON read/write support and more.<br>
 <br>**Watch the web feature demo on YouTube:** <br>
 https://youtu.be/31_5-IrHcaE <br>
 <br>Read all infos in the corresponding blog post:<br>
-https://tea-age.solutions/2024/09/01/release-of-teascript-0-15-0/ <br>
+https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-15-0/ <br>
 
 ## Summary of the last releases
 ### TeaScript 0.16.0
@@ -41,7 +48,7 @@ https://tea-age.solutions/2024/09/01/release-of-teascript-0-15-0/ <br>
 ### Example Files for the last releases
 [web_client.tea](demo/web_client.tea), [web_server.tea](demo/web_server.tea), [JSON Support UnitTest](demo/corelibrary_test05.tea), [Json C++ Import/Export](https://github.com/Florian-Thake/TeaScript-Cpp-Library/blob/6a7f348a7d8c959187b6f7ddcb5ed0c4e0e092c9/demo/teascript_demo.cpp#L90), [Error and Catch UnitTest](demo/corelibrary_test06.tea), [Catch and BSON example](demo/example_v0.16.tea)
 
-**Hint:** Better syntax highlighting is on the TeaScript home page or in Notepad++ with the provided [SyntaxHighlighting.xml](TeaScript_SyntaxHighlighting_Notepad%2B%2B.xml)
+**Hint:** Better syntax highlighting is on the TeaScript home page, in Notepad++ with the provided [SyntaxHighlighting.xml](TeaScript_SyntaxHighlighting_Notepad%2B%2B.xml), or via the [Pygments lexer](tools/syntax/README.md) (e.g. for rendering TeaScript code on web pages and in documentation).
 
 ## Example Reflection of C++ structs (Preview)
 **Note** You must use the 'not-released-yet' **0.17.0** from the main branch for reflection.
@@ -132,7 +139,7 @@ println( reply.json["User-Agent"] )
 println( reply.json."User-Agent" )
 ```
 ## Example for convenient error handling with the new catch statement
-More information to the new Error type can be found here https://tea-age.solutions/2025/12/22/release-of-teascript-0-16-0/#error_type
+More information to the new Error type can be found here https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-16-0/#error_type
 ```cpp
 // _strtonum returns an Error if the String cannot be parsed to an integer.
 // Here catch is used for yielding default values on error.
@@ -172,18 +179,18 @@ def bar := test( "qwert", "2" ) catch (err) {
 
 ## General information
 Get a very nice overview with the most **impressive highlights** here:<br>
-https://tea-age.solutions/teascript/overview-and-highlights/ <br>
+https://teascript.run-by-ai.cloud/teascript/overview-and-highlights/ <br>
 <br>
 Read nice introductions of every new language and library feature in the release blog post collection:<br>
-[Release blog posts](https://tea-age.solutions/teascript/downloads/#all_release_articles) <br>
+[Release blog posts](https://teascript.run-by-ai.cloud/teascript/downloads/#all_release_articles) <br>
 
 TeaScript language documentation:<br>
-https://tea-age.solutions/teascript/teascript-language-documentation/ <br>
+https://teascript.run-by-ai.cloud/teascript/language-documentation/ <br>
 Integrated Core Library Documentation:<br>
-https://tea-age.solutions/teascript/teascript-core-library-documentation/<br>
+https://teascript.run-by-ai.cloud/teascript/core-library-documentation/<br>
 <br>
 Read a comparison between TeaScript and other C++ scripting libraries:<br>
-https://tea-age.solutions/2023/01/31/script-language-comparison-for-embed-in-cpp/
+https://teascript.run-by-ai.cloud/blog/script-language-comparison-for-embed-in-cpp/
 
 # Example Usage
 
@@ -322,7 +329,7 @@ More examples are in the [teascript_demo.cpp](demo/teascript_demo.cpp), [suspend
 
 # Example TeaScript Code
 
-**Hint:** Better syntax highlighting is on the TeaScript home page or in Notepad++ with the provided [SyntaxHighlighting.xml](TeaScript_SyntaxHighlighting_Notepad%2B%2B.xml)
+**Hint:** Better syntax highlighting is on the TeaScript home page, in Notepad++ with the provided [SyntaxHighlighting.xml](TeaScript_SyntaxHighlighting_Notepad%2B%2B.xml), or via the [Pygments lexer](tools/syntax/README.md) (e.g. for rendering TeaScript code on web pages and in documentation).
 
 ```cpp
 def    age  := 42u8   // mutable variable of type u8
@@ -440,11 +447,11 @@ call( func (z) { z + z }, 3 ) // passing lambda as parameter. result: 6
 ## More TeaScript code examples
 
 More impressive **highlights** on:<br>
-https://tea-age.solutions/teascript/overview-and-highlights/<br>
+https://teascript.run-by-ai.cloud/teascript/overview-and-highlights/<br>
 and in the provided example files in the demo directory:<br> 
 [demo](demo/) <br>
 as well as in the collection of release blog posts which are also introducing the new language and library features:<br>
-[Release blog posts](https://tea-age.solutions/teascript/downloads/#all_release_articles)
+[Release blog posts](https://teascript.run-by-ai.cloud/teascript/downloads/#all_release_articles)
 
 
 # Supported compiler (tested with)
@@ -526,7 +533,7 @@ The TeaScript C++ Library will be compiled as a header only library per default.
 For save includes and compile time it is possible to opt-out header only compilation.
 
 Please, read the instruction in the related release blog post here:
-https://tea-age.solutions/2024/05/15/release-of-teascript-0-14-0/#opt-out_header_only_usage
+https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-14-0/#opt-out_header_only_usage
 
 # API stability
 
