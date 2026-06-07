@@ -9,7 +9,7 @@
 
 
 // === USAGE INSTRUCTION ===
-// In order to get this example working, you need the reflectcpp library / source code (tested with version 0.23.0) https://github.com/getml/reflect-cpp
+// In order to get this example working, you need the reflectcpp library / source code (tested with version 0.23.0 / 0.25.0) https://github.com/getml/reflect-cpp
 // 1) Add extensions/include of TeaScript to the include paths.
 // 2) Add the 'include' directory of reflectpp to your include paths.
 // 3) Add the 'src' directory of reflectcpp to your include paths.

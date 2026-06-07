@@ -9,7 +9,7 @@
 #pragma once
 
 // === USAGE INSTRUCTION ===
-// In order to get reflection working, you need the reflectcpp library / source code (tested with version 0.23.0) https://github.com/getml/reflect-cpp
+// In order to get reflection working, you need the reflectcpp library / source code (tested with version 0.23.0 / 0.25.0) https://github.com/getml/reflect-cpp
 // There are 2 options: Link against the reflectcpp library or choose a TU where the reflectcpp.cpp is embedded.
 // The latter option is very simple and doesn't require any package manager or build project tooling.
 // 1) Add extensions/include of TeaScript to your include paths (in order to can include this Reflection.hpp)
