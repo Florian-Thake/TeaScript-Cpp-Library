@@ -17,7 +17,7 @@ namespace teascript {
 enum class eTSVM_Instr : unsigned int
 {
     NotImplemented = ~0u,
-    HALT       = 0, // (emrgency) halting the machine. 0 for zero initilaized will produce HALTs per default
+    HALT       = 0, // (emergency) halting the machine. 0 for zero initialized will produce HALTs per default
     ProgramEnd,     // same as NoOp but indicating normal program end, for debugging
     NoOp,           // 'no operation', can be used as filler/placeholder
     NoOp_NaV,       // this is the NoOp ASTNode which pushes a NaV, equivalent to Push (NaV)
@@ -74,7 +74,7 @@ enum class eTSVM_Instr : unsigned int
     ExitProgram,    // exits the program, removes all local scopes, clears stack. (must not be issued for reaching 'ProgramEnd')
     Suspend,        // suspends the prorgam (except Constraints was set to AutoContinue).
     Yield,          // suspends the program with a value.
-    Catch,          // if top stack is Error or NaV 
+    Catch,          // if top stack is Error or NaV ... else ... (ASTNode_Try always use a 'Ret' before the else)
 };
 
 namespace StackVM {

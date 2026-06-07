@@ -1134,7 +1134,7 @@ public:
         return false;
     }
 
-    bool Catch( Content &rHere )
+    bool Try_Catch( Content &rHere )
     {
         Content const start = rHere;
         if( CheckWordAndMove( "catch", rHere ) ) {
@@ -1161,6 +1161,9 @@ public:
 
             mState->AddASTNode( std::make_shared<ASTNode_Catch>( errname, MakeSrcLoc( start, rHere ) ) );
 
+            return true;
+        } else if( CheckWordAndMove( "try", rHere ) ) {
+            mState->AddASTNode( std::make_shared<ASTNode_Try>( MakeSrcLoc( start, rHere ) ) );
             return true;
         }
         return false;
@@ -1307,7 +1310,7 @@ public:
                     if( next_line_required.HasViolation( rHere ) ) {
                         util::throw_parsing_error( rHere, mState->GetFilePtr(), "More than one statement/expression per line! '\\n' (line feed) missing!" );
                     }
-                } else if( Catch( rHere ) ) {
+                } else if( Try_Catch( rHere ) ) {
                     next_line_required.Unset();
                 } else if( Repeat( rHere ) ) {
                     if( next_line_required.HasViolation( rHere ) ) {

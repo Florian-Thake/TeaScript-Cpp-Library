@@ -124,7 +124,7 @@ print( "testing catch and _strtonum / _strtonumex error path... " )
 print_success( "ok.\n" )
 
 // catch( error ) / catch return
-print( "testing  catch( error ) / catch return... " )
+print( "testing catch( error ) / catch return... " )
 
 func test_func( a )
 {
@@ -169,4 +169,38 @@ func test_func3( a )
 }
 print_success( "ok.\n" )
 
+##enable_if version < 0.17
+print_warning( "try statement not present in this version. skipping...\n" )
+
+##enable_if version >= 0.17
+// try statement was added in 0.17
+
+print( "testing try ... " )
+
+func test_func2_try( a )
+{
+    def x := try _strtonumex( a )
+    x * x
+}
+
+func test_func3_try( a )
+{
+    def z := try test_func2_try( a )
+    z + 3
+}
+
+{
+    def n3 := test_func2_try( "4" )
+    TEST_EQ( n3, 16, "test_func2_try( \"4\" ) failed!" )
+    def e1 := test_func2_try( "uvw" )
+    TEST_EQ( typeof e1, Error, "test_func2_try( \"uvw\" ) failed!" )
+    
+    def n4 := test_func3_try( "4" )
+    TEST_EQ( n4, 19, "test_func3_try( \"4\" ) failed!" )
+    def e2 := test_func3_try( "uvw" )
+    TEST_EQ( typeof e1, Error, "test_func3_try( \"uvw\" ) failed!" )
+}
+print_success( "ok.\n" )
+
+##enable
 print_success( "=== TEST PASSED ===\n" )

@@ -372,7 +372,7 @@ private:
             RecursiveBuildTSVMCode( *it );
             ++it; // advance to rhs!
 
-            auto const pos = mInstructions.size(); // this will be the idx of our Jump below.
+            auto const pos = mInstructions.size(); // this will be the idx of our Catch below.
 
             // add the catch
             mInstructions.emplace_back( eTSVM_Instr::Catch, teascript::ValueObject() );
@@ -404,10 +404,10 @@ private:
                 --mState.scope_level;
             }
 
-            // calculate relative index for jump to in case lhs was enough to check.
+            // calculate relative index for jump to in case lhs is fine.
             auto const diff = mInstructions.size() - pos;
 
-            // set it in the jump
+            // set it in the Catch
             mInstructions[pos].payload = teascript::ValueObject( static_cast<teascript::Integer>(diff) );
 
             // done
@@ -906,6 +906,36 @@ private:
                 }
             }
         } else if( rNode->GetName() == "UnOp" ) {
+            if( rNode->GetDetail() == "try" ) {
+                
+                // try is same as catch except that it always has a Ret as rhs.
+
+                auto const pos = mInstructions.size(); // this will be the idx of our Catch below.
+
+                // add the catch
+                mInstructions.emplace_back( eTSVM_Instr::Catch, teascript::ValueObject() );
+                if( mOptLevel == eOptimize::Debug ) {
+                    mDebuginfo.emplace( mInstructions.size() - 1, rNode->GetSourceLocation() );
+                }
+
+                // cleanup scopes for the Ret
+                auto scopes = mState.scope_level - mState.mLoopState[mState.mLoopIndex].current_scopes;
+                while( scopes > 0 ) {
+                    mInstructions.emplace_back( eTSVM_Instr::ExitScope, teascript::ValueObject() );
+                    --scopes;
+                }
+                // return from function
+                mInstructions.emplace_back( eTSVM_Instr::Ret, ValueObject() );
+
+                // calculate relative index for jump to in case lhs is fine
+                auto const diff = mInstructions.size() - pos;
+
+                // set it in the Catch
+                mInstructions[pos].payload = teascript::ValueObject( static_cast<teascript::Integer>(diff) );
+
+                // done
+                return;
+            }
             auto const  op = std::static_pointer_cast<teascript::ASTNode_Unary_Operator>(rNode)->GetOperation();
             if( mOptLevel >= eOptimize::O1 ) {
                 if( not OptimizeUnaryOp( op, rNode->GetSourceLocation() ) ) {

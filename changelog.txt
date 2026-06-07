@@ -8,6 +8,17 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.17.0 (not released yet, pre-release)
 ================
+    TEASCRIPT: added try statement for easy error handling similar as in Zig.
+    - try is a shortcut for "catch( err ) { return err }"
+    - example (assuming _strtonum returns an Error on error):
+      func test( x )
+      {
+          def number := try _strtonum( x ) // on error early return with the error.
+          number * number
+      }
+      def e1 := test( "abc" ) // e1 will be Error.
+      def e2 := test( "2" )   // e2 will be I64 with value 4.
+
     EXTENSION: added reflectcpp extension for reflect C++ structs into TeaScript
     - ... and reflect Tuples back into C++ structs.
     - DEMO: added reflectcpp_demo code (invoke via teascript_demo[.exe] reflect )

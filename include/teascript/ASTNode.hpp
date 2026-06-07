@@ -1926,6 +1926,45 @@ public:
 
 };
 
+/// ASTNode for try statement, e.g., def x := try _strtonum( "abc" ) // equivalent to  def x := _strtonum( "abc" ) catch( err ) { return err }
+class ASTNode_Try : public ASTNode_Unary_Operator
+{
+public:
+    explicit ASTNode_Try( SourceLocation loc = {} )
+        : ASTNode_Unary_Operator( NoCheck{}, "try", std::move( loc ) )
+    {
+    }
+
+    int Precedence() const noexcept override
+    {
+        return 3; // small to bind with closest neighbour
+    }
+
+    ValueObject Eval( Context &rContext ) const override
+    {
+        Check();
+
+        auto  lhs = mChildren[0]->Eval( rContext );
+
+        switch( lhs.InternalType() ) {
+        case ValueObject::TypeNaV:
+        case ValueObject::TypeError:
+            {
+                ValueObject err;
+                if( lhs.InternalType() == ValueObject::TypeNaV ) {
+                    err = ValueObject( Error::MakeNotAValueError() );
+                } else { // is Error already.
+                    err = std::move( lhs );
+                }
+                throw control::Return_From_Function(std::move(err));
+            }
+            break;
+        default:
+            return lhs;
+        }
+    }
+};
+
 namespace detail {
 //forward decl...
 inline bool IsNodeIfOrElse( ASTNodePtr const &node );
