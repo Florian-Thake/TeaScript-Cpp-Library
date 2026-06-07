@@ -951,10 +951,7 @@ public:
     {
         return std::visit( overloaded{
             []( auto ) -> std::string { throw exception::bad_value_cast( "ValueObject not convertible to string!" ); },
-            []( std::any const &a ) {
-                if( auto const *p_type = std::any_cast<TypeInfo>(&a); p_type != nullptr ) {
-                    return p_type->GetName();
-                } else throw exception::bad_value_cast( "ValueObject not convertible to string!" ); },
+            []( TypeInfo const &rTypeInfo ) { return rTypeInfo.GetName(); },
             []( NotAValue ) -> std::string { throw exception::bad_value_cast( "ValueObject is NaV (Not A Value)!" ); },
             []( bool const b ) { return std::string( b ? "true" : "false" ); },
             []( U8 const u ) { return to_string( u ); },
@@ -975,10 +972,7 @@ public:
     {
         return std::visit( overloaded{
             []( auto ) { return std::string("<not printable>"); },
-            []( std::any const &a ) { 
-                if( auto const *p_type = std::any_cast<TypeInfo>(&a); p_type != nullptr ) {
-                    return p_type->GetName();
-                } else return std::string( "<not printable>" ); },
+            []( TypeInfo const &rTypeInfo ) { return rTypeInfo.GetName(); },
             []( NotAValue ) { return std::string( "NaV (Not A Value)" ); },
             []( bool const b ) { return std::string( b ? "true" : "false" ); },
             []( U8 const u ) { return to_string( u ); },
