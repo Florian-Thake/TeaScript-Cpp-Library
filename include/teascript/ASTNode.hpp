@@ -1042,6 +1042,22 @@ private:
         return obj;
     }
 
+    static ValueObject SetValue( Map &rMap, std::span<ValueObject const> const &rParams, ValueObject const &rValue, bool const shared, SourceLocation const &rLoc )
+    {
+        auto const &key = rParams[0];
+
+        auto &obj = rMap[key]; // this either created a new NaV as element or returned an existing element.
+        if( obj.IsConst() ) {
+            throw exception::const_assign( rLoc );
+        }
+        obj = rValue;          // obj is now shared with rValue.
+        if( !shared ) {        // make it distinct if copy assign.
+            obj.Detach( false );
+        }
+        return obj;
+
+    }
+
     static ValueObject SetValue( Buffer &rBuffer, std::span<ValueObject const> const &rParams, ValueObject const &rValue, bool const /*shared*/, SourceLocation const &rLoc )
     {
         try {
@@ -1071,17 +1087,19 @@ public:
             throw exception::eval_error( rLoc, "Subscript ASTNode with more than one operand is not implemented!" );
         }
 
-        if( lhs.InternalType() == ValueObject::TypeTuple ) {
+        switch( lhs.InternalType() ) {
+        case ValueObject::TypeTuple:
             return SetValue( lhs.GetValue<Tuple>(), params, rValue, shared, rLoc );
-        } else if( lhs.InternalType() == ValueObject::TypeBuffer ) {
+        case ValueObject::TypeBuffer:
             if( rValue.InternalType() != ValueObject::TypeU8 ) {
                 throw exception::bad_value_cast( "Values for Buffer must be U8!" );
             }
             return SetValue( lhs.GetValue<Buffer>(), params, rValue, shared, rLoc );
-        } else {
+        case ValueObject::TypeMap:
+            return SetValue( lhs.GetValue<Map>(), params, rValue, shared, rLoc );
+        default:
             throw exception::eval_error( rLoc, "Subscript ASTNode with unsupported type!" );
         }
-
     }
 
     ValueObject SetValueObject( Context &rContext, ValueObject const &rValue, bool const shared )
@@ -1127,6 +1145,16 @@ private:
         }
     }
 
+    static ValueObject GetValue( Map const &rMap, std::span<ValueObject const> const &rParams, SourceLocation const &rLoc )
+    {
+        auto const &key = rParams[0];
+        try {
+            return rMap.at( key );
+        } catch( ... ) {
+            throw exception::eval_error( rLoc, "Key does not exist in map!" );
+        }
+    }
+
 public:
 
     static ValueObject GetValueObject( ValueObject const &lhs, std::span<ValueObject const> const &params, SourceLocation const &rLoc = {} )
@@ -1137,11 +1165,14 @@ public:
             throw exception::eval_error( rLoc, "Subscript ASTNode with more than one operand is not implemented!" );
         }
 
-        if( lhs.InternalType() == ValueObject::TypeTuple ) {
+        switch( lhs.InternalType() ) {
+        case ValueObject::TypeTuple:
             return GetValue( lhs.GetValue<Tuple>(), params, rLoc );
-        } else if( lhs.InternalType() == ValueObject::TypeBuffer ) {
+        case ValueObject::TypeBuffer:
             return GetValue( lhs.GetValue<Buffer>(), params, rLoc );
-        } else {
+        case ValueObject::TypeMap:
+            return GetValue( lhs.GetValue<Map>(), params, rLoc );
+        default:
             throw exception::eval_error( rLoc, "Subscript ASTNode with unsupported type!" );
         }
     }

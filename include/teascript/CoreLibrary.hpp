@@ -1387,6 +1387,7 @@ protected:
             tea_add_var( "Const", ValueObject( MakeTypeInfo<Const>( "Const" ), cfg ) ); // Fake concept for 'const'
             tea_add_var( "IntegerSequence", ValueObject( TypeIntegerSequence, cfg ) );
             tea_add_var( "Buffer", ValueObject( TypeBuffer, cfg ) );
+            tea_add_var( "Map", ValueObject( map::get_type_info(), cfg ) );
         }
 
 
@@ -1486,6 +1487,15 @@ protected:
             auto func = std::make_shared< LibraryFunction< decltype(MakeSequence) > >( &MakeSequence );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_seq", std::move( val ) );
+        }
+
+        // Map
+
+        // _map_create : Map ( ... ) --> creates a map from the passed parameters. parameter count is variable and must be Tuples with size 2 (key, value).
+        {
+            auto func = std::make_shared< MakeMapFunc >();
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_map_create", std::move( val ) );
         }
 
         // Buffer

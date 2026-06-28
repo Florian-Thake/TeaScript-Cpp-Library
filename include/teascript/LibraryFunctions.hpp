@@ -275,6 +275,24 @@ public:
     }
 };
 
+/// creates a new map with given key-value pairs (as tuples).
+class MakeMapFunc : public FunctionBase
+{
+public:
+    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &/*rLoc*/ ) override
+    {
+        Map map;
+        for( auto const &v : rParams ) {
+            Tuple const *p = v.GetValuePtr<Tuple>();
+            if( p == nullptr || p->Size() != 2 ) {
+                throw exception::bad_value_cast( "maps need pairs with key|value as input!" ); //TODO: change to Error return later?!
+            }
+            map.emplace( p->GetValueByIdx_Unchecked( 0 ), p->GetValueByIdx_Unchecked( 1 ) );
+        }
+        return ValueObject( std::move( map ), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} );
+    }
+};
+
 
 class FormatStringFunc : public FunctionBase
 {

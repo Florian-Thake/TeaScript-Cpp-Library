@@ -12,6 +12,7 @@
 #include <variant>
 #include <optional>
 #include <string>
+#include <map>
 #include <iostream> // for << operator
 #include <cmath> // isfinite
 
@@ -32,10 +33,14 @@ namespace teascript {
 // forward declare
 class ValueObject;
 class ValueConfig;
+using Map = std::map<ValueObject, ValueObject>;
+namespace map {
+namespace {
+void deep_copy( Map &, Map const &, bool const );
+}// namespace {
+}// namespace map
 using Tuple = Collection<ValueObject>;
 namespace tuple {
-inline
-TypeInfo const &get_type_info() noexcept;
 namespace {
 std::strong_ordering compare_values( Tuple const &, Tuple const & );
 ValueObject deep_copy( ValueObject const &, bool const );
@@ -138,6 +143,7 @@ public:
         TypeString,
         TypeError,
         TypeTuple,
+        TypeMap,
         TypeBuffer,
         TypeIntSeq,   // IntegerSequence
         TypeFunction,
@@ -152,7 +158,7 @@ private:
 
     //TODO [ITEM 98]: Think of a better storage layout. sizeof 64 would be great! Maybe we can get rid of the nested variant and also store any always as shared_ptr?
     // sizeof BareTypes == 72 (std::any == 64 + 8 for std::variant)
-    using BareTypes = std::variant< NotAValue, Bool, U8, I64, U64, F64, String, Error, Tuple, Buffer, IntegerSequence, FunctionPtr, TypeInfo, std::any >;
+    using BareTypes = std::variant< NotAValue, Bool, U8, I64, U64, F64, String, Error, Tuple, Map, Buffer, IntegerSequence, FunctionPtr, TypeInfo, std::any >;
     // sizeof ValueVariant == 80 (BarTypes == 72 + 8 for std::variant)
     using ValueVariant = std::variant< BareTypes, std::shared_ptr<BareTypes> >;
 
@@ -203,6 +209,8 @@ private:
             return std::get_if<Error>( mpValue );
         } else if constexpr( std::is_same_v<T, Tuple> ) {
             return std::get_if<Tuple>( mpValue );
+        } else if constexpr( std::is_same_v<T, Map> ) {
+            return std::get_if<Map>( mpValue );
         } else if constexpr( std::is_same_v<T, Buffer> ) {
             return std::get_if<Buffer>( mpValue );
         } else if constexpr( std::is_same_v<T, IntegerSequence> ) {
@@ -276,6 +284,27 @@ private:
             }
         }
         res += ")";
+        return res;
+    }
+
+    static std::string print_map( Map const &rMap, size_t max_count )
+    {
+        std::string res = "{";
+        auto it = rMap.begin();
+        for( std::size_t i = 0; i < rMap.size() && i < max_count && it != rMap.end(); ++i, ++it ) {
+            if( i > 0 ) {
+                res += ", ";
+            }
+            res += "(";
+            res += it->first.PrintValue();
+            res += ",";
+            res += it->second.PrintValue();
+            res += ")";
+        }
+        if( max_count < rMap.size() ) {
+            res += ",...";
+        }
+        res += "}";
         return res;
     }
 
@@ -480,6 +509,16 @@ public:
     }
 
     inline
+    explicit ValueObject( Map &&rVals, ValueConfig const &cfg )
+        : mValue( create_helper( true, BareTypes( std::move( rVals ) ) ) )
+        , mpValue( std::get<1>( mValue ).get() )
+        , mpType( &map::get_type_info() )
+        , mProps( cfg.IsConst() )
+    {
+
+    }
+
+    inline
     explicit ValueObject( IntegerSequence && seq, ValueConfig const &cfg )
         : mValue( create_helper( true, BareTypes( std::move( seq ) ) ) )
         , mpValue( std::get<1>( mValue ).get() )
@@ -645,7 +684,7 @@ public:
         if( mValue.index() == 1 ) {
             if( ShareCount() < 2 ) { // TODO: THREAD!
                 // nothing to do if 'this' is the only one...
-            } else if( GetTypeInfo()->IsSame<Tuple>() ) {
+            } else if( GetTypeInfo()->IsSame<Tuple>() || GetTypeInfo()->IsSame<Map>() ) {
                 auto new_val = tuple::deep_copy( *this, keep_const );
                 mValue = new_val.mValue;
                 mpValue = std::get<1>( mValue ).get();
@@ -925,6 +964,7 @@ public:
             []( std::string const &rStr ) { return !rStr.empty(); },
             []( Error const &/*rError*/ ) { return false; }, // prior Error existed, bool(false) was returned on error. This might help for transition?! TODO: check!!
             []( Tuple const &rTuple ) { return rTuple.Size() > 0u; },
+            []( Map const &rMap ) { return rMap.size() > 0u; },
             []( Buffer const &rBuffer ) { return not rBuffer.empty(); }
         }, *mpValue );
     }
@@ -961,6 +1001,7 @@ public:
             []( std::string const &rStr ) { return rStr; },
             []( Error const &rError ) { return rError.Message(); },
             []( Tuple const &rTuple ) { return print_tuple( rTuple ); },
+            []( Map const &rMap ) { return print_map( rMap, rMap.size() ); },
             []( Buffer const &rBuffer ) { return print_buffer( rBuffer, rBuffer.size() ); },
             []( IntegerSequence const &rSeq ) { return seq::print( rSeq ); } // TODO: check if a Sequence should really be convertible to String? Remove (PrintValue is sufficiend then).
         }, *mpValue );
@@ -982,6 +1023,7 @@ public:
             []( std::string const &rStr ) { return "\"" + rStr + "\""; },
             []( Error const &rError ) { return rError.ToDisplayString(); },
             []( Tuple const &rTuple ) { return print_tuple( rTuple ); },
+            []( Map const &rMap ) { return print_map( rMap, 30 ); },
             []( Buffer const &rBuffer ) { return print_buffer( rBuffer, 100 ); },
             []( IntegerSequence const &rSeq ) { return seq::print( rSeq ); }
         }, *mpValue );
@@ -1199,3 +1241,4 @@ inline bool operator!=( teascript::ValueObject const &lhs, teascript::ValueObjec
 } // namespace teascript
 
 #include "TupleUtil.hpp"
+#include "MapUtil.hpp"

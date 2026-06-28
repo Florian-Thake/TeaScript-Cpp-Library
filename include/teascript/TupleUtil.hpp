@@ -261,14 +261,16 @@ void deep_copy( Tuple &rDest, Tuple const &rSrc, bool const keep_const = false )
         }
         for( auto const &kv : rSrc ) {
             auto val = kv.second;
+            // TODO: we can just uncoditionally call deep_copy( val ) or val.Detach() here.
+            //       but we should optimize for to add shared state via config to get rid of the construction + later make shared call combo!
             if( val.GetTypeInfo()->IsSame<Tuple>() ) {
                 Tuple  tuple;
                 auto  const  cfg = ValueConfig{ValueShared, val.IsConst() && keep_const ? ValueConst : ValueMutable, val.GetTypeInfo()};
                 deep_copy( tuple, kv.second.GetValue<Tuple>(), keep_const );
                 val = ValueObject( std::move( tuple ), cfg );
             } else {
-                val.Detach( keep_const ); // detach for have a distinct copy.
-                val.MakeShared();         // TODO: make this optional later!
+                val.Detach( keep_const ); // detach for have a distinct copy. (This handles Map as well.)
+                val.MakeShared();         // TODO: change to shared config! NOTE: values must be shared, otherwise shared assign from a tuple value won't be functional
             }
             if( not kv.first.empty() ) {
                 rDest.AppendKeyValue( kv.first, val );
@@ -286,16 +288,23 @@ void deep_copy( Tuple &rDest, Tuple const &rSrc, bool const keep_const = false )
 
 ValueObject deep_copy( ValueObject const &rVal, bool const keep_const = false )
 {
-    if( not rVal.GetTypeInfo()->IsSame<Tuple>() ) {
-        auto copy( rVal );
-        copy.Detach( keep_const );
-        return copy;
+    if( rVal.GetTypeInfo()->IsSame<Tuple>() ) {
+        Tuple  tuple;
+        deep_copy( tuple, rVal.GetValue< Tuple >(), true ); // constness of each element will be kept.
+        auto  const  cfg = ValueConfig{ValueShared, rVal.IsConst() && keep_const ? ValueConst : ValueMutable, rVal.GetTypeInfo()};
+        return ValueObject( std::move( tuple ), cfg );
     }
 
-    Tuple  tuple;
-    deep_copy( tuple, rVal.GetValue< Tuple >(), true ); // constness of each element will be kept.
-    auto  const  cfg = ValueConfig{ValueShared, rVal.IsConst() && keep_const ? ValueConst : ValueMutable, rVal.GetTypeInfo()};
-    return ValueObject( std::move( tuple ), cfg );
+    if( rVal.GetTypeInfo()->IsSame<Map>() ) {
+        Map map;
+        map::deep_copy( map, rVal.GetValue<Map>(), true ); // constness of each element will be kept.
+        auto  const  cfg = ValueConfig{ValueShared, rVal.IsConst() && keep_const ? ValueConst : ValueMutable, rVal.GetTypeInfo()};
+        return ValueObject( std::move( map ), cfg );
+    }
+
+    auto copy( rVal );
+    copy.Detach( keep_const ); // TODO: use shared config here!
+    return copy;
 }
 
 } // namespace anonymous 
