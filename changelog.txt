@@ -8,6 +8,32 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.17.0 (not released yet, pre-release)
 ================
+    TEST: added map utility functions to corelibrary_test01 + added corelibrary_test07
+
+    - corelibrary_test07 tests Map functionality including forall loop + map iterator.
+    - added Map type to syntax highlighting for Notepad++.
+
+    CORELIB: added map utility functions ...
+
+    ... _map_size, _map_contains, _map_at, _map_remove, _map_insert, _map_assign, _map_insert_or_assign, ...
+    ... _map_keys, _map_values, _map_kv_tuple
+
+    MAP: make forall loop working with maps: create and advancing an iterator with key and idx member ...
+
+    ... def map := _map_create( (2, 6), (5, "Hello"), (9, (1,2,3) ) )
+        forall( it in map ) {
+            println( "at idx %(it.idx): key=%(it.key), value=%(map[ it.key ])" )
+        }
+    - MAP: added helper function for creating and advancing an iterator tuple.
+    - FIX: don't execute forall loop body if Tuple is empty (compile mode only).
+    - FIX: don't execute forall loop body if sequence is empty (eval + compile mode).
+
+    TEASCRIPT: added distinct Map type represented as std::map<ValueObject, ValueObject>, ...
+    - ... key can be mixed type as long as they are comparable, e.g., U8, U64, I64, F64
+    - CORELIB: added _map_create() for creating maps via key-value pairs (as tuple), e.g, _map_create( (2, 7), (4, "str") )
+    - MAP: make subscript operator functional for Map, missing keys will be inserted during assignment but not for read operations.
+    - VALUE: handling deep_copy of Map.
+
     TEASCRIPT: added try statement for easy error handling similar as in Zig.
     - try is a shortcut for "catch( err ) { return err }"
     - example (assuming _strtonum returns an Error on error):
@@ -30,6 +56,9 @@ VERSION 0.17.0 (not released yet, pre-release)
 
     VALUE: finally made TypeInfo a first class citizen.
     - TypeInfo is now copyable and movable directly (was a requirement for be first class citizen)
+
+    TEST: fixed corelibrary_test01.tea compatibility with unreleased version 0.6.0
+    - not necessary but its my personal goal and pleasure to maintain this ;-)
 
     CLEAN: finally removed deprecated class LibraryFunction0<> to LibraryFunction5<>.
     - Please, use the new and generic one fits for all LibraryFunction<> instead.

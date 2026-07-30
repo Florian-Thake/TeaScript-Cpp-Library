@@ -247,7 +247,7 @@ public:
     inline explicit MakeTupleFunc( eFlavor const flavor = eFlavor::Normal ) : FunctionBase(), mFlavor( flavor ) {}
     virtual ~MakeTupleFunc() {}
 
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &/*rLoc*/ ) override
+    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
     {
         Tuple  tuple;
 
@@ -258,7 +258,7 @@ public:
             for( auto const &v : rParams ) {
                 Tuple const *p = v.GetValuePtr<Tuple>();
                 if( p == nullptr || p->Size() != 2 || p->begin()->second.InternalType() != ValueObject::TypeString ) {
-                    throw exception::bad_value_cast( "dictionaries need pairs with key|value as input, key must be a String!" ); //TODO: change to Error return later?!
+                    throw exception::bad_value_cast( "dictionaries need pairs with key|value as input, key must be a String!", rLoc ); //TODO: change to Error return later?!
                 }
                 tuple.AppendKeyValue( p->GetValueByIdx_Unchecked( 0 ).GetValue<std::string>(), p->GetValueByIdx_Unchecked( 1 ) );
             }
@@ -279,13 +279,13 @@ public:
 class MakeMapFunc : public FunctionBase
 {
 public:
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &/*rLoc*/ ) override
+    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
     {
         Map map;
         for( auto const &v : rParams ) {
             Tuple const *p = v.GetValuePtr<Tuple>();
             if( p == nullptr || p->Size() != 2 ) {
-                throw exception::bad_value_cast( "maps need pairs with key|value as input!" ); //TODO: change to Error return later?!
+                throw exception::bad_value_cast( "maps need pairs with key|value as input!", rLoc ); //TODO: change to Error return later?!
             }
             map.emplace( p->GetValueByIdx_Unchecked( 0 ), p->GetValueByIdx_Unchecked( 1 ) );
         }

@@ -180,8 +180,11 @@ private:
     TypeProperties  mProps;
 
     // need this object for get a valid pointer for moved out objects. otherwise their pointer might dangle!
-    inline static ValueVariant const shared_nav   = ValueVariant( std::in_place_index_t<1>(), std::make_shared<BareTypes>( NotAValue{} ) );
-    inline static BareTypes   *const p_shared_nav = std::get<1>( shared_nav ).get();
+    // NOTE: Only declared here, the definitions follow after the class definition (see below) because clang with libc++ won't compile otherwise!
+    //       Reason: libc++ will instantiate a std::par<ValueObject,ValueObject> for the Map type in the std::variant. For this the class ValueObject must be complete already.
+    //       g++ and MSVC don't need a full std::pair yet, thats why they are still happy with an incomplete ValueObject.
+    static ValueVariant const shared_nav;
+    static BareTypes   *const p_shared_nav;
 
     // overloaded idiom for variant visitor. inherit from each 'functor/lambda' so that the derived class contains an operator( T ) for each type which shall be dispatchable.
     template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
@@ -1095,6 +1098,12 @@ public:
         throw exception::bad_value_cast( "Object is not subscriptable!" );
     }
 };
+
+
+// The definiton must be placed here because inside ValueObject the class is still incomplete,
+// but the Map type (std::map<ValueObject,ValueObject>) needs a complete ValueObject with clang and libc++ (see also note above).
+inline ValueObject::ValueVariant const ValueObject::shared_nav   = ValueObject::ValueVariant( std::in_place_index_t<1>(), std::make_shared<ValueObject::BareTypes>( NotAValue{} ) );
+inline ValueObject::BareTypes   *const ValueObject::p_shared_nav = std::get<1>( ValueObject::shared_nav ).get();
 
 } // namespace teascript
 

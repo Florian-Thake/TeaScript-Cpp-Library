@@ -993,24 +993,48 @@ private:
 
                     // get the sequence
                     auto const &seq_val = mStack[s - 1];
-                    if( not seq_val.GetTypeInfo()->IsSame<IntegerSequence>() && not seq_val.GetTypeInfo()->IsSame<Tuple>() ) {
-                        HandleException( std::make_exception_ptr( exception::eval_error( "Forall loop can actually only iterate over an IntegerSequence/Tuple!" ) ) );
+                    if( not seq_val.GetTypeInfo()->IsSame<IntegerSequence>() && not seq_val.GetTypeInfo()->IsSame<Tuple>() && not seq_val.GetTypeInfo()->IsSame<Map>() ) {
+                        HandleException( std::make_exception_ptr( exception::eval_error( "Forall loop can actually only iterate over an IntegerSequence/Tuple/Map!" ) ) );
                         run = false;
                         continue;
                     }
 
+                    // special case: need to handle empty tuple/map (size==0): create a no-op sequence
+                    auto make_seq = []( size_t s ) {
+                        return s > 0
+                            ? IntegerSequence( 0LL, static_cast<Integer>(s - 1), 1LL )
+                            : IntegerSequence( 0LL, 0LL, 0LL );
+                    };
+
                     //FIXME: if seq_val is a sequence already we should use a reference for in later versions it will be possible to manipulate it elsewhere in the loop.
                     auto  seq = seq_val.GetTypeInfo()->IsSame<Tuple>()
-                        ? IntegerSequence( 0LL, static_cast<Integer>(seq_val.GetValue<Tuple>().Size() - 1), 1LL )
+                        ? make_seq( seq_val.GetValue<Tuple>().Size() )
+                        : seq_val.GetTypeInfo()->IsSame<Map>() 
+                        ? make_seq( seq_val.GetValue<Map>().size() )
                         : seq_val.GetValue<IntegerSequence>();
                     seq.Reset();
 
+                    // check if seq is no-op
+                    bool const is_noop = not seq.IsForwards() && not seq.IsBackwards();
+
                     // create the index variable
                     // TODO: add mDebugInfo SourceLocation!
-                    mStack[s - 2] = rContext.AddValueObject( mStack[s - 2].GetValue<std::string>(), ValueObject( seq.Current(), ValueConfig(ValueShared, ValueMutable)));
+                    if( not is_noop ) {
+                        mStack[s - 2] = seq_val.GetTypeInfo()->IsSame<Map>()
+                            ? rContext.AddValueObject( mStack[s - 2].GetValue<std::string>(), ValueObject( map::create_iterator( seq_val.GetValue<Map>() ), ValueConfig( ValueShared, ValueMutable ) ) )
+                            : rContext.AddValueObject( mStack[s - 2].GetValue<std::string>(), ValueObject( seq.Current(), ValueConfig( ValueShared, ValueMutable ) ) );
+                    }
 
-                    // store the seqeunce
+                    // store the sequence
                     mStack[s - 1] = ValueObject( std::move(seq), ValueConfig(ValueShared, ValueMutable));
+
+                    if( is_noop ) {
+                        mStack.emplace_back(); // add NaV result!
+                        last = mCurrent;
+                        mCurrent += 2; // jump over JumpRel directly to FotallNext (which will then cleanup)
+                        jumped = true;
+                        continue;
+                    }
                 }
                 break;
             case eTSVM_Instr::ForallNext:
@@ -1020,7 +1044,11 @@ private:
                     auto const  s = mStack.size();
                     auto &seq = mStack[s - 2].GetValue<IntegerSequence>();
                     if( seq.Next() ) {
-                        mStack[s - 3].AssignValue( seq.Current() );
+                        if( mStack[s - 3].InternalType() == ValueObject::TypeI64 ) {
+                            mStack[s - 3].AssignValue( seq.Current() );
+                        } else {
+                            std::ignore = map::advance_iterator( mStack[s - 3] ); // return value can be ignored since we redundantly maintain the sequence value as well.
+                        }
                         mStack.pop_back(); // clear previous result
                     } else {
                         // forall is done, cleanup stack and set instruction to end of loop.

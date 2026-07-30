@@ -77,7 +77,7 @@ _TYPES = (
     "Bool",
     "i64", "u64", "u8", "f64", "f32",
     "I64", "U64", "U8", "F64", "F32",
-    "String", "Tuple", "Buffer", "Error", "Function",
+    "String", "Tuple", "Map", "Buffer", "Error", "Function",
     "IntegerSequence", "TypeInfo", "Number",
     # Additional type/concept names used in documentation signatures and in
     # `is` / `as` checks. Const + NaV are registered as predefined TypeInfo

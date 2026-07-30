@@ -2321,8 +2321,8 @@ public:
 
         // get the sequence
         auto const  seq_val = mChildren[1]->Eval( rContext );
-        if( not seq_val.GetTypeInfo()->IsSame<IntegerSequence>() && not seq_val.GetTypeInfo()->IsSame<Tuple>() ) {
-            throw exception::eval_error( GetSourceLocation(), "Forall ASTNode can actually only iterate over an IntegerSequence/Tuple!" );
+        if( not seq_val.GetTypeInfo()->IsSame<IntegerSequence>() && not seq_val.GetTypeInfo()->IsSame<Tuple>() && not seq_val.GetTypeInfo()->IsSame<Map>() ) {
+            throw exception::eval_error( GetSourceLocation(), "Forall ASTNode can actually only iterate over an IntegerSequence/Tuple/Map!" );
         }
 
         // special case: empty tuple
@@ -2331,21 +2331,44 @@ public:
             return res;
         }
 
+        // special case: empty map
+        if( seq_val.GetTypeInfo()->IsSame<Map>() && seq_val.GetValue<Map>().size() == 0 ) {
+            // nothing to do
+            return res;
+        }
+
+        bool const map_mode = seq_val.GetTypeInfo()->IsSame<Map>();
+
         //FIXME: if seq_val is a sequence already we should use a reference for in later versions it will be possible to manipulate it elsewhere in the loop.
         auto  seq = seq_val.GetTypeInfo()->IsSame<Tuple>()
                   ? IntegerSequence( 0LL, static_cast<Integer>(seq_val.GetValue<Tuple>().Size() - 1), 1LL )
+                  : seq_val.GetTypeInfo()->IsSame<Map>()
+                  ? IntegerSequence( 0LL, static_cast<Integer>(seq_val.GetValue<Map>().size() - 1), 1LL )
                   : seq_val.GetValue<IntegerSequence>();
         seq.Reset();
 
+        // special case: empty sequence
+        if( not seq.IsForwards() && not seq.IsBackwards() ) {
+            // nothing to do
+            return res;
+        }
+
         // create the variable for the current value
-        auto cur = rContext.AddValueObject( mChildren[0]->GetDetail(), ValueObject( 0LL, ValueConfig( ValueShared, ValueMutable ) ), mChildren[0]->GetSourceLocation() );
+        auto cur = map_mode 
+            ? rContext.AddValueObject( mChildren[0]->GetDetail(), ValueObject( map::create_iterator( seq_val.GetValue<Map>() ), ValueConfig(ValueShared, ValueMutable)), mChildren[0]->GetSourceLocation())
+            : rContext.AddValueObject( mChildren[0]->GetDetail(), ValueObject( 0LL, ValueConfig( ValueShared, ValueMutable ) ), mChildren[0]->GetSourceLocation() );
 
         while( true ) {
             try {
-                cur.AssignValue( seq.Current() );
+                if( not map_mode ) {
+                    cur.AssignValue( seq.Current() );
+                }
                 res = mChildren[2]->Eval( rContext );
                 if( not seq.Next() ) {
                     break;
+                }
+                if( map_mode ) {
+                    std::ignore = map::advance_iterator( cur ); // return value can be ignored since we redundantly maintain the sequence value as well.
                 }
             } catch( control::Loop_To_Head const &rLoop ) {
                 if( rLoop.GetName() != GetDetail() ) {
@@ -2353,6 +2376,9 @@ public:
                 }
                 if( not seq.Next() ) {
                     break;
+                }
+                if( map_mode ) {
+                    std::ignore = map::advance_iterator( cur ); // return value can be ignored since we redundantly maintain the sequence value as well.
                 }
                 continue;
             } catch( control::Stop_Loop const &rStop ) {

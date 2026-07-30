@@ -712,11 +712,117 @@ public:
         } );
     }
 
+    // Sequence
+
     static IntegerSequence MakeSequence( long long start, long long end, long long step )
     {
         return IntegerSequence( start, end, step );
     }
 
+    // Map
+
+    static Integer MapSize( Map const &rMap )
+    {
+        return static_cast<Integer>(rMap.size());
+    }
+
+    static bool MapContains( Map const &rMap, ValueObject const &rKey )
+    {
+        // it may throw if rKey cannot be compared with existing keys.
+        try {
+            return rMap.contains( rKey );
+        } catch( ... ) {
+            return false;
+        }
+    }
+
+    static ValueObject MapAt( Map const &rMap, ValueObject const &rKey )
+    {
+        try {
+            return rMap.at( rKey );
+        } catch( std::out_of_range const & ) {
+            return ValueObject( MakeRuntimeError( "Map At: Key does not exist!" ) );
+        } catch( ... ) {
+            return ValueObject( MakeRuntimeError( "Map At: Key is not comparable with existing keys!" ) );
+        }
+    }
+
+    static bool MapRemove( Map &rMap, ValueObject const &rKey )
+    {
+        try {
+            return rMap.erase( rKey ) > 0;
+        } catch( ... ) {
+            return false;
+        }
+    }
+
+    static ValueObject MapInsert( Map &rMap, ValueObject const &rKey, ValueObject const &rVal )
+    {
+        try {
+            auto const res = rMap.insert( std::make_pair( rKey, rVal ) );
+            return ValueObject( res.second );
+        } catch( ... ) {
+            return ValueObject( MakeRuntimeError( "Map Insert: Key is not comparable with existing keys!" ) );
+        }
+    }
+
+    static ValueObject MapAssign( Map &rMap, ValueObject const &rKey, ValueObject const &rVal )
+    {
+        try {
+            auto  res = rMap.find( rKey );
+            if( res != rMap.end() ) {
+                res->second = rVal;
+                return ValueObject( true );
+            }
+            return ValueObject( false );
+        } catch( ... ) {
+            return ValueObject( MakeRuntimeError( "Map Assign: Key is not comparable with existing keys!" ) );
+        }
+    }
+
+    static ValueObject MapInsertOrAssign( Map &rMap, ValueObject const &rKey, ValueObject const &rVal )
+    {
+        try {
+            auto const res = rMap.insert_or_assign( rKey, rVal );
+            return ValueObject( res.second );
+        } catch( ... ) {
+            return ValueObject( MakeRuntimeError( "Map InsertOrAssign: Key is not comparable with existing keys!" ) );
+        }
+    }
+
+    static Tuple MapKeys( Map const &rMap )
+    {
+        Tuple keys;
+        for( auto const &[key, _] : rMap ) {
+            ValueObject k = tuple::deep_copy( key, true ); // must create deep copy so that the keys in the map cannot be changed!
+            k.MakeShared();
+            keys.AppendValue( k );
+        }
+        return keys;
+    }
+
+    static Tuple MapValues( Map const &rMap )
+    {
+        Tuple values;
+        for( auto const &[_, val] : rMap ) {
+            values.AppendValue( val ); // val is shared.
+        }
+        return values;
+    }
+
+    static Tuple MapKVTuple( Map const &rMap )
+    {
+        Tuple tuple;
+        for( auto const &[key, val] : rMap ) {
+            Tuple kv;
+            ValueObject k = tuple::deep_copy( key, true ); // must create deep copy so that the keys in the map cannot be changed!
+            k.MakeShared();
+            kv.AppendValue( k );
+            kv.AppendValue( val ); // val is shared.
+            tuple.AppendValue( ValueObject( std::move(kv), ValueConfig(ValueShared, ValueMutable) ) ); 
+        }
+        return tuple;
+    }
 
     // Buffer
 
@@ -1496,6 +1602,76 @@ protected:
             auto func = std::make_shared< MakeMapFunc >();
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_map_create", std::move( val ) );
+        }
+
+        // _map_size : I64 ( map: Map ) --> returns the element count of the map.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(MapSize) > >( &MapSize );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_map_size", std::move( val ) );
+        }
+
+        // _map_contains : Bool ( map: Map, key: Any ) --> returns whether key exists in map.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(MapContains) > >( &MapContains );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_map_contains", std::move( val ) );
+        }
+
+        // _map_at : Any ( map: Map, key: Any ) --> returns value for key or an Error.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(MapAt) > >( &MapAt );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_map_at", std::move( val ) );
+        }
+
+        // _map_remove : Bool ( map: Map, key: Any ) --> removes key from map and returns whether an entry has been removed.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(MapRemove) > >( &MapRemove );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_map_remove", std::move( val ) );
+        }
+
+        // _map_insert : Bool|Error ( map: Map, key: Any, val: Any ) --> inserts val for key in map if an element for key does not exist yet. Returns true on success, Error if key is not comparable.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(MapInsert) > >( &MapInsert );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_map_insert", std::move( val ) );
+        }
+
+        // _map_assign : Bool|Error ( map: Map, key: Any, val: Any ) --> assigns val for key in map if an element for key does exist already. Returns true on success, Error if key is not comparable.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(MapAssign) > >( &MapAssign );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_map_assign", std::move( val ) );
+        }
+
+        // _map_insert_or_assign : Bool|Error ( map: Map, key: Any, val: Any ) --> inserts or assigns val for key in map. Returns true on insert, false on assign, Error if key is not comparable.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(MapInsertOrAssign) > >( &MapInsertOrAssign );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_map_insert_or_assign", std::move( val ) );
+        }
+
+        // _map_keys : Tuple ( map: Map ) --> returns all keys as Tuple.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(MapKeys) > >( &MapKeys );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_map_keys", std::move( val ) );
+        }
+
+        // _map_values : Tuple ( map: Map ) --> returns all values as Tuple.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(MapValues) > >( &MapValues );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_map_values", std::move( val ) );
+        }
+
+        // _map_kv_tuple : Tuple ( map: Map ) --> returns a Tuple with all key value pairs.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(MapKVTuple) > >( &MapKVTuple );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_map_kv_tuple", std::move( val ) );
         }
 
         // Buffer
