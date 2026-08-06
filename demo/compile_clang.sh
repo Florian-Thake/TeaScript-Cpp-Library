@@ -1,20 +1,20 @@
 #   -stdlib=libc++ 
 #   -stdlib=libstdc++
 #
-#   for color + format support: -I../../fmt/fmt-11.1.4/include/
+#   for color + format support: -I../../fmt/fmt-12.1.0/include/
 #   for TOML support:           -I../../tomlplusplus/tomlplusplus-3.4.0/include/
 #   extensions include          -I../extensions/include/
 #   modules include             -I../modules/include/
-#   nlohmann:                   -I../../nlohmann/nlohmann_3.11.3/include/
+#   nlohmann:                   -I../../nlohmann/nlohmann_3.12.0/include/
 #   Boost:                      -I../../boost_1_86_0/
 #   Rapid:                      -I../../rapidjson/include/
-#   for reflect cpp:            -I../../reflect-cpp-0.23.0/include/
+#   for reflect cpp:            -I../../reflect-cpp-0.25.0/include/
 #
 # example with webpreview enabled:
-# clang++-14 -std=c++20 -stdlib=libc++ -Wall -O2 -DNDEBUG -DTEASCRIPT_ENGINE_USE_WEB_PREVIEW=1 -I../modules/include/ -I../../fmt/fmt-11.1.4/include/ -I../include/ ../modules/source/Webpreview.cpp <other .cpp>
+# clang++-14 -std=c++20 -stdlib=libc++ -Wall -O2 -DNDEBUG -DTEASCRIPT_ENGINE_USE_WEB_PREVIEW=1 -I../modules/include/ -I../../fmt/fmt-12.1.0/include/ -I../include/ ../modules/source/Webpreview.cpp <other .cpp>
 
 clang++-14 -std=c++20 -stdlib=libc++ -Wall -O2 -DNDEBUG \
-           -I../../fmt/fmt-11.1.4/include/     \
+           -I../../fmt/fmt-12.1.0/include/     \
            -I../extensions/include/            \
            -I../include/                       \
            suspend_thread_demo.cpp             \

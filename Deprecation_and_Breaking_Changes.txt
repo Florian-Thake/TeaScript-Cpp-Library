@@ -3,80 +3,14 @@ TeaScript Breaking Changes in the actual release
 
     Changes in TeaScript language
     ------------------------------------
-    Introduced distinct Error type for a clean error handling.
-    Added catch statement for easy error handling similar as in Zig.
-    examples (assuming _strtonum returns an Error on error):
-    def number := _strtonum( "abc" ) catch 2 // on error number is 2
-    def number := _strtonum( "abc" ) catch( err ) return err // on error early return with err
-    see examples_v0.16.tea ore corelibrary_test06.tea for more examples.
-    
-    
-    Function parameters without assign specifier are shared assign by default now.
-    Furthermore, explicit shared function parameters without 'const' or 'def' specifier are set
-    implicit to 'auto' now. They will be either 'const' or 'def' depending on the rhs argument/passed parameter.
-    
-    This behavior is experimental but activated by default. You can switch it of by
-    - define TEASCRIPT_DEFAULT_SHARED_PARAMETERS and/or TEASCRIPT_DEFAULT_SHARED_AUTO_PARAMETERS to false. (see Dialect.hpp)
-    - set parameters_are_default_shared and/or shared_parameters_are_default_auto in the relevant Dialect class instance. (see Dialect.hpp)
-    - for TeaScript Host App use --old-deepcopy-parameters (this option will be removed in the future)
-    
-    Quick examples:
-    func test( a ) {}          will result in: func test( const a @= ) {}     //NEW
-    func test( const a ) {}    will result in: func test( const a @= ) {}     //NEW
-    func test( def a ) {}      will result in: func test( def a @= ) {}       //NEW
-    func test( a := ) {}       will result in: func test( const a := ) {}
-    // important:
-    func test( a @= ) {}       will result in: func test( auto a @= ) {}      //NEW
-    //note: auto is not a keyword yet!
-    
-    With this e.g., the stack utility function func stack_push( stack @=, val @= ) { /**/ } can handle const and mutable values
-    correctly. values which are const can be passed and keep the constness. mutable values can still be passed and keep the 
-    mutability as well.
     
 
     Changes in CoreLibrary functionality
     ------------------------------------
-    clock_utc() has a breaking change on Windows and Linux with gcc >= 13.
-    clock_utc() now returns always the UTC time in system clock representation.
-    On Windows and on Linux with GCC >= 13 this is a breaking change since the leap seconds are not counted anymore.
-    The previous wrong behavior resulted due to a misunderstanding of the underlying C++ API.
-    Now there isn't an annoying offset to the system clock time anymore.
 
-    strtrim() first parameter was a const @= by accident. changed to correct def @=.
-    Now the function will not take a const string as input parameter anymore!
-    This worked because of a const correct bug, which has been fixed now (see C++ API level breaking changes below).
-    
-    Following functions are now returning Error instead of Bool(false):
-    _strtonum/_strtonumex
-    to_i64/to_f64
-    _strfromascii 
-    read[text]file
-    read[toml|json]file
-    read[toml|json]string
-    write[toml|json]string
-    read/writebsonbuffer
-    all _buf_get_x functions
 
     Changes on C++ API level
     ------------------------------------
-    T & ValueObject::GetValue() was not const correct for the case the inner value was const.
-    In that case also a non const reference was returned and the const value could be modified. This has been fixed now.
-    
-    GetValue() from a non const value object is invoked but which has a const inner value will throw a exception::bad_value_cast now.
-    This can result in unexpected exceptions in old code!
-    
-    To fix this, you can call GetValue< Type const >() instead.
-    A more clean variant would be to replace all GetValue() calls by one of GetConstValue()|GetMutableValue() or GetValueCopy().
-    
-    For temporarily restore the old but wrong behavior define this macro TEASCRIPT_DISABLE_GETVALUE_CONSTCHECK.
-    This switch will be removed in the next release!
-    
-    
-    tuple::foreach_element/foreach_named_element are working now with either a const ValueObject or a mutable one.
-    If the functor takes mutable objects all nested const objects (if any) will be skipped.
-    This is a breaking change but the old behavior was faulty as it allowed to access const elements as mutable reference.
-    
-    fixed typo in Collection::RemoveValueByKeyWithPlaceholder()
 
 
     Visibility of Core Library functions
@@ -95,19 +29,16 @@ TeaScript list of deprecated parts
 
     The following deprecated parts have been finally removed from this release:
     
-    The Core Library function CoreLibrary::ExitScript() has been finally removed.
-    Please, use _Exit val instead or directly throw teascript::control::Exit_Script from C++.
+    class LibraryFunction0<> to LibraryFunction5<> are finally removed now.
+    Please, use the new and generic one fits for all LibraryFunction<> instead.
     
-    --old-mutable-parameters command line option has been finnaly removed.
-    For the case you want use a legacy dialect of TeaScript with default mutable parameters you need
-    to change the used Dialect instance, see Dialect.hpp    
+    The temporary macro TEASCRIPT_DISABLE_GETVALUE_CONSTCHECK for restoring previous faulty behavior is removed again.
+    Please use either GetValue< Type const >() instead or the
+    more clean variant by calling one of GetConstValue()|GetMutableValue() or GetValueCopy().
 
 
     The following parts are now deprecated and will be removed in some future release:
     
-    class LibraryFunction0<> to LibraryFunction5<> are deprecated now.
-    Please, use the new and generic one fits for all LibraryFunction<> instead.
-    
-    _f64toi64 is now deprecated.
+    _f64toi64 is still deprecated.
     Please, use the cast operator 'as' instead (recommended) (or alternatively to_i64).
 

@@ -27,7 +27,7 @@ Dependencies:
 
 None - for fully C++20 supporting compilers / C++ standard libraries.
 
-Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 11.1.4, 11.0.2, 10.2.1 and 10.1.1)
+Libfmt (as header only)  - for gcc 11 / clang 14 (tested with libfmt 12.1.0, 11.1.4, 11.0.2, 10.2.1 and 10.1.1)
 Libfmt can be downloaded here https://fmt.dev/latest/index.html
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 

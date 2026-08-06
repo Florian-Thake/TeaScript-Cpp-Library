@@ -1,5 +1,5 @@
 /* === TeaScript Demo Program ===
- * SPDX-FileCopyrightText:  Copyright (C) 2025 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-FileCopyrightText:  Copyright (C) 2026 Florian Thake <contact |at| tea-age.solutions>.
  * SPDX-License-Identifier: MPL-2.0
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -880,11 +880,11 @@ int main( int argc, char **argv )
         std::cout << "TeaScript demo app. Based on TeaScript C++ Library version: " << teascript::version::as_str() << std::endl;
         std::cout << teascript::copyright_info() << std::endl;
         std::cout << "\nUsage:\n"
-                  << args[0] << " -<N>              --> execs test code N\n"
+                  << args[0] << " -<N>              --> execs test code N (1 to 10)\n"
                   << args[0] << " web               --> execs web preview\n"
                   << args[0] << " coro              --> execs coroutine demo\n"
                   << args[0] << " suspend           --> execs thread suspend demo\n"
-                  << args[0] << " reflect           --> execs thread reflectcpp demo\n"
+                  << args[0] << " reflect           --> execs reflectcpp demo\n"
                   << args[0] << " filename [args]   --> execs TeaScript \"filename\" with \"args\"" << std::endl;
         std::cout << "\n\nContact: " << teascript::contact_info() << std::endl;
         std::cout << "The TeaScript Host Application for execute standalone TeaScript files\n"
