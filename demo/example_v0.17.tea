@@ -1,0 +1,105 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText:  Copyright (C) 2026 Florian Thake, <contact |at| tea-age.solutions>.
+ * SPDX-License-Identifier: MIT
+ * see included file MIT_LICENSE.txt
+ */
+
+
+// This demo script shows some use cases of the Map type as well ass the new try statement.
+// NOTE: In order to keep this script simple, we assume that the 'full' Core Library is loaded (this is the default).
+//       If this is not the case, you will get 'unknown identifier' errors for certain function calls.
+
+
+// we rely on the new features.
+##minimum_version 0.17
+
+// Some features are optional for the TeaScript C++ Library as they must be added as third-party libraries first.
+// However, the pre-build and free TeaScript Host Application has all of the features always enabled.
+
+
+// -- some helper functions
+
+// helper construct for (optional feature) color printing:
+// If cprint is not defined, we define it but just call print without color.
+// HINT: You need to add the {fmt} lib to your project in order to have color and format printing.
+//       The pre-build TeaScript Host Application has this feature always enabled.
+is_defined cprint or (func cprint( color, text )
+{
+    print( text )
+})
+
+// pink color
+const pink  := make_rgb( 255, 0, 255 )
+// ocher / light golden color
+const ocher := make_rgb( 210, 170, 90 )
+// red color
+const red   := make_rgb( 255, 0, 0 )
+// green color
+const green := make_rgb( 0, 255, 0 )
+// white color
+const white := make_rgb( 255, 255, 255 )
+// turquoise
+const turquoise := make_rgb( 80, 200, 150 )
+
+
+// person factory (as named Tuple)
+func create_person( firstname, lastname, email )
+{
+    _tuple_named_create( ("firstname", firstname), ("lastname", lastname), ("email", email) )
+}
+
+
+// some functions taking a person
+func fly( person )
+{
+    cprint( pink, "%(person.firstname) is flying to the moon!\n" )
+}
+
+func walk( person )
+{
+    cprint( ocher, "%(person.lastname), %(person.firstname) is walking in the park!\n" )
+}
+
+func swim( person )
+{
+    cprint( white, "%(person.firstname) (%(person.email)) is swimming in the pool!\n" )
+}
+
+// have some persons
+const Constantine := create_person("Constantine", "Miller", "miller@mail.com")
+const Anna        := create_person("Anna", "Surehand", "anna.s@foo.org")
+const Felix       := create_person("Felix", "York", "yorkf@xyz.net")
+
+
+// now map them
+def map := _map_create( (Constantine, walk), (Anna, swim), (Felix, fly) )
+
+println( "The person - function map:\n%(map)\n" )
+
+cprint( turquoise, "Now, looping over the map...\n")
+
+forall( it in map ) {
+    map[it.key]( it.key )
+}
+
+func test( person )
+{
+    def f := try _map_at( map, person )
+    f( person )
+}
+
+println( "calling test with unknown person" )
+test( create_person( "Max", "Miller", "mm@baz.org" ) ) catch( err ) cprint( red, err % "\n" )
+
+println( "calling test with Constantine" )
+test( Constantine )
+
+println( "adding Max Miller to the map with a lambda..." )
+const Max := create_person( "Max", "Miller", "mm@baz.org" )
+_map_insert( map, Max, func ( person ) { cprint( green, "%(person.firstname) %(person.lastname) is sleeping on the gras!\n" ) } )
+
+test( Max )
+
+
+cprint( green, "🍀🍀🍀 END!\n" )
