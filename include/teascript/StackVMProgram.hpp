@@ -16,6 +16,7 @@
 #include <span>
 #include <map>
 #include <memory>
+#include <cstring>      // memcpy
 #include <filesystem>
 #include <cstdio>
 

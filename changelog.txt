@@ -8,6 +8,7 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.17.0 (not released yet, pre-release)
 ================
+    FIX: g++13 and newer compile fix if without libfmt.
     DIST: added example_v0.17.tea
     TEST: added map utility functions to corelibrary_test01 + added corelibrary_test07
 
