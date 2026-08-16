@@ -6,8 +6,10 @@ NOTE: The dates are not the release dates, but a last commit date.
 
 
 ================
-VERSION 0.17.0 (not released yet, pre-release)
+VERSION 0.17.0, Su Aug 16 15:59:38 2026
 ================
+    VERSION: 0.17.0 - Map type, try statement, reflection extension
+
     FIX: g++13 and newer compile fix if without libfmt.
     DIST: added example_v0.17.tea
     TEST: added map utility functions to corelibrary_test01 + added corelibrary_test07
