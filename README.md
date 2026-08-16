@@ -23,8 +23,11 @@ Read all about the re-launch in the corresponding blog post:<br>
 https://teascript.run-by-ai.cloud/blog/relaunch-of-the-teascript-home-page/
 
 # About TeaScript
-**What is new in TeaScript 0.16.0?** TeaScript 0.16 comes with a distinct Error type, a catch statement, default shared params, BSON support and more.<br>
+**What is new in TeaScript 0.17.0?** TeaScript 0.17 comes with a new Map type, a try statement for convenient error propagation, the reflection extension for C++ structs and more.<br>
 <br>Get all infos in the **latest blog post**:<br>
+https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-17-0/ <br>
+<br>**What was new in TeaScript 0.16.0?** TeaScript 0.16 comes with a distinct Error type, a catch statement, default shared params, BSON support and more.<br>
+<br>Read all infos in the corresponding blog post:<br>
 https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-16-0/ <br>
 <br>**What was new in TeaScript 0.15.0?** TeaScript 0.15 comes with a Web Server / Web Client module preview, full JSON read/write support and more.<br>
 <br>**Watch the web feature demo on YouTube:** <br>
@@ -33,6 +36,10 @@ https://youtu.be/31_5-IrHcaE <br>
 https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-15-0/ <br>
 
 ## Summary of the last releases
+### TeaScript 0.17.0
+- a new **Map** type for map arbitrary keys to arbitrary values (ordered by key, not limited to String keys).
+- a **try** statement for convenient and efficient error propagation (roughly equivalent to `stmt catch( err ) { return err }`).
+- the **reflection extension** for convert C++ structs from/to TeaScript (Named Tuples) without macros or registration.
 ### TeaScript 0.16.0
 - a new and distinct **Error** type
 - a **catch** statement similar as in and highly inspired by [Zig](https://ziglang.org/documentation/master/#catch).
@@ -46,12 +53,12 @@ https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-15-0/ <br>
 - Import/export of C++ JSON / TOML objects from/to ValueObject of TeaScript (as a Named Tuple)
 
 ### Example Files for the last releases
-[web_client.tea](demo/web_client.tea), [web_server.tea](demo/web_server.tea), [JSON Support UnitTest](demo/corelibrary_test05.tea), [Json C++ Import/Export](https://github.com/Florian-Thake/TeaScript-Cpp-Library/blob/6a7f348a7d8c959187b6f7ddcb5ed0c4e0e092c9/demo/teascript_demo.cpp#L90), [Error and Catch UnitTest](demo/corelibrary_test06.tea), [Catch and BSON example](demo/example_v0.16.tea)
+[Map and try example](demo/example_v0.17.tea), [Map UnitTest](demo/corelibrary_test07.tea), [C++ Reflection Demo](demo/reflectcpp_demo.cpp), [web_client.tea](demo/web_client.tea), [web_server.tea](demo/web_server.tea), [JSON Support UnitTest](demo/corelibrary_test05.tea), [Json C++ Import/Export](https://github.com/Florian-Thake/TeaScript-Cpp-Library/blob/6a7f348a7d8c959187b6f7ddcb5ed0c4e0e092c9/demo/teascript_demo.cpp#L90), [Error and Catch UnitTest](demo/corelibrary_test06.tea), [Catch and BSON example](demo/example_v0.16.tea)
 
 **Hint:** Better syntax highlighting is on the TeaScript home page, in Notepad++ with the provided [SyntaxHighlighting.xml](TeaScript_SyntaxHighlighting_Notepad%2B%2B.xml), or via the [Pygments lexer](tools/syntax/README.md) (e.g. for rendering TeaScript code on web pages and in documentation).
 
-## Example Reflection of C++ structs (Preview)
-**Note** You must use the 'not-released-yet' **0.17.0** from the main branch for reflection.
+## Example Reflection of C++ structs
+**Note:** Reflection is available starting with **0.17.0**. It is an opt-in feature and needs the [reflect-cpp](https://github.com/getml/reflect-cpp) library (see optional feature section below).<br>
 Try the [Reflection Demo](demo/reflectcpp_demo.cpp) by yourself with the help of the demo project. This file also contains a usage instruction.
 
 Imagine you have the following C++ struct and instance:
@@ -138,8 +145,8 @@ println( reply.json["User-Agent"] )
 // dot access possible as well!
 println( reply.json."User-Agent" )
 ```
-## Example for convenient error handling with the new catch statement
-More information to the new Error type can be found here https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-16-0/#error_type
+## Example for convenient error handling with the catch and try statement
+More information to the Error type can be found here https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-16-0/#error_type
 ```cpp
 // _strtonum returns an Error if the String cannot be parsed to an integer.
 // Here catch is used for yielding default values on error.
@@ -174,6 +181,26 @@ def foo := test( "10", "xyz" )  // foo is Error
 // handle error by exiting script
 def bar := test( "qwert", "2" ) catch (err) {
     fail_with_message( err ) // prints err and exit
+}
+```
+The new **try** statement of 0.17.0 is the convenient (and more efficient) way for the early return on errors.
+More information to the try statement can be found here https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-17-0/#try_statement
+```cpp
+// try is roughly equivalent to 'stmt catch( err ) { return err }',
+// but the Error does not need to be stored in a variable.
+func get_number_from_file( file )
+{
+    def content := try readtextfile( file )  // returns the Error of readtextfile on error
+    def number  := try _strtonum( content )  // returns the Error of _strtonum on error
+ 
+    // reaching here only if no Error occurred!
+    abs( number )
+}
+ 
+// the caller can handle the propagated Error as usual, e.g. with catch
+def num := get_number_from_file( "/path/to/file.txt" ) catch( err ) {
+    println( "Error: %(err)" )
+    0
 }
 ```
 
@@ -476,7 +503,7 @@ All compilers are compiling in **C++20** and for **x86_64**.<br>
 
 **None** -- for fully C++20 supporting compilers / C++ standard libraries.
 
-**Libfmt (as header only)** -- for gcc 11 / clang 14 (tested with **libfmt 11.1.4**, **libfmt 11.0.2**, **libfmt 10.2.1** and **libfmt 10.1.1**)<br>
+**Libfmt (as header only)** -- for gcc 11 / clang 14 (tested with **libfmt 12.1.0**, **libfmt 11.1.4**, **libfmt 11.0.2**, **libfmt 10.2.1** and **libfmt 10.1.1**)<br>
 - Libfmt can be downloaded here https://fmt.dev/latest/index.html <br>
 You only need to set the include path in your project(s) / for compilation. Detection is then done automatically.
 
@@ -507,6 +534,13 @@ For use a different adapter you must do the following steps:<br>
 4.) Set the define TEASCRIPT_JSON_FLAVOR to the desired Json flavor, e.g., TEASCRIPT_JSON_NLOHMANN<br>
 
 **BSON Support** - Currently BSON support is only available if the used JsonAdapter is nlohmann::json (see above how to change).
+
+**Reflection of C++ structs** - for the reflection extension you need the reflect-cpp library. (tested with **0.23.0** and **0.25.0**) <br>
+You can find the reflect-cpp library here: https://github.com/getml/reflect-cpp <br>
+1.) Add include to &lt;TeaScriptRoot&gt;/extensions/include/.<br>
+2.) Add the 'include' directory of reflect-cpp to your include paths. Detection is then done automatically.<br>
+3.) Either add the 'src' directory of reflect-cpp to your include paths and add extensions/source/Reflection.cpp to your project, or link against a compiled reflect-cpp library.<br>
+See extensions/include/teascript/ext/Reflection.hpp and [reflectcpp_demo.cpp](demo/reflectcpp_demo.cpp) for the detailed usage instruction.
 
 # Building the demo app
 
