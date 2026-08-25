@@ -66,7 +66,7 @@ public:
         : runtime_error( SourceLocation().AddFile(rFile), rErrorStr, rText )
     { }
 
-    virtual std::string_view GetGategory() const
+    virtual std::string_view GetCategory() const
     {
         using namespace std::string_view_literals;
         return "Runtime"sv;
@@ -145,7 +145,7 @@ public:
     {
     }
 
-    std::string_view GetGategory() const override
+    std::string_view GetCategory() const override
     {
         using namespace std::string_view_literals;
         return "Parsing"sv;
@@ -174,7 +174,7 @@ public:
     compile_error( SourceLocation const &rLoc, std::string const &rText ) : runtime_error( rLoc, rText ) {}
     compile_error( std::string const &rText ) : runtime_error( rText ) {}
 
-    std::string_view GetGategory() const override
+    std::string_view GetCategory() const override
     {
         using namespace std::string_view_literals;
         return "Compile"sv;
@@ -188,7 +188,7 @@ public:
     eval_error( SourceLocation const &rLoc, std::string const &rText ) : runtime_error( rLoc, rText ) {}
     eval_error( std::string const &rText ) : runtime_error( rText ) {}
 
-    std::string_view GetGategory() const override
+    std::string_view GetCategory() const override
     {
         using namespace std::string_view_literals;
         return "Eval"sv;
