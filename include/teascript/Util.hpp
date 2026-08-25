@@ -33,9 +33,9 @@ namespace {
 void pretty_print( teascript::exception::runtime_error const &ex, std::string const src_overwrite = {} )
 {
     if( not ex.IsSourceLocSet() ) {
-        TEASCRIPT_PRINT( "{} error in file \"{}\": {}\n", ex.GetGategory(), ex.GetFileStr(), ex.ErrorStr_or_What() );
+        TEASCRIPT_PRINT( "{} error in file \"{}\": {}\n", ex.GetCategory(), ex.GetFileStr(), ex.ErrorStr_or_What() );
     } else {
-        TEASCRIPT_PRINT( "{} error in file \"{}\"\nin line {}, column {}:\n", ex.GetGategory(), ex.GetFileStr(), ex.GetLine(), ex.GetColumn() );
+        TEASCRIPT_PRINT( "{} error in file \"{}\"\nin line {}, column {}:\n", ex.GetCategory(), ex.GetFileStr(), ex.GetLine(), ex.GetColumn() );
         if( not ex.GetContextStr().empty() || not src_overwrite.empty() ) {
             if( src_overwrite.empty() ) {
                 TEASCRIPT_PRINT( "{}\n", ex.GetContextStr() );
@@ -55,9 +55,9 @@ void pretty_print( teascript::exception::runtime_error const &ex, std::string co
 void pretty_print_colored( teascript::exception::runtime_error const &ex, std::string const src_overwrite = {} )
 {
     if( not ex.IsSourceLocSet() ) {
-        fmt::print( "{} error in file \"{}\": {}\n", ex.GetGategory(), fmt::styled( ex.GetFileStr(), fmt::fg( fmt::color::white_smoke ) ), fmt::styled( ex.ErrorStr_or_What(), fmt::fg( fmt::color::tomato ) ) );
+        fmt::print( "{} error in file \"{}\": {}\n", ex.GetCategory(), fmt::styled( ex.GetFileStr(), fmt::fg( fmt::color::white_smoke ) ), fmt::styled( ex.ErrorStr_or_What(), fmt::fg( fmt::color::tomato ) ) );
     } else {
-        fmt::print( "{} error in file \"{}\"\nin line {}, column {}:\n", ex.GetGategory(), fmt::styled( ex.GetFileStr(), fmt::fg( fmt::color::white_smoke ) ),
+        fmt::print( "{} error in file \"{}\"\nin line {}, column {}:\n", ex.GetCategory(), fmt::styled( ex.GetFileStr(), fmt::fg( fmt::color::white_smoke ) ),
                     fmt::styled( ex.GetLine(), fmt::fg( fmt::color::wheat ) ), fmt::styled( ex.GetColumn(), fmt::fg( fmt::color::wheat ) ) );
         if( not ex.GetContextStr().empty() || not src_overwrite.empty() ) {
             std::string const &src = src_overwrite.empty() ? ex.GetContextStr() : src_overwrite;
