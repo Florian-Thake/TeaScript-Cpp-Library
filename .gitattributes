@@ -1,0 +1,49 @@
+# Line ending policy for the TeaScript C++ Library.
+#
+# All text files are stored with LF in the repository.
+# The working tree is NOT forced: no 'eol' attribute is set here, so each
+# developer's checkout follows their own Git configuration
+# (core.autocrlf / core.eol). On Windows with core.autocrlf=true the
+# working tree still gets CRLF, as before.
+#
+# Effect: contributors can no longer accidentally commit a whole file
+# converted to CRLF, which otherwise turns a one-line fix into a diff
+# touching every line.
+
+* text=auto
+
+# Explicit text types
+*.cpp   text
+*.hpp   text
+*.h     text
+*.inl   text
+*.ipp   text
+*.tea   text
+*.txt   text
+*.TXT   text
+*.md    text
+*.xml   text
+*.yml   text
+*.yaml  text
+*.json  text
+
+# Scripts that must keep LF regardless of platform.
+*.sh    text eol=lf
+
+# Windows batch files must keep CRLF.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Never convert binaries.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.7z    binary
+*.tgz   binary
+*.exe   binary
+*.dll   binary
+*.lib   binary
