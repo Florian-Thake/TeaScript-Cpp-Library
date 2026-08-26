@@ -8,6 +8,8 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    FIX: proper cleanup of file handle in StackVM::Program::Save().
+
     DIST: Made Known_Issues.txt and Deprecation_and_Breaking_Changes.txt obsolete.
 
     ... please visit https://teascript.run-by-ai.cloud/teascript/compatibility/
