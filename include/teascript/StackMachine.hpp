@@ -568,7 +568,7 @@ private:
                     // TODO: Handle rContext.dialect.auto_define_unknown_identifiers on throw unknown_identifier
                     // TODO: can this be merged with ASTNode_Assign ?
                     try {
-                        mStack[s - 2] = rContext.SetValue( id.GetValue<std::string>(), val, current_instr.payload.template GetValue<bool>() );
+                        mStack[s - 2] = rContext.SetValue( id.template GetValue<std::string>(), val, current_instr.payload.template GetValue<bool>() );
                     } catch( ... ) {
                         HandleException( std::current_exception() );
                         run = false;
@@ -598,7 +598,7 @@ private:
                         continue;
                     }
                     try {
-                        mStack[s - 2] = rContext.AddValueObject( id.GetValue<std::string>(), val.MakeShared() );
+                        mStack[s - 2] = rContext.AddValueObject( id.template GetValue<std::string>(), val.MakeShared() );
                     } catch( ... ) {
                         HandleException( std::current_exception() );
                         run = false;
@@ -622,7 +622,7 @@ private:
                         val.Detach( true ); // make copy
                     }
                     try {
-                        mStack[s - 2] = rContext.AddValueObject( id.GetValue<std::string>(), val.MakeShared().MakeConst() );
+                        mStack[s - 2] = rContext.AddValueObject( id.template GetValue<std::string>(), val.MakeShared().MakeConst() );
                     } catch( ... ) {
                         HandleException( std::current_exception() );
                         run = false;
@@ -645,7 +645,7 @@ private:
                         val.Detach( true ); // make copy
                     }
                     try {
-                        mStack[s - 2] = rContext.AddValueObject( id.GetValue<std::string>(), val.MakeShared() );
+                        mStack[s - 2] = rContext.AddValueObject( id.template GetValue<std::string>(), val.MakeShared() );
                     } catch( ... ) {
                         HandleException( std::current_exception() );
                         run = false;
@@ -726,7 +726,7 @@ private:
                         continue;
                     }
 
-                    auto       &tuple = obj.GetValue<Tuple>();
+                    auto       &tuple = obj.template GetValue<Tuple>();
                     bool const shared = current_instr.payload.template GetValue<bool>();
 
                     size_t idx = static_cast<std::size_t>(-1);
@@ -758,7 +758,7 @@ private:
                         continue;
                     }
                     auto const &rhs   = current_instr.payload;
-                    auto const &tuple = lhs.GetConstValue<Tuple>();
+                    auto const &tuple = lhs.template GetConstValue<Tuple>();
 
                     std::size_t  idx = static_cast<std::size_t>(-1);
                     if( rhs.GetTypeInfo()->IsSame( TypeString ) ) {
@@ -770,7 +770,7 @@ private:
                         mStack.back() = ValueObject( false );
                     } else {
                         if( current_instr.instr == eTSVM_Instr::UndefElement ) {
-                            lhs.GetMutableValue<Tuple>().RemoveValueByIdx(idx);
+                            lhs.template GetMutableValue<Tuple>().RemoveValueByIdx(idx);
                         }
                         mStack.back() = ValueObject( true );
                     }
@@ -781,7 +781,7 @@ private:
                 if( stack_error( 2 ) ) [[unlikely]] {
                     continue;
                 } else {
-                    auto param_count = mStack.back().GetValue<U64>();
+                    auto param_count = mStack.back().template GetValue<U64>();
                     if( stack_error( param_count + 1 + 1 ) ) [[unlikely]] {
                         continue;
                     }
@@ -810,7 +810,7 @@ private:
                     continue;
                 } else {
                     auto const s = mStack.size();
-                    auto param_count = mStack[s-2].GetValue<U64>();
+                    auto param_count = mStack[s-2].template GetValue<U64>();
                     if( stack_error( param_count + 1 + 1 + 1 ) ) [[unlikely]] {
                         continue;
                     }
@@ -922,7 +922,7 @@ private:
                         run = false;
                         continue;
                     }
-                    auto const &tuple = lhs.GetValue<Tuple>();
+                    auto const &tuple = lhs.template GetValue<Tuple>();
                     std::size_t  idx = static_cast<std::size_t>(-1);
                     if( rhs.GetTypeInfo()->IsSame( TypeString ) ) {
                         idx = tuple.IndexOfKey( rhs.template GetValue<String>() );
@@ -930,7 +930,7 @@ private:
                         idx = static_cast<std::size_t>(rhs.GetAsInteger());
                     }
                     if( idx == static_cast<std::size_t>(-1) ) {
-                        HandleException( std::make_exception_ptr( exception::unknown_identifier( rhs.GetValue<String>() ) ) );
+                        HandleException( std::make_exception_ptr( exception::unknown_identifier( rhs.template GetValue<String>() ) ) );
                         run = false;
                         continue;
                     } else if( not tuple.ContainsIdx( idx ) ) {
@@ -993,7 +993,7 @@ private:
 
                     // get the sequence
                     auto const &seq_val = mStack[s - 1];
-                    if( not seq_val.GetTypeInfo()->IsSame<IntegerSequence>() && not seq_val.GetTypeInfo()->IsSame<Tuple>() && not seq_val.GetTypeInfo()->IsSame<Map>() ) {
+                    if( not seq_val.GetTypeInfo()->template IsSame<IntegerSequence>() && not seq_val.GetTypeInfo()->template IsSame<Tuple>() && not seq_val.GetTypeInfo()->template IsSame<Map>() ) {
                         HandleException( std::make_exception_ptr( exception::eval_error( "Forall loop can actually only iterate over an IntegerSequence/Tuple/Map!" ) ) );
                         run = false;
                         continue;
@@ -1007,11 +1007,11 @@ private:
                     };
 
                     //FIXME: if seq_val is a sequence already we should use a reference for in later versions it will be possible to manipulate it elsewhere in the loop.
-                    auto  seq = seq_val.GetTypeInfo()->IsSame<Tuple>()
-                        ? make_seq( seq_val.GetValue<Tuple>().Size() )
-                        : seq_val.GetTypeInfo()->IsSame<Map>() 
-                        ? make_seq( seq_val.GetValue<Map>().size() )
-                        : seq_val.GetValue<IntegerSequence>();
+                    auto  seq = seq_val.GetTypeInfo()->template IsSame<Tuple>()
+                        ? make_seq( seq_val.template GetValue<Tuple>().Size() )
+                        : seq_val.GetTypeInfo()->template IsSame<Map>()
+                        ? make_seq( seq_val.template GetValue<Map>().size() )
+                        : seq_val.template GetValue<IntegerSequence>();
                     seq.Reset();
 
                     // check if seq is no-op
@@ -1020,9 +1020,9 @@ private:
                     // create the index variable
                     // TODO: add mDebugInfo SourceLocation!
                     if( not is_noop ) {
-                        mStack[s - 2] = seq_val.GetTypeInfo()->IsSame<Map>()
-                            ? rContext.AddValueObject( mStack[s - 2].GetValue<std::string>(), ValueObject( map::create_iterator( seq_val.GetValue<Map>() ), ValueConfig( ValueShared, ValueMutable ) ) )
-                            : rContext.AddValueObject( mStack[s - 2].GetValue<std::string>(), ValueObject( seq.Current(), ValueConfig( ValueShared, ValueMutable ) ) );
+                        mStack[s - 2] = seq_val.GetTypeInfo()->template IsSame<Map>()
+                            ? rContext.AddValueObject( mStack[s - 2].template GetValue<std::string>(), ValueObject( map::create_iterator( seq_val.template GetValue<Map>() ), ValueConfig( ValueShared, ValueMutable ) ) )
+                            : rContext.AddValueObject( mStack[s - 2].template GetValue<std::string>(), ValueObject( seq.Current(), ValueConfig( ValueShared, ValueMutable ) ) );
                     }
 
                     // store the sequence
@@ -1042,7 +1042,7 @@ private:
                     continue;
                 } else {
                     auto const  s = mStack.size();
-                    auto &seq = mStack[s - 2].GetValue<IntegerSequence>();
+                    auto &seq = mStack[s - 2].template GetValue<IntegerSequence>();
                     if( seq.Next() ) {
                         if( mStack[s - 3].InternalType() == ValueObject::TypeI64 ) {
                             mStack[s - 3].AssignValue( seq.Current() );
@@ -1067,11 +1067,11 @@ private:
                 if( stack_error( 2 ) ) [[unlikely]] {
                     continue;
                 } else {
-                    auto param_count = mStack.back().GetValue<U64>();
+                    auto param_count = mStack.back().template GetValue<U64>();
                     if( stack_error( param_count + 1 + 1 ) ) [[unlikely]] {
                         continue;
                     }
-                    auto func = mStack[ mStack.size() - (param_count + 1 + 1)].GetValueCopy<FunctionPtr>();
+                    auto func = mStack[ mStack.size() - (param_count + 1 + 1)].template GetValueCopy<FunctionPtr>();
                     auto cfunc = std::dynamic_pointer_cast<CompiledFuncBase>(func);
                     if( cfunc ) {
                         mCallStack.emplace_back( current_instr.payload.template GetValue<std::string>(), mCurrent + 1, cfunc->GetProgram(), func, mStack.size() - (param_count + 1 + 1));
@@ -1166,7 +1166,7 @@ private:
                     continue;
                 } else {
                     // we need a working copy of the param count for decrement!
-                    mStack.emplace_back( mStack.back().GetValue<U64>() );
+                    mStack.emplace_back( mStack.back().template GetValue<U64>() );
                 }
                 break;
             case eTSVM_Instr::ParamSpecClean:
@@ -1174,7 +1174,7 @@ private:
                 if( stack_error( 3 ) ) [[unlikely]] {
                     continue;
                 } else {
-                    auto const left_params = mStack.back().GetValue<U64>();
+                    auto const left_params = mStack.back().template GetValue<U64>();
                     if( left_params != 0 ) [[unlikely]] {
                         //NOTE: we need SourceLoc of the caller! But the caller is different for each call.
                         //      Here we know that callstack is at least 2 (we and the caller). The ret address - 1 is the CallFunc instruction which might carry a source loc.
@@ -1183,7 +1183,7 @@ private:
                         run = false;
                         continue;
                     } else {
-                        auto orig_params = mStack[mStack.size() - 2].GetValue<U64>();
+                        auto orig_params = mStack[mStack.size() - 2].template GetValue<U64>();
                         mStack.pop_back(); // working param count
                         mStack.pop_back(); // orig param count
                         while( orig_params > 0 ) {  // each param
@@ -1200,7 +1200,7 @@ private:
                     continue;
                 } else {
                     auto const pos = mStack.size() - 2;
-                    auto param_count = mStack[pos].GetValue<U64>();
+                    auto param_count = mStack[pos].template GetValue<U64>();
                     if( param_count < 1 ) [[unlikely]] { // huh?
                         //NOTE: we need SourceLoc of the caller! But the caller is different for each call.
                         //      Here we know that callstack is at least 2 (we and the caller). The ret address - 1 is the CallFunc instruction which might carry a source loc.
@@ -1225,7 +1225,7 @@ private:
                     continue;
                 } else {
                     auto const pos = mStack.size() - 2;
-                    auto param_count = mStack[pos].GetValue<U64>();
+                    auto param_count = mStack[pos].template GetValue<U64>();
                     if( param_count > 0 ) { // there are still parameters given by the caller.
                         // add current param to end (after the id)
                         mStack.push_back( std::move( mStack[pos - (1 + param_count)] ) );
