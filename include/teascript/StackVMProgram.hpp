@@ -401,6 +401,15 @@ public:
         // we are always writing in host byte order (.tsb files are not meant to be interchangeable across systems.)
 
         bool ok = true;
+
+        auto cleanup = [&]( FILE *f ) {
+            fclose( f );
+            if( not ok ) {
+                ::remove( filename.string().c_str() );
+            }
+        };
+        auto guard = std::unique_ptr<FILE, decltype(cleanup)>( fp, cleanup );
+
         // header with magic number.
         ok = ok && fwrite( ".tsb", 1, 4, fp ) == 4;
         unsigned int const magic = 0xcafe07ea;
@@ -471,12 +480,6 @@ public:
         }
 
         // done (debug infos are not saved (in same file))
-
-        if( not ok ) {
-            fclose( fp );
-            ::remove( filename.string().c_str() );
-        }
-
         return ok;
     }
 

@@ -8,6 +8,7 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.17.1 (not released yet, pre-release)
 ================
+    FIX: proper cleanup of file handle in StackVM::Program::Save().
 
 
 ================
