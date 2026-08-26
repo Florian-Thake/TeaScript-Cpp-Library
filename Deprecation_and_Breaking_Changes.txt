@@ -1,3 +1,10 @@
+This file is a relict from earlier release packages. 
+The deprecation list, breaking changes and experimental features
+are now tracked online:
+https://teascript.run-by-ai.cloud/teascript/compatibility/
+
+
+
 TeaScript Breaking Changes in the actual release
 =================================================
 
@@ -28,13 +35,6 @@ TeaScript list of deprecated parts
 =================================================
 
     The following deprecated parts have been finally removed from this release:
-    
-    class LibraryFunction0<> to LibraryFunction5<> are finally removed now.
-    Please, use the new and generic one fits for all LibraryFunction<> instead.
-    
-    The temporary macro TEASCRIPT_DISABLE_GETVALUE_CONSTCHECK for restoring previous faulty behavior is removed again.
-    Please use either GetValue< Type const >() instead or the
-    more clean variant by calling one of GetConstValue()|GetMutableValue() or GetValueCopy().
 
 
     The following parts are now deprecated and will be removed in some future release:

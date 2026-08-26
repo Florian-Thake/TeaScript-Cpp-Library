@@ -1,5 +1,5 @@
-Instructions for the TeaScript C++ Library (Standard version)
-==============================================================
+Instructions for the TeaScript C++ Library
+==========================================
 
 Please, also read the COPYRIGHT.TXT for several licensing information.
 
@@ -116,16 +116,16 @@ Using the Library / API:
 Have a look at the provided teascript_demo.cpp for some example usage of the API.
 For TeaScript in general you can find documentation here:
 
-https://tea-age.solutions/teascript/overview-and-highlights/
+https://teascript.run-by-ai.cloud/teascript/overview-and-highlights/
 
-https://tea-age.solutions/teascript/teascript-language-documentation/
+https://teascript.run-by-ai.cloud/teascript/language-documentation/
 
-If you encounter bugs or problems, have feature wishes or any other question you may contact:
+If you encounter bugs or problems, have feature wishes or any other question, please, open an issue on GitHub:
 
-contact |at| tea-age.solutions
+https://github.com/Florian-Thake/TeaScript-Cpp-Library/issues
 
 
 Florian Thake
 TeaAge Solutions
-https://tea-age.solutions 
+https://tea-age.solutions
 
