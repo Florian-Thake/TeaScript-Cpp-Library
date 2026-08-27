@@ -45,6 +45,31 @@ namespace teascript {
 
 namespace exception {
 
+// needed for the transition GetGategory --> GetCategory.
+#if defined(_MSC_VER )
+# define TEASCRIPT_PRAGMA_HELPER(x) __pragma(x)
+# define TEASCRIPT_DISABLE_DEPRECATION_WARNING \
+TEASCRIPT_PRAGMA_HELPER(warning(push)) \
+TEASCRIPT_PRAGMA_HELPER(warning(disable:4996))
+# define TEASCRIPT_ENABLE_DEPRECATION_WARNING  TEASCRIPT_PRAGMA_HELPER(warning(pop))
+#elif defined(__GNUC__)
+# define TEASCRIPT_PRAGMA_HELPER(x) _Pragma(#x)
+# define TEASCRIPT_DISABLE_DEPRECATION_WARNING \
+TEASCRIPT_PRAGMA_HELPER(GCC diagnostic push) \
+TEASCRIPT_PRAGMA_HELPER(GCC diagnostic ignored "-Wdeprecated-declarations")
+# define TEASCRIPT_ENABLE_DEPRECATION_WARNING  TEASCRIPT_PRAGMA_HELPER(GCC diagnostic pop)
+#elif defined(__clang__)
+# define TEASCRIPT_PRAGMA_HELPER(x) _Pragma(#x)
+# define TEASCRIPT_DISABLE_DEPRECATION_WARNING \
+TEASCRIPT_PRAGMA_HELPER(clang diagnostic push) \
+TEASCRIPT_PRAGMA_HELPER(clang diagnostic ignored "-Wdeprecated")
+# define TEASCRIPT_ENABLE_DEPRECATION_WARNING  TEASCRIPT_PRAGMA_HELPER(clang diagnostic pop)
+#else
+# define TEASCRIPT_DISABLE_DEPRECATION_WARNING
+# define TEASCRIPT_ENABLE_DEPRECATION_WARNING
+#endif
+
+
 /// The base class for the most of all exceptions in TeaScript.
 class runtime_error : public std::runtime_error
 {
@@ -66,7 +91,16 @@ public:
         : runtime_error( SourceLocation().AddFile(rFile), rErrorStr, rText )
     { }
 
-    virtual std::string_view GetGategory() const
+    /// \returns the category of the exception.
+    virtual std::string_view GetCategory() const
+    {
+        TEASCRIPT_DISABLE_DEPRECATION_WARNING
+        return GetGategory(); // we need to call this one for call correct overloaded variants.
+        TEASCRIPT_ENABLE_DEPRECATION_WARNING
+    }
+
+    //DEPRECATED! Use GetCategory instead!
+    [[deprecated("typo: use GetCategory instead!")]] virtual std::string_view GetGategory() const
     {
         using namespace std::string_view_literals;
         return "Runtime"sv;
@@ -145,7 +179,15 @@ public:
     {
     }
 
-    std::string_view GetGategory() const override
+    /// \returns the category of the exception.
+    std::string_view GetCategory() const override
+    {
+        TEASCRIPT_DISABLE_DEPRECATION_WARNING
+        return GetGategory(); // we need to call this one for call correct overloaded variants.
+        TEASCRIPT_ENABLE_DEPRECATION_WARNING
+    }
+
+    [[deprecated( "typo: use GetCategory instead!" )]] std::string_view GetGategory() const override
     {
         using namespace std::string_view_literals;
         return "Parsing"sv;
@@ -174,7 +216,15 @@ public:
     compile_error( SourceLocation const &rLoc, std::string const &rText ) : runtime_error( rLoc, rText ) {}
     compile_error( std::string const &rText ) : runtime_error( rText ) {}
 
-    std::string_view GetGategory() const override
+    /// \returns the category of the exception.
+    std::string_view GetCategory() const override
+    {
+        TEASCRIPT_DISABLE_DEPRECATION_WARNING
+        return GetGategory(); // we need to call this one for call correct overloaded variants.
+        TEASCRIPT_ENABLE_DEPRECATION_WARNING
+    }
+
+    [[deprecated( "typo: use GetCategory instead!" )]] std::string_view GetGategory() const override
     {
         using namespace std::string_view_literals;
         return "Compile"sv;
@@ -188,7 +238,15 @@ public:
     eval_error( SourceLocation const &rLoc, std::string const &rText ) : runtime_error( rLoc, rText ) {}
     eval_error( std::string const &rText ) : runtime_error( rText ) {}
 
-    std::string_view GetGategory() const override
+    /// \returns the category of the exception.
+    std::string_view GetCategory() const override
+    {
+        TEASCRIPT_DISABLE_DEPRECATION_WARNING
+        return GetGategory(); // we need to call this one for call correct overloaded variants.
+        TEASCRIPT_ENABLE_DEPRECATION_WARNING
+    }
+
+    [[deprecated( "typo: use GetCategory instead!" )]] std::string_view GetGategory() const override
     {
         using namespace std::string_view_literals;
         return "Eval"sv;
@@ -299,6 +357,9 @@ class suspend_statement : public eval_error
 public:
     explicit suspend_statement( SourceLocation const &rLoc = {} ) : eval_error( rLoc, "Suspend/Yield statement is only supported when executed via TeaStackVM (as a compiled script)!" ) {}
 };
+
+#undef TEASCRIPT_DISABLE_DEPRECATION_WARNING
+#undef TEASCRIPT_ENABLE_DEPRECATION_WARNING
 
 } // namespace exception
 
