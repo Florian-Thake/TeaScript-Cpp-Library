@@ -56,6 +56,17 @@ void thread_func( std::shared_ptr<teascript::StackVM::Machine<true>> the_machine
     }
 }
 
+void continue_func( std::shared_ptr<teascript::StackVM::Machine<true>> the_machine, teascript::Context &rContext, std::exception_ptr &ep )
+{
+    try {
+
+        the_machine->Continue( rContext );
+
+    } catch( ... ) {
+        ep = std::current_exception();
+    }
+}
+
 } // anonymous 
 
 void teascript_thread_suspend_demo()
@@ -70,7 +81,7 @@ void teascript_thread_suspend_demo()
     try {
         // launch the thread
         std::cout << "Launching thread with a TeaScript endless loop..." << std::endl;
-        std::thread t(thread_func, machine, std::ref(context), std::ref(ep));
+        std::thread t1(thread_func, machine, std::ref(context), std::ref(ep));
 
         // and sleep zZzZzZzZz
         std::cout << "... and going to sleep 5 seconds..." << std::endl;
@@ -83,7 +94,7 @@ void teascript_thread_suspend_demo()
         }
         std::cout << "waiting for join...";
         // wait for the thread.
-        t.join();
+        t1.join();
         std::cout << "joined." << std::endl;
 
 
@@ -101,7 +112,41 @@ void teascript_thread_suspend_demo()
         // lets see where the endless loop was suspended....
 
         auto const c = context.FindValueObject( "c" );
-        std::cout << "the endless loop counted until " << c.PrintValue() << " before was suspended." << std::endl;
+        std::cout << "the endless loop counted until " << c.PrintValue() << " before it was suspended." << std::endl;
+
+        std::cout << "\nNow, lets continue the script in a new thread shortly..." << std::endl;
+
+        std::thread t2( continue_func, machine, std::ref( context ), std::ref( ep ) );
+         // and sleep some more zZzZzZzZz
+        std::cout << "... and going to sleep 2 seconds..." << std::endl;
+        std::this_thread::sleep_for( std::chrono::seconds( 2 ) );
+
+        // send the suspend request
+        std::cout << "woke up again, sending suspend request now..." << std::endl;
+        if( not machine->Suspend() ) [[unlikely]] { // can only fail if std::stop_source::request_stop() fails.
+            throw std::runtime_error( "Could not send suspend request!" );
+        }
+        std::cout << "waiting for join...";
+        // wait for the thread.
+        t2.join();
+        std::cout << "joined." << std::endl;
+
+
+        // are there errors?
+        if( ep ) {
+            std::rethrow_exception( ep );
+        }
+        machine->ThrowPossibleErrorException();
+
+        // just some state checking
+        if( not machine->IsSuspended() ) [[unlikely]] {
+            throw std::runtime_error( "Unexpected state!" );
+        }
+
+        // lets see where the endless loop was suspended....
+
+        auto const c2 = context.FindValueObject( "c" );
+        std::cout << "Finally, the endless loop counted until: " << c2.PrintValue() << std::endl;
 
     } catch( teascript::exception::runtime_error const &ex ) {
 #if TEASCRIPT_FMTFORMAT  // you need libfmt for pretty colored output
@@ -115,6 +160,7 @@ void teascript_thread_suspend_demo()
 
 #else
     (void)thread_func;
+    (void)continue_func;
     std::cout << "You need C++20 std::stop_source in your C++ library for be able to run this demo." << std::endl;
 #endif
 }
