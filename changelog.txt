@@ -8,6 +8,8 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    PLATTFORM: fixed compile with clang + Android NDK. Thanks Graham Asher (GitHub @GrahamAsher) for reporting.
+    FIX: improved compile with clang / macOS. Thanks to Graham Asher (GitHub @GrahamAsher).
     FIX: fixed typo in GetCategory() for all exceptions based on exception::runtime_error.
     - DEPRECATED: old GetCategory variant stays one release for transition and is deprecated now.
     - Reported by Graham Asher (GitHub @GrahamAsher). Thank you very much!
