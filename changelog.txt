@@ -8,6 +8,9 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    FIX: Tea StackVM - continuing a program, which was suspended from a different thread, is now possible.
+    - adjusted the example code in suspend_thread_demo.cpp by adding a 'continue thread'.
+
     PLATTFORM: fixed compile with clang + Android NDK. Thanks Graham Asher (GitHub @GrahamAsher) for reporting.
     FIX: improved compile with clang / macOS. Thanks to Graham Asher (GitHub @GrahamAsher).
     FIX: fixed typo in GetCategory() for all exceptions based on exception::runtime_error.

@@ -404,6 +404,12 @@ public:
             if( mState != eState::Suspended ) {
                 throw exception::runtime_error( "TeaStackVM must be in Suspended state for Continue()!" );
             }
+#if TEASCRIPT_SUSPEND_REQUEST_POSSIBLE
+            if constexpr( thread_support ) {
+                mStopSource = std::stop_source();
+                mStopToken = mStopSource.get_token();
+            }
+#endif
             mResult = std::nullopt;    // clear a possible yielded result
             mState  = eState::Running;
         }
