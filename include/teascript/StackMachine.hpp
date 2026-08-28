@@ -1,5 +1,5 @@
 /* === Part of TeaScript C++ Library ===
- * SPDX-FileCopyrightText:  Copyright (C) 2024 Florian Thake <contact |at| tea-age.solutions>.
+ * SPDX-FileCopyrightText:  Copyright (C) 2026 Florian Thake <contact |at| tea-age.solutions>.
  * SPDX-License-Identifier: MPL-2.0
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -21,8 +21,10 @@
 #include <chrono>
 
 
+#include <version>
+
 // clang does not support stop_source/stop_token yet :-(  but we don't want re-invent the wheel only for clang actually!
-#if !defined( __clang__ ) || __has_include( <stop_token> )
+#if defined(__cpp_lib_jthread) && __cpp_lib_jthread >= 201911L
 # define TEASCRIPT_SUSPEND_REQUEST_POSSIBLE    1
 #else
 # define TEASCRIPT_SUSPEND_REQUEST_POSSIBLE    0
@@ -108,7 +110,7 @@ private:
 
     std::size_t                 mCurrent = 0;
 
-    // helper struct, 'BasicLocable' for scoped_lock if thread_support == false
+    // helper struct, 'BasicLockable' for scoped_lock if thread_support == false
     struct NoMutex
     {
         inline void lock() {}
