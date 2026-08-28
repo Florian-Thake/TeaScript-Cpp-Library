@@ -10,6 +10,7 @@ VERSION 0.18.0 (not released yet, pre-release)
 ================
     FIX: fixed typo in GetCategory() for all exceptions based on exception::runtime_error.
     - DEPRECATED: old GetCategory variant stays one release for transition and is deprecated now.
+    - Reported by Graham Asher (GitHub @GrahamAsher). Thank you very much!
 
     FIX: proper cleanup of file handle in StackVM::Program::Save().
 
