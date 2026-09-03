@@ -144,10 +144,13 @@ public:
 
     /// Adds given parameters as ValueObjects as a tuple "args[idx]". Additionally adding an "argN" variable indicating the parameter amount. The coroutine must be suspended.
     /// \note this function is _not_ thread safe. Only one thread is allowed to call this function the _same_ time and the coroutine must not be running!
-    template< typename ...T> requires ( (not std::is_same_v<T, ValueObject> && not std::is_same_v<T, std::vector<ValueObject>> && std::is_constructible_v<ValueObject, T, ValueConfig>) && ...)
-    void SetInputParameters( T ... t )
+    template< typename ...T> requires((not std::is_same_v<std::remove_cvref_t<T>, std::vector<ValueObject>>
+                                       && (std::is_same_v<std::remove_cvref_t<T>, ValueObject> || std::is_constructible_v<ValueObject, T, ValueConfig const &>)) && ...)
+    void SetInputParameters( T && ... t )
     {
-        std::vector<ValueObject> params{ ValueObject( std::forward<T>( t ), ValueConfig{ValueShared,ValueMutable} )... };
+        std::vector<ValueObject> params;
+        params.reserve( sizeof...(T) );
+        (params.emplace_back( MakeValueObject( std::forward<T>( t ) ) ), ...);
         SetInputParameters( params );
     }
 };

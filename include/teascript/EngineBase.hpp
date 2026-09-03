@@ -106,11 +106,14 @@ public:
     /// Invokes the TeaScript function with name rName with the additional parametes, which will be converted to ValueObjects.
     /// \returns the ValueObject result from the called fuction.
     /// \throw May throw exception::unknown_identifier or a different exception based on exception::eval_eror/runtime_error.
-    /// \note Every parameter t must be a type which can be passed to a public ValueObject consructor.
-    template< typename ...T> requires ((not std::is_same_v<T, ValueObject> && not std::is_same_v<T, std::vector<ValueObject>> && std::is_constructible_v<ValueObject, T, ValueConfig>) && ...)
-    ValueObject CallFuncEx( std::string const &rName, T ... t ) /* different name for overload resolution in derived classes! */
+    /// \note Every parameter t must be a type which can be passed to a public ValueObject consructor, except the resulting container type for parameters std::vector<ValueObject>.
+    template< typename ...T> requires((not std::is_same_v<std::remove_cvref_t<T>, std::vector<ValueObject>>
+                                       && (std::is_same_v<std::remove_cvref_t<T>, ValueObject> || std::is_constructible_v<ValueObject, T, ValueConfig const &>) ) && ...)
+    ValueObject CallFuncEx( std::string const &rName, T && ... t ) /* different name for overload resolution in derived classes! */
     {
-        std::vector<ValueObject> params{ValueObject( std::forward<T>( t ), ValueConfig{ValueShared,ValueMutable} )...};
+        std::vector<ValueObject> params;
+        params.reserve( sizeof...(T) );
+        (params.emplace_back( MakeValueObject( std::forward<T>( t ) ) ), ... );
         return CallFunc( rName, params );
     }
 
@@ -328,7 +331,7 @@ public:
         AddConst( rName, teascript::String( s, N - 1 ) ); // - 1 for not add the \0 as content. String will be null terminated anyway.
     }
 
-    /// Adds the given value as a mutable Buffer with name \param rName to the current scope.
+    /// Adds the given value as a const Buffer with name \param rName to the current scope.
     /// \throw May throw exception::redefinition_of_variable or a different excection based on exception::eval_eror/runtime_error.
     inline
     void AddConst( std::string const &rName, teascript::Buffer &&rBuffer )

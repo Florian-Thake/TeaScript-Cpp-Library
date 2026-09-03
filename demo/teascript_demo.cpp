@@ -717,7 +717,7 @@ ok := ok and _buf_set_u32( buffer, 16 + _strlen(newstr), 0xFEEDC0DEu64 ) // we o
         std::cout << "New string content: " << new_content << std::endl;
         //auto const some_secret = teascript::CoreLibrary::BufGetU32( buffer, teascript::ValueObject( 16ULL + new_len_val.GetValue<unsigned long long>() ) );
         // or call TeaScript functions with the help of the engine (since 0.14.0)
-        auto const some_secret = engine.CallFuncEx( "_buf_get_u32", buffer, 16ULL + new_len_val.GetValue<unsigned long long>() );
+        auto const some_secret = engine.CallFuncEx( "_buf_get_u32", managed_value, 16ULL + new_len_val.GetValue<unsigned long long>() );
         std::cout << "a secret code is present: " << std::hex << some_secret.GetAsInteger() << std::endl;
     }
 }

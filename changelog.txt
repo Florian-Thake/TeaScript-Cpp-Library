@@ -8,10 +8,17 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    ENGINE: Improved CallFuncEx parameter dispatching (use move, avoid copies, allow existing ValueObjects).
+    CORO: Improved SetInputParameters parameter dispatching (use move, avoid copies, allow existing ValueObjects).
+
+    VALUE: added explicit constructors for std::string_view and char const * for ease life.
+    - this also prevents silent char * to bool conversion when constructing ValueObjects via raw char *.
+
     FIX: Tea StackVM - continuing a program, which was suspended from a different thread, is now possible.
     - adjusted the example code in suspend_thread_demo.cpp by adding a 'continue thread'.
 
-    PLATTFORM: fixed compile with clang + Android NDK. Thanks Graham Asher (GitHub @GrahamAsher) for reporting.
+    PLATFORM: fixed compile with clang + Android NDK. Thanks Graham Asher (GitHub @GrahamAsher) for reporting.
+
     FIX: improved compile with clang / macOS. Thanks to Graham Asher (GitHub @GrahamAsher).
     FIX: fixed typo in GetCategory() for all exceptions based on exception::runtime_error.
     - DEPRECATED: old GetCategory variant stays one release for transition and is deprecated now.
@@ -20,8 +27,8 @@ VERSION 0.18.0 (not released yet, pre-release)
     FIX: proper cleanup of file handle in StackVM::Program::Save().
 
     DIST: Made Known_Issues.txt and Deprecation_and_Breaking_Changes.txt obsolete.
-
     ... please visit https://teascript.run-by-ai.cloud/teascript/compatibility/
+
 
 ================
 VERSION 0.17.0, Su Aug 16 15:59:38 2026

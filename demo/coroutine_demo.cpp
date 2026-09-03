@@ -85,7 +85,7 @@ void teascript_coroutine_demo()
         // change coroutine to a new one: print all parameters one by one.
         coro_engine.ChangeCoroutine( teascript::CoroutineScriptEngine::Build( print_input_code, teascript::eOptimize::O1, "print_input" ) );
         // set some parameters for the coroutine... (this could also be done if coroutine is suspended in the middle if its code is able to handle it.)
-        coro_engine.SetInputParameters( 42LL, true, std::string( "Hello" ) );
+        coro_engine.SetInputParameters( 42LL, true, "Hello" );
         // run the coroutine until finished.
         while( coro_engine.CanBeContinued() ) {
             std::cout << "next parameter: ";

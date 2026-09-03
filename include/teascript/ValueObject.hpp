@@ -442,6 +442,21 @@ public:
     }
 
     inline
+    explicit ValueObject( char const *pStr, ValueConfig const &cfg = {} )
+        : ValueObject( std::string_view( pStr != nullptr ? pStr : "" ), cfg)
+    {
+        if( nullptr == pStr ) {
+            *mpValue = *p_shared_nav; // NaV for nullptr
+        }
+    }
+
+    inline
+    explicit ValueObject( std::string_view const s, ValueConfig const &cfg = {} )
+        : ValueObject( std::string( s.data(), s.length() ), cfg )
+    {
+    }
+
+    inline
     explicit ValueObject( Error const &rError, ValueConfig const &cfg = {} )
         : mValue( create_helper( cfg.IsShared(), BareTypes( rError ) ) )
         , mpValue( cfg.IsShared() ? std::get<1>( mValue ).get() : &std::get<0>( mValue ) )
@@ -1104,6 +1119,19 @@ public:
 // but the Map type (std::map<ValueObject,ValueObject>) needs a complete ValueObject with clang and libc++ (see also note above).
 inline ValueObject::ValueVariant const ValueObject::shared_nav   = ValueObject::ValueVariant( std::in_place_index_t<1>(), std::make_shared<ValueObject::BareTypes>( NotAValue{} ) );
 inline ValueObject::BareTypes   *const ValueObject::p_shared_nav = std::get<1>( ValueObject::shared_nav ).get();
+
+
+/// helper template function for creating new ValueObjects or move/copy from an existing one in a generic way.
+/// note: usable for example when unpacking a template parameter pack and the parameter types can be mixed - some are ValueObjects already, others not.
+template<typename T> requires( std::is_same_v<std::remove_cvref_t<T>, ValueObject> || std::is_constructible_v<ValueObject, T, ValueConfig const &> )
+ValueObject MakeValueObject( T &&t, [[maybe_unused]] ValueConfig const &cfg = {} )
+{
+    if constexpr( std::is_same_v<std::remove_cvref_t<T>, ValueObject> ) {
+        return ValueObject( std::forward<T>( t ) ); // call copy or move constructor
+    } else {
+        return ValueObject( std::forward<T>( t ), cfg ); // create a new ValueObject
+    }
+}
 
 } // namespace teascript
 
