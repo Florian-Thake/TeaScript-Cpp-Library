@@ -1201,7 +1201,7 @@ public:
         }
         auto const idx = ToSize( pos );
         if( not CheckBufferPosForRead( rBuffer, idx, sizeof( U8 ) ) ) {
-            return ValueObject( MakeRuntimeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
+            return ValueObject( Error::MakeOutOfRangeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         return ValueObject( rBuffer[idx] );
@@ -1214,7 +1214,7 @@ public:
         }
         auto const idx = ToSize( pos );
         if( not CheckBufferPosForRead( rBuffer, idx, sizeof( signed char ) ) ) {
-            return ValueObject( MakeRuntimeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
+            return ValueObject( Error::MakeOutOfRangeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         I64 const val = static_cast<I64>(static_cast<signed char>(rBuffer[idx]));
@@ -1229,7 +1229,7 @@ public:
         }
         auto const idx = ToSize( pos );
         if( not CheckBufferPosForRead( rBuffer, idx, sizeof( Intermediate ) ) ) {
-            return ValueObject( MakeRuntimeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
+            return ValueObject( Error::MakeOutOfRangeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         Intermediate val_i{};
@@ -1284,7 +1284,7 @@ public:
         auto const idx = ToSize( pos );
         auto const l   = ToSize( len );
         if( not CheckBufferPosForRead( rBuffer, idx, l ) ) {
-            return ValueObject( MakeRuntimeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
+            return ValueObject( Error::MakeOutOfRangeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         auto const span = std::span( rBuffer.data() + idx, l );
@@ -1309,7 +1309,7 @@ public:
         auto const idx = ToSize( pos );
         auto const l   = ToSize( len );
         if( not CheckBufferPosForRead( rBuffer, idx, l ) ) {
-            return ValueObject( MakeRuntimeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
+            return ValueObject( Error::MakeOutOfRangeError( "Buffer: idx is out-of-range!" ), ValueConfig( ValueUnshared, ValueMutable ) );
         }
 
         auto const span = std::span( rBuffer.data() + idx, l );

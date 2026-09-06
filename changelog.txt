@@ -8,6 +8,11 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    TEASCRIPT: removed EXPERIMENTAL state from ...
+    - Error type
+
+    TEASCRIPT: added distinct Error::OutOfRange and return that for Buffer out-of-range access.
+
     ENGINE: Improved CallFuncEx parameter dispatching (use move, avoid copies, allow existing ValueObjects).
     CORO: Improved SetInputParameters parameter dispatching (use move, avoid copies, allow existing ValueObjects).
 

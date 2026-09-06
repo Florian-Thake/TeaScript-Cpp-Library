@@ -12,16 +12,17 @@
 
 namespace teascript {
 
-/// \warning EXPERIMENTAL: not official and still WORK-IN-PROGRESS!
+/// The different error values. These are not yet complete and will be extended.
 enum class eError
 {
     // skip 0 for now
     RuntimeError = 1,
     NotAValue,
+    OutOfRange,
 };
 
 
-/// \warning EXPERIMENTAL: not official and still WORK-IN-PROGRESS!
+/// Error type of TeaScript. Consisting of an error code and an error message.
 class Error
 {
     //TODO: Decide whether to use one of these or use only own enum!
@@ -45,6 +46,11 @@ public:
     static Error MakeNotAValueError()
     {
         return Error( eError::NotAValue, "Resulted in not a valid value!" );
+    }
+
+    static Error MakeOutOfRangeError( std::string const &rMessage )
+    {
+        return Error( eError::OutOfRange, rMessage );
     }
 
     int Code() const
