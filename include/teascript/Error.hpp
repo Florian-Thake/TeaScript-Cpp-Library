@@ -65,6 +65,8 @@ public:
             return "Runtime Error";
         case eError::NotAValue:
             return "Not A Value";
+        case eError::OutOfRange:
+            return "Out of Range";
         default:
             return "Unknown Error";
         }
