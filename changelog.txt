@@ -8,6 +8,11 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.17.1 (not released yet, pre-release)
 ================
+    FIX: O2 optimization might have produced an unexpected result or a Compiler error ... 
+    ... for some special syntax combinations for ...
+    - unary arithmetic and logical operations as well as 
+    - binary arithmetic and bit operations.
+
     FIX: Tea StackVM - continuing a program, which was suspended from a different thread, is now possible.
     - adjusted the example code in suspend_thread_demo.cpp by adding a 'continue thread'.
 
