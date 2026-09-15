@@ -8,6 +8,11 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    STACKVM: implemented constant evaluation for logical binary operators for optimization >= O1.
+    - updated documentation for enum class eOptimize.
+
+    FIX: removed Tea StackVM Test instruction optimization since it might have produced unexpected results ...
+    ... for some syntax combinations for O2 optimization.
     FIX: O2 optimization might have produced an unexpected result or a Compiler error ... 
     ... for some special syntax combinations for ...
     - unary arithmetic and logical operations as well as 

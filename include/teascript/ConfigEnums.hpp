@@ -12,10 +12,10 @@ namespace teascript {
 
 enum class eOptimize
 {
-    Debug,   // full debug information with a lot of extra 'no op' like Instructions (ExprStart/End, If, Else,...) for easier debugging
-    O0,      // default, minimal debug infos, no extra instructions, no optimizing
-    O1,      // simple optimizing with pre compute constant logical and arithmethic operations (TODO: Implement!)
-    O2,      // more aggressive optimizing (NOT IMPLEMENTED! will fallback to O1)
+    Debug,   /// full debug information with a lot of extra 'no op' like Instructions (ExprStart/End, If, Else,...) for easier debugging
+    O0,      /// default, minimal debug infos, no extra instructions, no optimizing
+    O1,      /// simple optimizing with pre compute constant logical and arithmethic operations (ongoing implementation - not everything is optimized yet)
+    O2,      /// more aggressive optimizing (ongoing implementation - currently O2 can speed up execution if a lot of nested scoping/function calls are used - but this may be subject to change)
 };
 
 

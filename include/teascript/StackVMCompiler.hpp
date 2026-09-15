@@ -324,44 +324,62 @@ private:
             //(TODO: insert a Mark NoOp in debug mode with "op" as payload?)
 
             // lhs is always evaluated
+            auto const size_pre_lhs = mInstructions.size(); // for O1 otpimization
             auto it = rNode->begin();
             RecursiveBuildTSVMCode( *it );
+            auto const size_post_lhs = mInstructions.size(); // for O1 otpimization
             ++it; // advance to rhs!
 
-            auto const pos = mInstructions.size(); // this will be the idx of our Jump below.
-            if( rNode->GetDetail() == "or" ) {
-                if( mInstructions.back().instr == eTSVM_Instr::Test ) {
-                    mInstructions.emplace_back( eTSVM_Instr::JumpRel_If, teascript::ValueObject() ); // TODO: check if this is always posible or must use TestAnd...
-                } else {
-                    mInstructions.emplace_back( eTSVM_Instr::TestAndJumpRel_If, teascript::ValueObject() );
+            if( mOptLevel >= eOptimize::O1 ) {
+                if( OptimizeLogicalBinOp_LHSAlwaysWins( size_pre_lhs, size_post_lhs, rNode->GetDetail() == "or" ) ) {
+                    // done! rhs is not needed at all!
+                    return;
                 }
-            } else {
-                if( mInstructions.back().instr == eTSVM_Instr::Test ) {
-                    mInstructions.emplace_back( eTSVM_Instr::JumpRel_IfNot, teascript::ValueObject() ); // TODO: check if this is always posible or must use TestAnd...
-                } else {
+            }
+
+            // check if rhs is always executed, e.g., true and rhs, false or rhs. if yes remove lhs and skip jump and finally check whether rhs is also a constant!
+            bool const jump_needed = mOptLevel < eOptimize::O1 || not OptimizeLogicalBinOp_RHSAlwaysWins( size_pre_lhs, size_post_lhs, rNode->GetDetail() == "or" );
+
+            auto const pos = mInstructions.size(); // this will be the idx of our Jump below.
+
+            if( jump_needed ) {
+                // NOTE: we cannot optimize to JumpRel without a test if a Test instruction is already there. This will produce faulty results for some code!
+                if( rNode->GetDetail() == "or" ) {
+                    mInstructions.emplace_back( eTSVM_Instr::TestAndJumpRel_If, teascript::ValueObject() );
+                } else { // and
                     mInstructions.emplace_back( eTSVM_Instr::TestAndJumpRel_IfNot, teascript::ValueObject() );
                 }
-            }
-            if( mOptLevel == eOptimize::Debug ) {
-                mDebuginfo.emplace( mInstructions.size() - 1, rNode->GetSourceLocation() );
+                if( mOptLevel == eOptimize::Debug ) {
+                    mDebuginfo.emplace( mInstructions.size() - 1, rNode->GetSourceLocation() );
+                }
+
+                // for the case we did not jump remove the last value from stack
+                mInstructions.emplace_back( eTSVM_Instr::Pop, teascript::ValueObject() );
             }
 
-            // for the case we did not jump remove the last value from stack
-            mInstructions.emplace_back( eTSVM_Instr::Pop, teascript::ValueObject() );
 
             // now build the rhs part
+            auto const size_pre_rhs = mInstructions.size(); // for O1 otpimization
             RecursiveBuildTSVMCode( *it );
+            auto const size_post_rhs = mInstructions.size(); // for O1 otpimization
 
-            // for the case we did not jump convert the result of last instructions to Bool
-            if( mInstructions.back().instr != eTSVM_Instr::Test ) { // avoid double tests for chained or/and combinations.
-                mInstructions.emplace_back( eTSVM_Instr::Test, teascript::ValueObject() );
+            if( mOptLevel >= eOptimize::O1 ) {
+                if( OptimizeLogicalBinOp_ConstantExpr( size_pre_lhs, size_post_lhs, jump_needed, size_pre_rhs, size_post_rhs, rNode->GetDetail() == "or" ) ) {
+                    // done!
+                    return;
+                }
             }
 
-            // calculate relative index for jump to in case lhs was enough to check.
-            auto const diff = mInstructions.size() - pos;
+            // for the case we did not jump convert the result of last instructions to Bool
+            mInstructions.emplace_back( eTSVM_Instr::Test, teascript::ValueObject() );
 
-            // set it in the jump
-            mInstructions[pos].payload = teascript::ValueObject( static_cast<teascript::Integer>(diff) );
+            if( jump_needed ) {
+                // calculate relative index for jump to in case lhs was enough to check.
+                auto const diff = mInstructions.size() - pos;
+
+                // set it in the jump
+                mInstructions[pos].payload = teascript::ValueObject( static_cast<teascript::Integer>(diff) );
+            }
 
             // done!
             return;
@@ -1176,6 +1194,151 @@ private:
         mInstructions[start].instr = eTSVM_Instr::NoOp;
 
         return true;
+    }
+
+    bool OptimizeLogicalBinOp_LHSAlwaysWins( size_t const size_pre_lhs, size_t const size_post_lhs, bool const isOr )
+    {
+        assert( size_post_lhs >= size_pre_lhs );
+        assert( mInstructions.size() >= 1 );
+
+        // everything greater one instruction cannot be a Constant
+        if( size_post_lhs - size_pre_lhs > 1 ) {
+            return false;
+        }
+
+        auto i = mInstructions.rbegin();
+
+        // a Constant is either a Push or a Pop+Push -> Replace
+        if( i->instr != eTSVM_Instr::Push && i->instr != eTSVM_Instr::Replace ) {
+            return false;
+        }
+        // a Pop + Push merge into Replace has a diff of 0
+        if( 0 == (size_post_lhs - size_pre_lhs) && i->instr != eTSVM_Instr::Replace ) {
+            return false;
+        }
+        // former debug operator (or a NaV Constant which should result in a runtime error, because it cannot be cast to Bool)
+        if( not i->payload.HasValue() ) {
+            return false;
+        }
+
+        bool opt = false;
+        bool const evaluated_value = i->payload.GetAsBool();
+        // true or --> rhs is not needed
+        if( isOr && evaluated_value ) {
+            opt = true;
+        }
+        // false and --> rhs is not needed
+        if( not isOr && not evaluated_value ) {
+            opt = true;
+        }
+
+        if( opt ) {
+            i->payload = ValueObject( evaluated_value );
+        }
+
+        return opt;
+    }
+
+    bool OptimizeLogicalBinOp_RHSAlwaysWins( size_t const size_pre_lhs, size_t const size_post_lhs, bool const isOr )
+    {
+        assert( size_post_lhs >= size_pre_lhs );
+        assert( mInstructions.size() >= 1 );
+
+        // everything greater one instruction cannot be a Constant
+        if( size_post_lhs - size_pre_lhs > 1 ) {
+            return false;
+        }
+
+        auto i = mInstructions.rbegin();
+
+        // a Constant is either a Push or a Pop+Push -> Replace
+        if( i->instr != eTSVM_Instr::Push && i->instr != eTSVM_Instr::Replace ) {
+            return false;
+        }
+        // a Pop + Push merge into Replace has a diff of 0
+        if( 0 == (size_post_lhs - size_pre_lhs) && i->instr != eTSVM_Instr::Replace ) {
+            return false;
+        }
+        // former debug operator (or a NaV Constant which should result in a runtime error, because it cannot be cast to Bool)
+        if( not i->payload.HasValue() ) {
+            return false;
+        }
+
+        bool opt = false;
+        bool const evaluated_value = i->payload.GetAsBool();
+        // false or --> rhs always
+        if( isOr && not evaluated_value ) {
+            opt = true;
+        }
+        // true and --> rhs always
+        if( not isOr && evaluated_value ) {
+            opt = true;
+        }
+
+        if( opt ) {
+            // a Replace must be changed back to a Pop!
+            if( i->instr == eTSVM_Instr::Replace ) {
+                i->instr = eTSVM_Instr::Pop;
+                i->payload = ValueObject();
+            } else {
+                mInstructions.pop_back(); // remove lhs entirely.
+            }
+        }
+
+        return opt;
+    }
+
+    bool OptimizeLogicalBinOp_ConstantExpr( [[maybe_unused]] size_t const size_pre_lhs, size_t const size_post_lhs, bool const jump_needed, 
+                                                             size_t const size_pre_rhs, size_t const size_post_rhs, bool const isOr )
+    {
+        assert( size_post_lhs >= size_pre_lhs );
+        assert( size_post_rhs >= size_pre_rhs );
+        assert( size_post_rhs >= size_pre_lhs );
+        assert( mInstructions.size() >= size_post_rhs && not mInstructions.empty() );
+
+        // lhs can either be removed already (rhs always wins), or it is not a constant at all.
+        // The case lhs is a constant but still there cannot be true here. For that case lhs always wins is true and rhs would have been skipped entirely.
+
+        auto const diff = (size_post_rhs - size_pre_rhs);
+
+        bool const rhs_is_constant = (1 == diff && (mInstructions[size_pre_rhs].instr == eTSVM_Instr::Push || mInstructions[size_pre_rhs].instr == eTSVM_Instr::Replace))
+                                  || (0 == diff && mInstructions[size_pre_rhs-1].instr == eTSVM_Instr::Replace); // diff == 0 -> Pop+Push merge into Replace
+
+        if( not rhs_is_constant ) {
+            return false;
+        }
+
+        auto const idx = (1 == diff) ? size_pre_rhs : (size_pre_rhs - 1);
+
+        // former debug operator (or a NaV Constant which should result in a runtime error, because it cannot be cast to Bool)
+        if( not mInstructions[idx].payload.HasValue() ) {
+            return false;
+        }
+
+        bool const evaluated_value = mInstructions[idx].payload.GetAsBool();
+
+        bool const lhs_is_gone_already = not jump_needed;
+        // now we know rhs is a constant. If lhs is already gone, we can evaluate rhs now
+        if( lhs_is_gone_already ) {
+            mInstructions[idx].payload = ValueObject( evaluated_value );
+            return true;
+        }
+
+        // here lhs is present and not a Constant but rhs is a Constant.
+        
+        // does rhs count at all? e.g., for xx or false, xx and true rhs is useless, lhs matters and rhs can be removed.
+        if( (isOr && not evaluated_value) || (not isOr && evaluated_value) ) {
+            // remove rhs part entirely!
+            while( mInstructions.size() > size_post_lhs ) {
+                mInstructions.pop_back();
+            }
+
+            // insert a Test for lhs
+            mInstructions.emplace_back( eTSVM_Instr::Test, teascript::ValueObject() );
+            return true;
+        }
+
+        return false;
     }
 };
 
