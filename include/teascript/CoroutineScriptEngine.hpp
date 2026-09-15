@@ -52,7 +52,6 @@ using ProgramPtr = std::shared_ptr<Program>;
 /// \warning Furthermore, querying or modifying the context is not thread-safe. Only one
 /// thread is allowed to use the Context the _same_ time!
 /// \note The context is not shared. Each instance will use its own private context.
-/// \note This class and its interface/layout are considered EXPERIMENTAL.
 class CoroutineScriptEngine
 {
 protected:
@@ -75,9 +74,11 @@ public:
     /// \note any prior existing local scope will be removed from the context.
     TEASCRIPT_COMPILE_MODE_INLINE explicit CoroutineScriptEngine( Context &&rContext );
     /// Will prepare to execute the given program as coroutine and bootstrap the full Core Library into the context.
+    /// \throw exception::runtime_error or a derived class if program is invalid or execution could not be prepared.
     TEASCRIPT_COMPILE_MODE_INLINE explicit CoroutineScriptEngine( StackVM::ProgramPtr const &coroutine );
     /// Will prepare to execute the given program as coroutine and use the given context as the context for the coroutine.
     /// \note any prior existing local scope will be removed from the context.
+    /// \throw exception::runtime_error or a derived class if program is invalid or execution could not be prepared.
     TEASCRIPT_COMPILE_MODE_INLINE CoroutineScriptEngine( StackVM::ProgramPtr const &coroutine, Context &&rContext );
 
     /// builds a coroutine program from given source. 
@@ -87,17 +88,28 @@ public:
 
     /// Will prepare to execute the given program as coroutine, the old coroutine will be removed.
     /// The current coroutine must not be running actually!
+    /// \throw exception::runtime_error or a derived class if program is invalid or execution could not be prepared.
+    /// \note removes all scopes but the global from context. If you need a fresh global context you must construct a fresh engine.
+    /// \note you need to call SetInputParameters after this call (again) if you need some.
     TEASCRIPT_COMPILE_MODE_INLINE void ChangeCoroutine( StackVM::ProgramPtr const &coroutine );
 
-    /// Resets state and prepares actual set coroutine for execution. same as ChangeCoroutine( old_coroutine ).
+    /// \returns the current set coroutine program. Might be a nullptr if never set.
+    TEASCRIPT_COMPILE_MODE_INLINE StackVM::ProgramPtr GetCurrentCoroutine() const;
+
+    /// Resets state and prepares actual set coroutine for execution. Same as ChangeCoroutine( old_coroutine ).
+    /// \note does nothing if there is not a valid coroutine yet, otherwise \see ChangeCoroutine
     TEASCRIPT_COMPILE_MODE_INLINE void Reset();
 
-    /// \returns whether the coroutine is neither running, nor yet finished and no error occurred, so that in can be continued (e.g., for yielding more values)
+    /// \returns whether the coroutine is neither running, nor yet finished and no error occurred, so that it can be continued (e.g., for yielding more values)
     TEASCRIPT_COMPILE_MODE_INLINE bool CanBeContinued() const;
 
-    /// \returns whether the coroutine is completely finished (no more values can be yielded / no instruction left to be executed).
+    /// \returns whether the coroutine is completely finished without an error (no more values can be yielded / no instruction left to be executed).
     /// \note depending on the coroutine code this state might be never reached!
     TEASCRIPT_COMPILE_MODE_INLINE bool IsFinished() const;
+
+    /// \returns whether the coroutine has halted because of an error. A further execution is not possible. Calling Reset() may help.
+    /// \note a possible exception was thrown from Run/RunFor already. It is not possible to throw the exception again.
+    TEASCRIPT_COMPILE_MODE_INLINE bool IsErroneousHalted() const;
 
     /// \returns whether the actual set coroutine is running, i.e. a thread is inside Run()/operator()/RunFor() or ChangeCoroutine().
     inline

@@ -85,10 +85,18 @@ void CoroutineScriptEngine::ChangeCoroutine( StackVM::ProgramPtr const &coroutin
 }
 
 TEASCRIPT_COMPILE_MODE_INLINE
+StackVM::ProgramPtr CoroutineScriptEngine::GetCurrentCoroutine() const
+{
+    return mMachine->GetMainProgram();
+}
+
+TEASCRIPT_COMPILE_MODE_INLINE
 void CoroutineScriptEngine::Reset()
 {
     auto current = mMachine->GetMainProgram(); // copy is intended!
-    ChangeCoroutine( current );
+    if( current != nullptr ) { // prevent a throw when Reset is called on an empty engine.
+        ChangeCoroutine( current );
+    }
 }
 
 TEASCRIPT_COMPILE_MODE_INLINE
@@ -105,6 +113,14 @@ bool CoroutineScriptEngine::IsFinished() const
     // NOTE: the potential race between && is ok, the state may change after the call anyway.
     //       The target is to protect RunFor + ChangeCoroutine!
     return not IsRunning() && mMachine->IsFinished();
+}
+
+TEASCRIPT_COMPILE_MODE_INLINE
+bool CoroutineScriptEngine::IsErroneousHalted() const
+{
+    // NOTE: the potential race between && is ok, the state may change after the call anyway.
+    //       The target is to protect RunFor + ChangeCoroutine!
+    return not IsRunning() && mMachine->IsErroneousHalted();
 }
 
 TEASCRIPT_COMPILE_MODE_INLINE

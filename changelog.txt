@@ -8,6 +8,9 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    CORO: added convenience GetCurrentCoroutine() and IsErroneousHalted() and ...
+    ... allow Reset() is called without throwing if a coroutine was never set before.
+
     STACKVM: implemented constant evaluation for logical binary operators for optimization >= O1.
     - updated documentation for enum class eOptimize.
 
@@ -20,6 +23,7 @@ VERSION 0.18.0 (not released yet, pre-release)
 
     TEASCRIPT: removed EXPERIMENTAL state from ...
     - Error type
+    - CoroutineScriptEngine
 
     TEASCRIPT: added distinct Error::OutOfRange and return that for Buffer out-of-range access.
 

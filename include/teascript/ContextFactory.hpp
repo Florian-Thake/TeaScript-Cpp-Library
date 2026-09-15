@@ -36,6 +36,12 @@ public:
     {
     }
 
+    /// This constructor will use the given config and given optimization level for bootstrapping the Core Library.
+    ContextFactory( config::eConfig const conf, eOptimize const opt_level )
+        : Engine( true, conf, Engine::eMode::Compile, opt_level )
+    {
+    }
+
     /// \returns the context, which was moved from member. The member context is now empty but usable.
     /// \note For re-use this factory instance most likely a ResetState() call should be issued.
     Context MoveOutContext()
