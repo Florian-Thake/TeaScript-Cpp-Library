@@ -8,6 +8,11 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    FIX: O2 optimization might have produced an unexpected result or a Compiler error ... 
+    ... for some special syntax combinations for ...
+    - unary arithmetic and logical operations as well as 
+    - binary arithmetic and bit operations.
+
     TEASCRIPT: removed EXPERIMENTAL state from ...
     - Error type
 

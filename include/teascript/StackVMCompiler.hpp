@@ -814,6 +814,7 @@ private:
         // BODY Section (generic recursive child handling)
         // ===
 
+        auto const instr_size_pre_node_children = mInstructions.size();
         if( rNode->HasChildren() ) {
 
             for( auto it = rNode->begin(); it != rNode->end(); ++it ) {
@@ -854,7 +855,7 @@ private:
                 }
             }
         }
-
+        auto const instr_size_post_node_children = mInstructions.size();
 
         // ===
         // FOOTER Section
@@ -889,7 +890,7 @@ private:
             } else if( rNode->GetDetail().starts_with( "bit_" ) ) {
                 auto const  op = std::static_pointer_cast<teascript::ASTNode_Bit_Operator>(rNode)->GetBitOp();
                 if( mOptLevel >= eOptimize::O1 ) {
-                    if( not OptimizeBitOp( op, rNode->GetSourceLocation() ) ) {
+                    if( not OptimizeBitOp( instr_size_pre_node_children, instr_size_post_node_children, op, rNode->GetSourceLocation() ) ) {
                         mInstructions.emplace_back( eTSVM_Instr::BitOp, teascript::ValueObject( static_cast<teascript::U64>(op) ) );
                     }
                 } else {
@@ -898,7 +899,7 @@ private:
             } else {
                 auto const  op = std::static_pointer_cast<teascript::ASTNode_Binary_Operator>(rNode)->GetOperation();
                 if( mOptLevel >= eOptimize::O1 ) {
-                    if( not OptimizeBinaryOp( op, rNode->GetSourceLocation() ) ) {
+                    if( not OptimizeBinaryOp( instr_size_pre_node_children, instr_size_post_node_children, op, rNode->GetSourceLocation() ) ) {
                         mInstructions.emplace_back( eTSVM_Instr::BinaryOp, teascript::ValueObject( static_cast<teascript::U64>(op) ) );
                     }
                 } else {
@@ -938,7 +939,7 @@ private:
             }
             auto const  op = std::static_pointer_cast<teascript::ASTNode_Unary_Operator>(rNode)->GetOperation();
             if( mOptLevel >= eOptimize::O1 ) {
-                if( not OptimizeUnaryOp( op, rNode->GetSourceLocation() ) ) {
+                if( not OptimizeUnaryOp( instr_size_pre_node_children, instr_size_post_node_children, op, rNode->GetSourceLocation() ) ) {
                     mInstructions.emplace_back( eTSVM_Instr::UnaryOp, teascript::ValueObject( static_cast<teascript::U64>(op) ) );
                 }
             } else {
@@ -1081,11 +1082,17 @@ private:
         }
     }
 
-    bool OptimizeUnaryOp( ASTNode_Unary_Operator::eOperation const op, SourceLocation const &rLoc )
+    bool OptimizeUnaryOp( size_t const instr_size_pre_node_children, size_t const instr_size_post_node_children, ASTNode_Unary_Operator::eOperation const op, SourceLocation const &rLoc )
     {
         assert( not mInstructions.empty() );
+        assert( instr_size_post_node_children >= instr_size_pre_node_children );
+
+        auto const diff = instr_size_post_node_children - instr_size_pre_node_children;
+        if( diff > 1 ) {
+            return false;
+        }
         // check if we have a constant (Push or Replace)
-        if( mInstructions.back().instr == eTSVM_Instr::Push || mInstructions.back().instr == eTSVM_Instr::Replace ) {
+        if( mInstructions.back().instr == eTSVM_Instr::Replace || (diff == 1 && mInstructions.back().instr == eTSVM_Instr::Push) ) {
             // yes, calculate it now and save it.
             mInstructions.back().payload = ASTNode_Unary_Operator::StaticExec( op, mInstructions.back().payload, rLoc );
             return true;
@@ -1093,11 +1100,18 @@ private:
         return false;
     }
 
-    bool OptimizeBinaryOp( ASTNode_Binary_Operator::eOperation const op, SourceLocation const &rLoc )
+    bool OptimizeBinaryOp( size_t const instr_size_pre_node_children, size_t const instr_size_post_node_children, ASTNode_Binary_Operator::eOperation const op, SourceLocation const &rLoc )
     {
         assert( mInstructions.size() >= 2 );
-        if( (mInstructions.back().instr == eTSVM_Instr::Push || mInstructions.back().instr == eTSVM_Instr::Replace)
-            && (mInstructions[mInstructions.size() - 2].instr == eTSVM_Instr::Push || mInstructions[mInstructions.size() - 2].instr == eTSVM_Instr::Replace) ) {
+        assert( instr_size_post_node_children >= instr_size_pre_node_children );
+
+        auto const diff = instr_size_post_node_children - instr_size_pre_node_children;
+        if( diff > 2 ) {
+            return false;
+        }
+
+        if( (mInstructions.back().instr == eTSVM_Instr::Push)
+            && (mInstructions[mInstructions.size() - 2].instr == eTSVM_Instr::Push || (diff == 1 && mInstructions[mInstructions.size() - 2].instr == eTSVM_Instr::Replace)) ) {
 
             mInstructions[mInstructions.size() - 2].payload = ASTNode_Binary_Operator::StaticExec( 
                                                                 op, mInstructions[mInstructions.size() - 2].payload, 
@@ -1108,11 +1122,18 @@ private:
         return false;
     }
 
-    bool OptimizeBitOp( ASTNode_Bit_Operator::eBitOp const op, SourceLocation const &rLoc )
+    bool OptimizeBitOp( size_t const instr_size_pre_node_children, size_t const instr_size_post_node_children, ASTNode_Bit_Operator::eBitOp const op, SourceLocation const &rLoc )
     {
         assert( mInstructions.size() >= 2 );
-        if( (mInstructions.back().instr == eTSVM_Instr::Push || mInstructions.back().instr == eTSVM_Instr::Replace)
-            && (mInstructions[mInstructions.size() - 2].instr == eTSVM_Instr::Push || mInstructions[mInstructions.size() - 2].instr == eTSVM_Instr::Replace) ) {
+        assert( instr_size_post_node_children >= instr_size_pre_node_children );
+
+        auto const diff = instr_size_post_node_children - instr_size_pre_node_children;
+        if( diff > 2 ) {
+            return false;
+        }
+
+        if( (mInstructions.back().instr == eTSVM_Instr::Push)
+            && (mInstructions[mInstructions.size() - 2].instr == eTSVM_Instr::Push || (diff == 1 && mInstructions[mInstructions.size() - 2].instr == eTSVM_Instr::Replace)) ) {
 
             mInstructions[mInstructions.size() - 2].payload = ASTNode_Bit_Operator::StaticExec(
                                                                 op, mInstructions[mInstructions.size() - 2].payload,
