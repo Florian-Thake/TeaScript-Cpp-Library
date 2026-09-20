@@ -312,12 +312,8 @@ func web_server_build_reply( const req @=, code, payload @= "" )
 )_SCRIPT_";
 
     Parser p;
-#if !defined(NDEBUG)  //TODO: Do we want this block always enabled?
-    p.SetDebug( rInto.is_debug );
-    eOptimize opt_level = rInto.is_debug ? eOptimize::Debug : eOptimize::O0;
-#else
-    eOptimize opt_level = eOptimize::O1;
-#endif
+    //p.OverwriteDialect( rContext.GetSettings().GetDialect() ); // internal core lib always shall use default dialect
+    p.SetDebug( rInto.GetSettings().IsDebug() );
 
     p.ParsePartial( web_preview_code, "WebPreview" );
     auto ast = p.ParsePartialEnd();
@@ -326,7 +322,7 @@ func web_server_build_reply( const req @=, code, payload @= "" )
         ast->Eval( rInto );
     } else {
         StackVM::Compiler  compiler;
-        auto program = compiler.Compile( ast, opt_level );
+        auto program = compiler.Compile( ast, rInto.GetSettings().GetOptimizationLevel() );
         StackVM::Machine<false>  machine;
         machine.Exec( program, rInto );
         machine.ThrowPossibleErrorException();

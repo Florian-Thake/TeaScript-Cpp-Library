@@ -33,11 +33,17 @@ struct Engine::BuildTools
 
 TEASCRIPT_COMPILE_MODE_INLINE
 Engine::Engine( bool const bootstrap, config::eConfig const config, eMode const mode, eOptimize const opt_level )
+    : Engine( bootstrap, Settings(config, opt_level), mode )
+{
+}
+
+TEASCRIPT_COMPILE_MODE_INLINE
+Engine::Engine( bool const bootstrap, Settings  &&rSettings, eMode const mode )
     : EngineBase()
     , mMode( mode )
-    , mOptLevel( opt_level )
-    , mCoreConfig( config )
-    , mContext()
+    , mOptLevel( rSettings.GetOptimizationLevel() )
+    , mCoreConfig( rSettings.GetCoreConfig() )
+    , mContext( std::move(rSettings), true )
     , mBuildTools( std::make_shared<BuildTools>() )
 {
     if( bootstrap ) {
@@ -62,7 +68,7 @@ ValueObject Engine::EvaluateContent( Content const &rContent, std::string const 
         if( mMode == eMode::Eval ) {
             return ast->Eval( mContext );
         } else {
-            auto const program = mBuildTools->mCompiler.Compile( ast, mOptLevel );
+            auto const program = mBuildTools->mCompiler.Compile( ast, mContext.GetSettings().GetOptimizationLevel() );
             mBuildTools->mMachine->Reset();
             mBuildTools->mMachine->Exec( program, mContext );
             mBuildTools->mMachine->ThrowPossibleErrorException();
@@ -77,17 +83,22 @@ ValueObject Engine::EvaluateContent( Content const &rContent, std::string const 
 }
 
 TEASCRIPT_COMPILE_MODE_INLINE
-Engine::Engine(config::eConfig const config, eMode const mode )
-    : EngineBase()
-    , mMode( mode )
-    , mCoreConfig( config )
-    , mContext()
-    , mBuildTools( std::make_shared<BuildTools>() )
+Engine::Engine( Settings &&rSettings, eMode const mode )
+    : Engine(true, std::move(rSettings), mode )
 {
-    CoreLibrary().Bootstrap( mContext, mCoreConfig, mMode == eMode::Eval );
-#if TEASCRIPT_ENGINE_USE_WEB_PREVIEW
-    WebPreviewModule().Load( mContext, mCoreConfig, mMode == eMode::Eval );
-#endif
+
+}
+
+TEASCRIPT_COMPILE_MODE_INLINE
+Engine::Engine(config::eConfig const config, eMode const mode )
+    : Engine( true, config, mode, eOptimize::O0 )
+{
+}
+
+TEASCRIPT_COMPILE_MODE_INLINE
+Settings const &Engine::GetSettings() const
+{
+    return mContext.GetSettings();
 }
 
 TEASCRIPT_COMPILE_MODE_INLINE
@@ -105,8 +116,7 @@ TEASCRIPT_COMPILE_MODE_INLINE
 void Engine::SetDebugMode( bool const enabled ) noexcept
 {
     mBuildTools->mParser.SetDebug( enabled );
-    mContext.is_debug = enabled;
-    mOptLevel = enabled ? eOptimize::Debug : eOptimize::O0;
+    mContext.SwitchOptimizationLevel( enabled ? eOptimize::Debug : mOptLevel );
 }
 
 TEASCRIPT_COMPILE_MODE_INLINE

@@ -1482,7 +1482,7 @@ public:
                 }
                 throw;
             } catch( exception::unknown_identifier const & ) {
-                if( rContext.dialect.auto_define_unknown_identifiers ) {
+                if( rContext.GetSettings().GetDialect().auto_define_unknown_identifiers ) {
                     if( !mbShared ) {
                         val.Detach( true ); // make copy.
                     }
@@ -1595,7 +1595,7 @@ public:
         if( mType == eType::Def ) {
             // NOTE: the Def Operator stays only there if it is without assignment. Otherwise the Assign Operator will do the work.
             // IMPORTANT: The option to have a TeaScript dialect where declaration without assignment is allowed is actually unsupported and not functional.
-            if( rContext.dialect.declare_identifiers_without_assign_allowed && is_id ) { // NOTE: Not implemented for Dot Op.
+            if( rContext.GetSettings().GetDialect().declare_identifiers_without_assign_allowed && is_id ) { // NOTE: Not implemented for Dot Op.
                 return rContext.AddValueObject( mChildren[0]->GetDetail(), ValueObject().MakeShared(), GetSourceLocation() ); //NOTE: need to be marked with type 'undefined' for can assign any type
             } else {
                 throw exception::declare_without_assign( GetSourceLocation(), mChildren[0]->GetDetail() );
@@ -1629,12 +1629,12 @@ public:
                 }
                 return ValueObject( true );
             } catch( exception::unknown_identifier const & ) {
-                if( rContext.dialect.undefine_unknown_idenitifiers_allowed ) {
+                if( rContext.GetSettings().GetDialect().undefine_unknown_idenitifiers_allowed ) {
                     return ValueObject( false );
                 }
                 throw;
             } catch( exception::out_of_range const & ) {
-                if( rContext.dialect.undefine_unknown_idenitifiers_allowed ) {
+                if( rContext.GetSettings().GetDialect().undefine_unknown_idenitifiers_allowed ) {
                     return ValueObject( false );
                 }
                 throw;

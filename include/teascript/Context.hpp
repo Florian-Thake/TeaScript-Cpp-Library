@@ -15,7 +15,7 @@
 #include "Print.hpp"
 #include "Util.hpp"
 #include "UtilInternal.hpp"
-#include "Dialect.hpp"
+#include "Settings.hpp"
 
 #include <vector>
 #include <queue>
@@ -70,6 +70,8 @@ public:
 private:
     bool mBootstrapped = true;
 
+    Settings mSettings;
+
     TypeSystem mTypeSystem; // Better be a shared ptr?
     //TODO: THREAD Have a shared global scope (optionally) for multi-threaded environments?
     //      then the local scopes could use "per thread" storage? or alternatively 
@@ -96,17 +98,19 @@ private:
     }
 
 public:
-    Dialect  dialect; // TeaScipt language behavior. (default is TeaScript standard language)  NOTE: The existence/public existence may change in future!
-
-    bool is_debug = false; // from and for parser. TODO: ASTNodeFactory (integrate Parser in Context?? no, better try to keep Parser and Context unrelated!!)
-
     Context() = default;
     Context( Context && ) = default;
     Context &operator=( Context && ) = default;
 
-
-    explicit Context( TypeSystem &&rMovedSys, bool const booting = false )
+    explicit Context( Settings &&rSettings, bool const booting = false )
         : mBootstrapped( not booting )
+        , mSettings( std::move( rSettings ) )
+    {
+    }
+
+    Context( TypeSystem &&rMovedSys, Settings && rSettings, bool const booting = false )
+        : mBootstrapped( not booting )
+        , mSettings( std::move( rSettings ) )
         , mTypeSystem( std::move( rMovedSys ) )
     {
     }
@@ -118,6 +122,19 @@ public:
             mLocalScopes.pop_back();
         }
     }
+
+    Settings const &GetSettings() const
+    {
+        return mSettings;
+    }
+
+    eOptimize SwitchOptimizationLevel( eOptimize const opt_level )
+    {
+        eOptimize const old = mSettings.GetOptimizationLevel();
+        mSettings.SetOptimizationLevel( opt_level );
+        return old;
+    }
+
 
     void SetBootstrapDone()
     {

@@ -213,9 +213,9 @@ public:
             filename = "_EVALFUNC_";
         }
 
-        Parser p; //FIXME: for later versions: must use correct state with correct factory.
-        p.OverwriteDialect( rContext.dialect ); // use eventually modified dialect.
-        p.SetDebug( rContext.is_debug );
+        Parser p;
+        p.OverwriteDialect( rContext.GetSettings().GetDialect() ); // use eventually modified dialect.
+        p.SetDebug( rContext.GetSettings().IsDebug() );
         try {
             return p.Parse( content, filename )->Eval( rContext );
         } catch( exception::eval_error const &/*ex*/ ) {

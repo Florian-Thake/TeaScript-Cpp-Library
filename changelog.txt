@@ -8,6 +8,18 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    TEASCRIPT: Introduced new Settings class for combine core config, optimization, ...
+    ... dialect and the NEW paths for modules and the .tsb store.
+    - refactored Context to use new Settings class. Context is the source of truth for the current settings.
+    ENGINE: refactored to use new Settings class.
+    - added new Constructors which work with Settings, streamlined constructor chaining.
+    - BREAKING CHANGE: protected member mOptLevel will not change to eOptimize::Debug anymore when SetDebugMode(true),
+      but this was faulty anyway, because when switch back to SetDebugMode(false) it always used eOptimize::O0.
+      Now, mOptLevel is always the normal, non debug optimization level.
+    CORELIB|WEB: refactored to use new Settings class.
+    - CoreLibrary and WebModule now always use the optimization level from the Settings in the Context (regardless of NDEBUG).
+    HOST: use new Settings class.
+
     CORO: added convenience GetCurrentCoroutine() and IsErroneousHalted() and ...
     ... allow Reset() is called without throwing if a coroutine was never set before.
 

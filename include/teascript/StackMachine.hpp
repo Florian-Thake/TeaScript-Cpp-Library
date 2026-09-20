@@ -673,7 +673,7 @@ private:
                     (void)rContext.RemoveValueObject( current_instr.payload.template GetValue<std::string>() );
                     mStack.push_back( ValueObject( true ) );
                 } catch( exception::unknown_identifier const & ) {
-                    if( rContext.dialect.undefine_unknown_idenitifiers_allowed ) {
+                    if( rContext.GetSettings().GetDialect().undefine_unknown_idenitifiers_allowed ) {
                         mStack.push_back( ValueObject( false ) );
                     } else {
                         HandleException( std::current_exception() );

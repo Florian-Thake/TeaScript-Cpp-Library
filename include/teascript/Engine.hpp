@@ -95,6 +95,12 @@ protected:
     ///       using another CoreLibrary or a derived class. Don't forget to override ResetState() in such a case.
     TEASCRIPT_COMPILE_MODE_INLINE Engine( bool const bootstrap, config::eConfig const config, eMode const mode = eMode::Compile, eOptimize const opt_level = eOptimize::O0 );
 
+    /// Constructs the engine without bootstrapping the Core Library if \param bootstrap is false.
+    /// If \param bootstrap is true it will bootstrap the Core Library with specified config from \param config.
+    /// \note This constructor is useful for derived classes which don't want the default bootstrapping, e.g.
+    ///       using another CoreLibrary or a derived class. Don't forget to override ResetState() in such a case.
+    TEASCRIPT_COMPILE_MODE_INLINE Engine( bool const bootstrap, Settings &&rSettings, eMode const mode = eMode::Compile );
+
     /// Adds the given ValuObject \param val to the current scope as name \param rName.
     /// \throw May throw exception::redefinition_of_variable or a different exception based on exception::eval_eror/runtime_error.
     TEASCRIPT_COMPILE_MODE_INLINE void AddValueObject( std::string const &rName, ValueObject val ) override;
@@ -112,6 +118,9 @@ public:
     {
     }
 
+    /// Constructs the engine with the specified settings.
+    TEASCRIPT_COMPILE_MODE_INLINE explicit Engine( Settings && rSettings, eMode const mode = eMode::Compile );
+
     /// Constructs the engine with the specified config. Use the helper funcions from config namespace to simplify the configuration.
     TEASCRIPT_COMPILE_MODE_INLINE explicit Engine( config::eConfig const config, eMode const mode = eMode::Compile );
 
@@ -126,6 +135,9 @@ public:
     /// copy and assignment is deleted.
     Engine &operator=( Engine const & ) = delete;
 
+
+    /// \returns the current settings
+    TEASCRIPT_COMPILE_MODE_INLINE Settings const &GetSettings() const;
 
     /// Resets the state of the context (+ parser and machine). Will do a fresh bootstrap of the CoreLibrary with the current saved configuration.
     /// \note This should be done usually prior each execution of a script to not interfer with old variables/modified environment.

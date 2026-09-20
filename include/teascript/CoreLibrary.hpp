@@ -2993,9 +2993,10 @@ func rolldice( eyes := 6 )
             sys.RegisterType<FunctionPtr>("Function");
             sys.RegisterType<std::vector<ValueObject>>("ValueObjectVector");
 
-            Context tmp{ std::move( sys ), true };
-            tmp.is_debug = rContext.is_debug; // take over from possible old instance.
-            tmp.dialect  = rContext.dialect;  // take over from possible old instance.
+            Settings old_settings = rContext.GetSettings(); // carry over possible old settings.
+            old_settings.SetCoreConfig( config );
+
+            Context tmp{ std::move( sys ), std::move(old_settings), true };
 
             BuildInternals( tmp, config );
 
@@ -3009,14 +3010,9 @@ func rolldice( eyes := 6 )
         }
 
 
-        Parser p; //FIXME: for later versions: must use correct state with correct factory.
-        //p.OverwriteDialect( rContext.dialect ); // internal core lib always shall use default dialect
-#if !defined(NDEBUG)  //TODO: Do we want this block always enabled for the internal core lib?
-        p.SetDebug( rContext.is_debug );
-        eOptimize opt_level = rContext.is_debug ? eOptimize::Debug : eOptimize::O0;
-#else
-        eOptimize opt_level = eOptimize::O1;
-#endif
+        Parser p;
+        //p.OverwriteDialect( rContext.GetSettings().GetDialect() ); // internal core lib always shall use default dialect
+        p.SetDebug( rContext.GetSettings().IsDebug() );
 
         p.ParsePartial( core_lib_util, "Core" );
         if( not (config & config::NoStdOut) ) {
@@ -3063,7 +3059,7 @@ func rolldice( eyes := 6 )
             ast->Eval( rContext );
         } else {
             StackVM::Compiler  compiler;
-            auto program = compiler.Compile( ast, opt_level );
+            auto program = compiler.Compile( ast, rContext.GetSettings().GetOptimizationLevel() );
             StackVM::Machine<false>  machine;
             machine.Exec( program, rContext );
             machine.ThrowPossibleErrorException();
