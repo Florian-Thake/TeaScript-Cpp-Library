@@ -8,6 +8,11 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    CONTEXT: implemented new architecture as drop in replacement with 2,5 - 3,5x faster look up, ...
+    - ... some workloads have a 10x performance improvement.
+    - The stable handle feature of the new architecture will even allow further performance improvements
+      for compile mode in future versions.
+
     CORELIB: Use TsbStore to load/store the core library as compiled .tsb (only when core config==full).
     - Improved Bootstrap performance.
 
