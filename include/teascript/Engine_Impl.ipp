@@ -18,6 +18,7 @@
 #include "CoreLibrary.hpp"
 #include "StackVMCompiler.hpp"
 #include "StackMachine.hpp"
+#include "TsbStore.hpp"
 
 namespace teascript {
 
@@ -69,6 +70,11 @@ ValueObject Engine::EvaluateContent( Content const &rContent, std::string const 
             return ast->Eval( mContext );
         } else {
             auto const program = mBuildTools->mCompiler.Compile( ast, mContext.GetSettings().GetOptimizationLevel() );
+            // workaround for this generic place: only try to store the .tsb if a path is set _AND_ rName is a real file.
+            std::error_code  ec;
+            if( not mContext.GetSettings().GetTsbPath().empty() && std::filesystem::is_regular_file( rName, ec ) ) {
+                std::ignore = TsbStore::StoreProgram( program, mContext.GetSettings() );
+            }
             mBuildTools->mMachine->Reset();
             mBuildTools->mMachine->Exec( program, mContext );
             mBuildTools->mMachine->ThrowPossibleErrorException();
@@ -136,6 +142,13 @@ ValueObject Engine::CallFunc( std::string const &rName, std::vector<ValueObject>
 TEASCRIPT_COMPILE_MODE_INLINE
 ValueObject Engine::ExecuteScript( std::filesystem::path const &path, std::vector<ValueObject> const &args )
 {
+    // check if we have a stored .tsb
+    if( not mContext.GetSettings().GetTsbPath().empty() ) {
+        teascript::StackVM::ProgramPtr  program = teascript::TsbStore::LoadProgramFor( path, mContext.GetSettings() );
+        if( program != nullptr ) {
+            return ExecuteProgram( program, args );
+        }
+    }
     // build utf-8 filename again... *grrr*
     auto const filename = util::utf8_path_to_str( path );
     auto const val = CoreLibrary::ReadTextFileEx( path );

@@ -774,11 +774,53 @@ def gcd := repeat {
     }
 }
 
+void test_tsbstore( std::string const &script )
+{
+    teascript::Engine engine( teascript::Settings().
+                              SetCoreConfig( teascript::config::full() ).
+                              SetOptimizationLevel( teascript::eOptimize::O1 ).
+                              SetTsbPath( "./.tea" ). // current dir + .tea
+                              Move() );
+    auto old_path = teascript::TsbStore::FindTsbFor( script, engine.GetSettings() );
+    if( not old_path.empty() && std::filesystem::is_regular_file( old_path ) ) {
+        std::cout << "test tsbstore: exists already before call: " << old_path << std::endl;
+    } else {
+        std::cout << "test tsbstore: no tsb exists for: " << old_path << std::endl;
+    }
+
+    try {
+        std::filesystem::create_directories( std::filesystem::absolute( engine.GetSettings().GetTsbPath() ) );
+
+        // and execute the script file. This will store the .tsb file after compilation in the ./.tea/ directory.
+        auto const res = engine.ExecuteScript( script );
+
+        if( res.HasPrintableValue() ) { // does it return a printable result?
+            std::cout << "result: " << res.PrintValue() << std::endl;
+        }
+    } catch( teascript::exception::runtime_error const &ex ) {
+#if TEASCRIPT_FMTFORMAT
+        teascript::util::pretty_print_colored( ex );
+#else
+        teascript::util::pretty_print( ex );
+#endif
+    } catch( std::exception const &ex ) {
+        std::cout << "Exception: " << ex.what() << std::endl;
+    }
+
+    auto new_path = teascript::TsbStore::FindTsbFor( script, engine.GetSettings() );
+    if(not new_path.empty() && std::filesystem::is_regular_file( new_path ) ) {
+        std::cout << "test tsbstore: exists after call: " << new_path << std::endl;
+    } else {
+        std::cout << "test tsbstore: no tsb exists after call for: " << new_path << std::endl;
+    }
+
+}
+
 
 // Executes a TeaScript file and returns its result. 
 // This function has a very basic feature set. The TeaScript Host Application has more capabilities.
 // Beside other features it also comes with an interactive shell, REPL, debug options and time measurement.
-// The TeaScript Host Application can be downloaded for free here: https://tea-age.solutions/downloads/
+// The TeaScript Host Application can be downloaded for free here: https://teascript.run-by-ai.cloud/downloads/
 int exec_script_file( std::vector<std::string> &args )
 {
     args.erase( args.begin() );  // we don't need the program name
@@ -874,6 +916,8 @@ int main( int argc, char **argv )
         webpreview_code();
     } else if( argc == 2 && args[1] == "reflect" ) {
         teascript_reflectcpp_demo();
+    } else if( argc >= 2 && args[1] == "tsbstore" ) {
+        test_tsbstore( argc > 2 ? args[2] : "" );
     } else if( argc >= 2 ) {
         return exec_script_file( args );
     } else {
@@ -885,10 +929,11 @@ int main( int argc, char **argv )
                   << args[0] << " coro              --> execs coroutine demo\n"
                   << args[0] << " suspend           --> execs thread suspend demo\n"
                   << args[0] << " reflect           --> execs reflectcpp demo\n"
+                  << args[0] << " tsbstore [script] --> checks and updates tsb store for \"script\"\n"
                   << args[0] << " filename [args]   --> execs TeaScript \"filename\" with \"args\"" << std::endl;
         std::cout << "\n\nContact: " << teascript::contact_info() << std::endl;
         std::cout << "The TeaScript Host Application for execute standalone TeaScript files\n"
-                     "is available for free here: https://tea-age.solutions/downloads/ \n";
+                     "is available for free here: https://teascript.run-by-ai.cloud/downloads/ \n";
     }
     
     return EXIT_SUCCESS;
