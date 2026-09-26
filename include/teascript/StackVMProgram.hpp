@@ -267,6 +267,7 @@ public:
             if( need > ((300ull << 20) / sizeof( Instruction )) ) { // Question from the author in the year 2024: Will we ever see a TeaScript binary bigger than 300 MiB ???
                 throw std::runtime_error( "Program::Load(): unexpected big value for program instruction count!" );
             }
+            instructions.reserve( need );
         }
 
         constexpr size_t it_size = sizeof( eTSVM_Instr ) + sizeof( ValueObject::eType );
