@@ -21,6 +21,7 @@
 #include "StackVMCompiler.hpp"
 #include "StackMachine.hpp"
 #include "LibraryFunctions.hpp"
+#include "TsbStore.hpp"
 #include "version.h"
 
 
@@ -1433,9 +1434,9 @@ protected:
     {
         // using collection directly here for speed up add key value.
         Context::VariableCollection  res;
-        res.Reserve( 128 );
+        res.Reserve( 128 + 64 );
 
-        auto tea_add_var = [&res]( std::string const &s, ValueObject const &v ) { res.AppendKeyValue( s, v ); };
+        auto tea_add_var = [&res]( std::string const &s, ValueObject &&v ) { res.AppendKeyValue( s, std::move(v) ); };
 
 #if 0 // Possible way to add teascript code with underscore _name
         {
@@ -3009,6 +3010,30 @@ func rolldice( eyes := 6 )
             return;
         }
 
+        // check for existing .tsb. for now... TODO: change to module path later!
+        if( not rContext.GetSettings().GetTsbPath().empty() ) {
+            // we only save full configurations, otherwise we must mangle all core config combinations into the file name.
+            if( rContext.GetSettings().GetCoreConfig() == config::full() ) {
+                // since "Core" is not a real script file (yet), we need to work around...
+                auto core_file = TsbStore::BuildTsbFilePathAndNameFor( "Core", rContext.GetSettings() );
+                StackVM::ProgramPtr program;
+                try {
+                    program = StackVM::Program::Load( core_file );
+                } catch( ... ) {
+                }
+                if( program != nullptr && program->GetCompilerVersion() != teascript::version::combined_number() ) {
+                    program.reset(); // cannot use from another compiler version! here it also guards for changed code in the core lib with a new release.
+                }
+                if( program != nullptr ) {
+                    StackVM::Machine<false>  machine;
+                    machine.Exec( program, rContext );
+                    machine.ThrowPossibleErrorException();
+                    return;
+                }
+            }   
+        }
+        
+
 
         Parser p;
         //p.OverwriteDialect( rContext.GetSettings().GetDialect() ); // internal core lib always shall use default dialect
@@ -3060,6 +3085,13 @@ func rolldice( eyes := 6 )
         } else {
             StackVM::Compiler  compiler;
             auto program = compiler.Compile( ast, rContext.GetSettings().GetOptimizationLevel() );
+            // for now. TODO: change to module path later.
+            if( not rContext.GetSettings().GetTsbPath().empty() ) {
+                // we only save full configurations, otherwise we must mangle all core config combinations into the file name.
+                if( rContext.GetSettings().GetCoreConfig() == config::full() ) {
+                    TsbStore::StoreProgram( program, rContext.GetSettings() );
+                }
+            }
             StackVM::Machine<false>  machine;
             machine.Exec( program, rContext );
             machine.ThrowPossibleErrorException();

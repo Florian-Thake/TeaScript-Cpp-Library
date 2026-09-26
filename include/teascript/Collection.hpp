@@ -178,12 +178,26 @@ public:
         mStorage.emplace_back( KeyType(), rVal );
     }
 
+    void AppendValue( ValueType &&rVal )
+    {
+        mStorage.emplace_back( KeyType(), std::move(rVal) );
+    }
+
     bool AppendKeyValue( KeyType const &rKey, ValueType const &rVal )
     {
         if( not mLookup.emplace( rKey, mStorage.size() ).second ) {
             return false;
         }
         mStorage.emplace_back( rKey, rVal );
+        return true;
+    }
+
+    bool AppendKeyValue( KeyType const &rKey, ValueType  &&rVal )
+    {
+        if( not mLookup.emplace( rKey, mStorage.size() ).second ) {
+            return false;
+        }
+        mStorage.emplace_back( rKey, std::move(rVal) );
         return true;
     }
 

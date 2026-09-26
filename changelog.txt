@@ -8,6 +8,9 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    CORELIB: Use TsbStore to load/store the core library as compiled .tsb (only when core config==full).
+    - Improved Bootstrap performance.
+
     TEASCRIPT: Introduced class TsbStore for managing compiled TeaScript files in a side directory.
     ENGINE: Use set tsb path for load/store compiled TasScript files automatically for ExecuteScript().
     HOST: load/store compiled TasScript files from .tea/ directory in same directory as the TasScript file.
