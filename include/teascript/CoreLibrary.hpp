@@ -3011,7 +3011,7 @@ func rolldice( eyes := 6 )
         }
 
         // check for existing .tsb. for now... TODO: change to module path later!
-        if( not rContext.GetSettings().GetTsbPath().empty() ) {
+        if( not eval_only && not rContext.GetSettings().GetTsbPath().empty() ) {
             // we only save full configurations, otherwise we must mangle all core config combinations into the file name.
             if( rContext.GetSettings().GetCoreConfig() == config::full() ) {
                 // since "Core" is not a real script file (yet), we need to work around...
