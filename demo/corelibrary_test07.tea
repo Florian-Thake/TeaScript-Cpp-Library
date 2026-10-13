@@ -255,12 +255,6 @@ print_success( "ok.\n" )
 print( "testing special case no-op forall loop... " )
 {
     def n := 0
-    forall( i in _seq(0,0,0) ) {
-        n := n + 1
-    }
-    TEST_EQ( n, 0, "forall loop body was executed with empty sequence!" )
-    
-    n := 0
     def tup := _tuple_create()
     forall( i2 in tup ) {
         n := n + 1
@@ -273,6 +267,32 @@ print( "testing special case no-op forall loop... " )
         n := n + 1
     }
     TEST_EQ( n, 0, "forall loop body was executed with empty map!" )
+}
+print_success( "ok.\n" )
+
+// noop forall loop
+print( "testing special case 1 element forall loop... " )
+{
+    def n := 0
+    // a valid sequence can not be empty, the start value is always the first value!
+    forall( i in _seq(0,0,0) ) { // step does not matter here.
+        n := n + 1
+    }
+    TEST_EQ( n, 1, "forall loop body has wrong amount of execution for sequence!" )
+    
+    n := 0
+    def tup := _tuple_create( 5 )
+    forall( i2 in tup ) {
+        n := n + 1
+    }
+    TEST_EQ( n, 1, "forall loop body has wrong amount of execution for 1 element tuple!" )
+    
+    n := 0
+    def map := _map_create((5, "Hello"))
+    forall( i3 in map ) {
+        n := n + 1
+    }
+    TEST_EQ( n, 1, "forall loop body has wrong amount of execution for 1 element map!" )
 }
 print_success( "ok.\n" )
 

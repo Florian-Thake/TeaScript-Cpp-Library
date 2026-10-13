@@ -1001,13 +1001,18 @@ private:
 
                     // get the sequence
                     auto const &seq_val = mStack[s - 1];
-                    if( not seq_val.GetTypeInfo()->template IsSame<IntegerSequence>() && not seq_val.GetTypeInfo()->template IsSame<Tuple>() && not seq_val.GetTypeInfo()->template IsSame<Map>() ) {
+                    bool const is_seq = seq_val.GetTypeInfo()->template IsSame<IntegerSequence>();
+                    bool const is_tup = seq_val.GetTypeInfo()->template IsSame<Tuple>();
+                    bool const is_map = seq_val.GetTypeInfo()->template IsSame<Map>();
+
+                    if( not is_seq && not is_tup && not is_map ) {
                         HandleException( std::make_exception_ptr( exception::eval_error( "Forall loop can actually only iterate over an IntegerSequence/Tuple/Map!" ) ) );
                         run = false;
                         continue;
                     }
 
-                    // special case: need to handle empty tuple/map (size==0): create a no-op sequence
+                    auto const size = is_tup ? seq_val.template GetValue<Tuple>().Size() : is_map ? seq_val.template GetValue<Map>().size() : static_cast<size_t>(0);
+
                     auto make_seq = []( size_t s ) {
                         return s > 0
                             ? IntegerSequence( 0LL, static_cast<Integer>(s - 1), 1LL )
@@ -1015,20 +1020,17 @@ private:
                     };
 
                     //FIXME: if seq_val is a sequence already we should use a reference for in later versions it will be possible to manipulate it elsewhere in the loop.
-                    auto  seq = seq_val.GetTypeInfo()->template IsSame<Tuple>()
-                        ? make_seq( seq_val.template GetValue<Tuple>().Size() )
-                        : seq_val.GetTypeInfo()->template IsSame<Map>()
-                        ? make_seq( seq_val.template GetValue<Map>().size() )
-                        : seq_val.template GetValue<IntegerSequence>();
+                    auto  seq = is_seq ? seq_val.template GetValue<IntegerSequence>() : make_seq( size );
                     seq.Reset();
 
-                    // check if seq is no-op
-                    bool const is_noop = not seq.IsForwards() && not seq.IsBackwards();
+                    // check if tuple or map is empty
+                    //NOTE: A (valid) sequence is never empty, the start value is always the first element regardless of the end or step value! Thus, the body will be executed at least once.
+                    bool const is_noop = (is_tup || is_map) && size == 0;
 
                     // create the index variable
                     // TODO: add mDebugInfo SourceLocation!
                     if( not is_noop ) {
-                        mStack[s - 2] = seq_val.GetTypeInfo()->template IsSame<Map>()
+                        mStack[s - 2] = is_map
                             ? rContext.AddValueObject( mStack[s - 2].template GetValue<std::string>(), ValueObject( map::create_iterator( seq_val.template GetValue<Map>() ), ValueConfig( ValueShared, ValueMutable ) ) )
                             : rContext.AddValueObject( mStack[s - 2].template GetValue<std::string>(), ValueObject( seq.Current(), ValueConfig( ValueShared, ValueMutable ) ) );
                     }

@@ -2321,53 +2321,49 @@ public:
 
         // get the sequence
         auto const  seq_val = mChildren[1]->Eval( rContext );
-        if( not seq_val.GetTypeInfo()->IsSame<IntegerSequence>() && not seq_val.GetTypeInfo()->IsSame<Tuple>() && not seq_val.GetTypeInfo()->IsSame<Map>() ) {
+        bool const  is_seq = seq_val.GetTypeInfo()->IsSame<IntegerSequence>();
+        bool const  is_tup = seq_val.GetTypeInfo()->IsSame<Tuple>();
+        bool const  is_map = seq_val.GetTypeInfo()->IsSame<Map>();
+        if( not is_seq && not is_tup && not is_map ) {
             throw exception::eval_error( GetSourceLocation(), "Forall ASTNode can actually only iterate over an IntegerSequence/Tuple/Map!" );
         }
 
         // special case: empty tuple
-        if( seq_val.GetTypeInfo()->IsSame<Tuple>() && seq_val.GetValue<Tuple>().Size() == 0 ) {
+        if( is_tup && seq_val.GetValue<Tuple>().Size() == 0 ) {
             // nothing to do
             return res;
         }
 
         // special case: empty map
-        if( seq_val.GetTypeInfo()->IsSame<Map>() && seq_val.GetValue<Map>().size() == 0 ) {
+        if( is_map && seq_val.GetValue<Map>().size() == 0 ) {
             // nothing to do
             return res;
         }
 
-        bool const map_mode = seq_val.GetTypeInfo()->IsSame<Map>();
-
         //FIXME: if seq_val is a sequence already we should use a reference for in later versions it will be possible to manipulate it elsewhere in the loop.
-        auto  seq = seq_val.GetTypeInfo()->IsSame<Tuple>()
+        auto  seq = is_tup
                   ? IntegerSequence( 0LL, static_cast<Integer>(seq_val.GetValue<Tuple>().Size() - 1), 1LL )
-                  : seq_val.GetTypeInfo()->IsSame<Map>()
+                  : is_map
                   ? IntegerSequence( 0LL, static_cast<Integer>(seq_val.GetValue<Map>().size() - 1), 1LL )
                   : seq_val.GetValue<IntegerSequence>();
         seq.Reset();
-
-        // special case: empty sequence
-        if( not seq.IsForwards() && not seq.IsBackwards() ) {
-            // nothing to do
-            return res;
-        }
+        //NOTE: A (valid) sequence is never empty, the start value is always the first element regardless of the end or step value! Thus, the body will be executed at least once.
 
         // create the variable for the current value
-        auto cur = map_mode 
+        auto cur = is_map
             ? rContext.AddValueObject( mChildren[0]->GetDetail(), ValueObject( map::create_iterator( seq_val.GetValue<Map>() ), ValueConfig(ValueShared, ValueMutable)), mChildren[0]->GetSourceLocation())
             : rContext.AddValueObject( mChildren[0]->GetDetail(), ValueObject( 0LL, ValueConfig( ValueShared, ValueMutable ) ), mChildren[0]->GetSourceLocation() );
 
         while( true ) {
             try {
-                if( not map_mode ) {
+                if( not is_map ) {
                     cur.AssignValue( seq.Current() );
                 }
                 res = mChildren[2]->Eval( rContext );
                 if( not seq.Next() ) {
                     break;
                 }
-                if( map_mode ) {
+                if( is_map ) {
                     std::ignore = map::advance_iterator( cur ); // return value can be ignored since we redundantly maintain the sequence value as well.
                 }
             } catch( control::Loop_To_Head const &rLoop ) {
@@ -2377,7 +2373,7 @@ public:
                 if( not seq.Next() ) {
                     break;
                 }
-                if( map_mode ) {
+                if( is_map ) {
                     std::ignore = map::advance_iterator( cur ); // return value can be ignored since we redundantly maintain the sequence value as well.
                 }
                 continue;
