@@ -366,6 +366,22 @@ public:
         }
         mCurrentInstrCallback = std::move( callback );
     }
+
+    /// \returns whether the program is suspended in a breakpoint. Second element is the breakpoint name.
+    std::pair<bool, std::string> IsInBreakpoint() const
+    {
+        auto const guard = std::lock_guard( mStateMutex );
+        if( mState != eState::Suspended ) {
+            return std::make_pair( false, "" );
+        }
+        // reaching here, we know there is a program and a callstack with at least one entry, otherwise it could not be suspended.
+        assert( !mCallStack.empty() );
+        if( mCurrent > 0 && mCallStack.back().prog->GetInstructions()[mCurrent - 1].instr == eTSVM_Instr::Break ) {
+            auto const &val = mCallStack.back().prog->GetInstructions()[mCurrent - 1].payload;
+            return std::make_pair( true, val.GetAsString() );
+        }
+        return std::make_pair( false, "" );
+    }
     
     /// Starts to execute a new program given by \param rProgram with context \param rContext.
     /// The machine must be in stopped state. This functions blocks until the program execuion is finished 
@@ -1291,6 +1307,9 @@ private:
                         continue;
                     }
                 }
+                break;
+            case eTSVM_Instr::Break:
+                run = false;
                 break;
             case eTSVM_Instr::NotImplemented:
                 mError = eError::NotImplemented;

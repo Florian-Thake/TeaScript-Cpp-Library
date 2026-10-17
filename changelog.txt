@@ -8,6 +8,13 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    TEASCRIPT: Added breakpoint statement (with an optional name for identifying), e.g., breakpoint "test"
+    - In eval mode the ASTNode will trigger an OS level breakpoint if it is a debug build and Settings::IsDebug() is true.
+    - In compile mode the TeaStackVM will suspend execution (ignoring AutoContinue).
+      The newly added StackVM::Machine::IsInBreakpoint() will then return true and the name of the breakpoint.
+      In compile mode a breakpoint is only present if Settings::IsDebug() is true.
+    HOST: For manually loaded and executed scripts IsInBreakpoint() is recognized and handled for :exec/:continue.
+
     FIX: regression from 0.17.0 not handling one element sized Tuples/Maps correct in forall loop.
 
     CONTEXT: implemented new architecture as drop in replacement with 2,5 - 3,5x faster look up, ...

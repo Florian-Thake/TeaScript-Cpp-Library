@@ -76,6 +76,7 @@ class Parser
                 table.insert( "yield" );
                 table.insert( "catch" );
                 table.insert( "try" );
+                table.insert( "breakpoint" );
             }
         };
 
@@ -1013,7 +1014,6 @@ public:
         FoundWith    = FoundClose,
     };
 
-
     eFound Control_Stop_Loop( Content &rHere )
     {
         Content const start = rHere;
@@ -1059,7 +1059,7 @@ public:
         return NotFound;
     }
 
-    eFound Suspend_Yield( Content &rHere )
+    eFound Suspend_Yield_Breakpoint( Content &rHere )
     {
         Content const start = rHere;
         if( CheckWordAndMove( "suspend", rHere ) ) {
@@ -1068,7 +1068,17 @@ public:
         } else if( CheckWordAndMove( "yield", rHere ) ) {
             mState->AddASTNode( std::make_shared<ASTNode_Yield_Statement>( MakeSrcLoc( start ) ) );
             return FoundWith;
+        } else if( CheckWordAndMove( "breakpoint", rHere ) ) {
+            SkipWhitespace( rHere );
+            std::string_view sv;
+            std::string label = "";
+            if( SimpleString( sv, rHere ) ) {
+                label = sv;
+            }
+            mState->AddASTNode( std::make_shared<ASTNode_Breakpoint>( std::move(label), MakeSrcLoc( start ) ) );
+            return FoundWith;
         }
+
         return NotFound;
     }
 
@@ -1292,7 +1302,7 @@ public:
                     if( found_return != FoundWith ) {
                         next_line_required.Set( rHere );
                     }
-                } else if( eFound const found_suspend = Suspend_Yield( rHere ) ) {
+                } else if( eFound const found_suspend = Suspend_Yield_Breakpoint( rHere ) ) {
                     if( next_line_required.HasViolation( rHere ) ) {
                         util::throw_parsing_error( rHere, mState->GetFilePtr(), "More than one statement/expression per line! '\\n' (line feed) missing!" );
                     }

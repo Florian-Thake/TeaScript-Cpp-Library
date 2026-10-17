@@ -186,6 +186,12 @@ private:
             auto const tsvm_node = std::static_pointer_cast<ASTNode_TSVM>(rNode);
             mInstructions.emplace_back( tsvm_node->GetInstruction() );
             return; // done!
+        } else if( rNode->GetName() == "Breakpoint" ) {
+            // only in Debug, otherwise it is not present.
+            if( mOptLevel == eOptimize::Debug ) {
+                mInstructions.emplace_back( eTSVM_Instr::Break, teascript::ValueObject( rNode->GetDetail() ) );
+                mDebuginfo.emplace( mInstructions.size() - 1, rNode->GetSourceLocation() );
+            }
         } else if( rNode->GetName() == "Constant" ) {
             // replace a prior Pop with Replace
             if( mOptLevel != eOptimize::Debug && not mInstructions.empty() && mInstructions.back().instr == eTSVM_Instr::Pop ) {
@@ -839,7 +845,8 @@ private:
                 RecursiveBuildTSVMCode( *it );
                 // all but the last top level scope must pop their results for not make the stack dirty
                 // but don't do this for TSVM assembly nodes. they must handle it manually!
-                if( (*it)->GetName() == "TSVM" ) {
+                // Don't do this for Breakpoints either, they don't place anything on the stack (and in non debug mode they disappear entirely).
+                if( (*it)->GetName() == "TSVM" || (*it)->GetName() == "Breakpoint" ) {
                     ; // nop
                 } else if( mState.node_level == mState.stack_node_level.top() ) {
                     if( it != std::prev( rNode->end() ) ) {

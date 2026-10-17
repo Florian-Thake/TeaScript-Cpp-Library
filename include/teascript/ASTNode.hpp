@@ -11,6 +11,13 @@
 #include <cassert>
 #include <iostream> // std::cout for debug operator
 #include <span>
+#if !defined(NDEBUG) || defined(_DEBUG)
+# if defined(_WIN32)
+#  include <intrin.h>   // __debugbreak
+# else
+#  include <signal.h>   // ::raise(SIGTRAP)
+# endif
+#endif
 
 #include "ValueObject.hpp"
 #include "Number.hpp"
@@ -109,6 +116,33 @@ public:
 
     ValueObject Eval( Context & ) const override
     {
+        return {};
+    }
+};
+
+/// Breakpoint ASTNode - for debugging. In DEBUG mode + TeaScript debug a OS breakpoint will be issued.
+class ASTNode_Breakpoint : public ASTNode
+{
+public:
+    ASTNode_Breakpoint( std::string &&rName, SourceLocation loc = {} )
+        : ASTNode( "Breakpoint", rName, std::move( loc ) )
+    {
+
+    }
+
+    ValueObject Eval( [[maybe_unused]] Context &rContext ) const override
+    {
+#if !defined(NDEBUG) || defined(_DEBUG)
+        if( rContext.GetSettings().IsDebug() ) {
+            [[maybe_unused]] std::string const breakpoint_name = GetDetail();
+# if defined(_WIN32)
+            __debugbreak();
+# else
+            ::raise( SIGTRAP );
+# endif
+        }
+#endif
+
         return {};
     }
 };

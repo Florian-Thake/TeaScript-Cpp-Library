@@ -59,7 +59,7 @@ _KEYWORDS = (
     "func", "return",
     "if", "else",
     "repeat", "forall", "stop", "loop", "with", "in",
-    "catch", "try", "suspend", "yield",
+    "catch", "try", "suspend", "yield", "breakpoint",
 )
 
 # Operator-spelled-as-word.

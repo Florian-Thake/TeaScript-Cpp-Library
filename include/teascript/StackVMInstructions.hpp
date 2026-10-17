@@ -75,6 +75,7 @@ enum class eTSVM_Instr : unsigned int
     Suspend,        // suspends the prorgam (except Constraints was set to AutoContinue).
     Yield,          // suspends the program with a value.
     Catch,          // if top stack is Error or NaV ... else ... (ASTNode_Try always use a 'Ret' before the else)
+    Break,          // a debugging Breakpoint, as Suspend but distinguishable and no AutoContinue; it may carry a name in its value.
 };
 
 namespace StackVM {
@@ -152,6 +153,7 @@ struct Instruction
         case eTSVM_Instr::Suspend:               return "Suspend";
         case eTSVM_Instr::Yield:                 return "Yield";
         case eTSVM_Instr::Catch:                 return "Catch";
+        case eTSVM_Instr::Break:                 return "Break";
         case eTSVM_Instr::NotImplemented:        return "NotImplemented";
         default:
             return "<unknown>";
@@ -276,6 +278,8 @@ struct Instruction
             return eTSVM_Instr::Yield;
         } else if( str == "Catch" ) {
             return eTSVM_Instr::Catch;
+        } else if( str == "Break" ) {
+            return eTSVM_Instr::Break;
         } else if( str == "NotImplemented" ) {
             return eTSVM_Instr::NotImplemented;
         } else {
