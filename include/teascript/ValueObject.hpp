@@ -391,6 +391,14 @@ public:
 
     }
 
+    // convenience since int is the default type for integer literals
+    inline
+    explicit ValueObject( int const i, ValueConfig const &cfg = {} )
+        : ValueObject( static_cast<I64>(i), cfg )
+    {
+
+    }
+
     inline
     explicit ValueObject( I64 const i, ValueConfig const &cfg = {} )
         : mValue( create_helper( cfg.IsShared(), BareTypes( i ) ) )
@@ -446,7 +454,7 @@ public:
         : ValueObject( std::string_view( pStr != nullptr ? pStr : "" ), cfg)
     {
         if( nullptr == pStr ) {
-            *mpValue = *p_shared_nav; // NaV for nullptr
+            *mpValue = *p_shared_nav; // NaV for nullptr (NOTE: actually not a hard error, type is String but without a value (mimic nullptr)!)
         }
     }
 
@@ -950,7 +958,7 @@ public:
     template< typename T >
     T const *GetValuePtr() const noexcept
     {
-        return get_impl<T>();
+        return get_impl<std::remove_const_t<T>>();
     }
 
     /// \returns the stored passthrough data. \throws exception::bad_value_cast.
@@ -980,7 +988,7 @@ public:
             []( U64 const u ) { return static_cast<bool>(u); },
             []( F64 const d ) { return static_cast<bool>(d); },
             []( std::string const &rStr ) { return !rStr.empty(); },
-            []( Error const &/*rError*/ ) { return false; }, // prior Error existed, bool(false) was returned on error. This might help for transition?! TODO: check!!
+            []( Error const &/*rError*/ ) { return false; }, // prior Error existed, bool(false) was returned on error. This might help for transition.
             []( Tuple const &rTuple ) { return rTuple.Size() > 0u; },
             []( Map const &rMap ) { return rMap.size() > 0u; },
             []( Buffer const &rBuffer ) { return not rBuffer.empty(); }
