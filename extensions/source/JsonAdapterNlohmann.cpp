@@ -53,7 +53,7 @@ ValueObject JsonAdapterNlohmann::ToValueObject( Context & rContext, JsonType con
                 tup.Reserve( json.size() );
                 for( auto const &[k, v] : json.items() ) {
                     auto value = ToValueObject( rContext, v );
-                    if( not value.GetTypeInfo()->IsSame<TypeInfo>() ) { // skip inner unsupported types like 'discarded'
+                    if( not value.GetTypeInfo()->IsSame<Error>() ) { // skip inner unsupported types like 'discarded'
                         tup.AppendKeyValue( k, value );
                     }
                 }
@@ -71,7 +71,7 @@ ValueObject JsonAdapterNlohmann::ToValueObject( Context & rContext, JsonType con
                     tup.AppendValue( ValueObject( Buffer(), cfg ) );
                 } else for( auto const &v : json ) {
                     auto value = ToValueObject( rContext, v );
-                    if( not value.GetTypeInfo()->IsSame<TypeInfo>() ) { // skip inner unsupported types like 'discarded'
+                    if( not value.GetTypeInfo()->IsSame<Error>() ) { // skip inner unsupported types like 'discarded'
                         tup.AppendValue( value );
                     }
                 }

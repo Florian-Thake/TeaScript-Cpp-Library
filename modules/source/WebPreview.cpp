@@ -164,7 +164,7 @@ ValueObject WebPreviewModule::HttpRequest( Context &rContext, ValueObject const 
             if( auto field = response.find( "Content-Type" ); field != response.end() ) {
                 if( field->value().starts_with( "application/json" ) ) {
                     auto json = JsonSupport<>::ReadJsonString( rContext, payload );
-                    if( not json.GetTypeInfo()->IsSame<TypeInfo>() ) { // bool (true/false) and NaV (null) is a possible result, so we use a TypeInfo as error indicator.
+                    if( not json.GetTypeInfo()->IsSame<Error>() ) { // bool (true/false) and NaV (null) is a possible result
                         res.AppendKeyValue( "json", json );
                     }
                 }
@@ -414,7 +414,7 @@ ValueObject WebPreviewModule::HttpServerAcceptOne( Context &rContext, ValueObjec
             if( auto field = request.find( "Content-Type" ); field != request.end() ) {
                 if( field->value().starts_with( "application/json" ) ) {
                     auto json = JsonSupport<>::ReadJsonString( rContext, payload );
-                    if( not json.GetTypeInfo()->IsSame<TypeInfo>() ) { // bool (true/false) and NaV (null) is a possible result, so we use a TypeInfo as error indicator.
+                    if( not json.GetTypeInfo()->IsSame<Error>() ) { // bool (true/false) and NaV (null) is a possible result
                         res.AppendKeyValue( "json", json );
                     }
                 }
