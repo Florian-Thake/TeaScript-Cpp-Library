@@ -1097,7 +1097,14 @@ private:
                     if( stack_error( param_count + 1 + 1 ) ) [[unlikely]] {
                         continue;
                     }
-                    auto func = mStack[ mStack.size() - (param_count + 1 + 1)].template GetValueCopy<FunctionPtr>();
+                    auto func = FunctionPtr();
+                    try {
+                        func = mStack[mStack.size() - (param_count + 1 + 1)].template GetValueCopy<FunctionPtr>();
+                    } catch( ... ) {
+                        HandleException( std::current_exception() );
+                        run = false;
+                        continue;
+                    }
                     auto cfunc = std::dynamic_pointer_cast<CompiledFuncBase>(func);
                     if( cfunc ) {
                         mCallStack.emplace_back( current_instr.payload.template GetValue<std::string>(), mCurrent + 1, cfunc->GetProgram(), func, mStack.size() - (param_count + 1 + 1));
@@ -1229,9 +1236,13 @@ private:
                     auto param_count = mStack[pos].template GetValue<U64>();
                     if( param_count < 1 ) [[unlikely]] { // huh?
                         //NOTE: we need SourceLoc of the caller! But the caller is different for each call.
-                        //      Here we know that callstack is at least 2 (we and the caller). The ret address - 1 is the CallFunc instruction which might carry a source loc.
-                        auto const &loc = mCallStack[mCallStack.size()-2].prog->GetSourceLocationFor( mCallStack[mCallStack.size()-1].ret - 1 );
-                        HandleException( std::make_exception_ptr( exception::eval_error( loc, "Too less arguments for function call!" ) ) );
+                        //      If the callstack is at least 2 (we and the caller), we can try to find it. The ret address - 1 is the CallFunc instruction which might carry a source loc.
+                        if( mCallStack.size() > 1 ) {
+                            auto const &loc = mCallStack[mCallStack.size()-2].prog->GetSourceLocationFor( mCallStack[mCallStack.size()-1].ret-1 );
+                            HandleException( std::make_exception_ptr( exception::eval_error( loc, "Too less arguments for function call!" ) ) );
+                        } else {
+                            HandleException( std::make_exception_ptr( exception::eval_error( "Too less arguments for function call!" ) ) );
+                        }
                         run = false;
                         continue;
                     } else if( stack_error( 3 + param_count ) ) [[unlikely]] {

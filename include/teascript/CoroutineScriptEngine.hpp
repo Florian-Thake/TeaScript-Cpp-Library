@@ -160,9 +160,10 @@ public:
                                        && (std::is_same_v<std::remove_cvref_t<T>, ValueObject> || std::is_constructible_v<ValueObject, T, ValueConfig const &>)) && ...)
     void SetInputParameters( T && ... t )
     {
+        ValueConfig const cfg{ValueShared, ValueMutable};
         std::vector<ValueObject> params;
         params.reserve( sizeof...(T) );
-        (params.emplace_back( MakeValueObject( std::forward<T>( t ) ) ), ...);
+        (params.emplace_back( MakeValueObject( std::forward<T>( t ), cfg ) ), ...);
         SetInputParameters( params );
     }
 };

@@ -404,9 +404,9 @@ public:
         return mScopes.size();
     }
 
-    void SetParamList( std::vector<ValueObject> &paramlist )
+    void SetParamList( std::vector<ValueObject> const &paramlist )
     {
-        GetCurrentScope().mCurrentParamList = std::move( paramlist );
+        GetCurrentScope().mCurrentParamList = paramlist; // We cannot move the vector, the caller may want to read from it after the call!
         GetCurrentScope().mCurrentParamIt   = GetCurrentScope().mCurrentParamList.begin();
     }
 

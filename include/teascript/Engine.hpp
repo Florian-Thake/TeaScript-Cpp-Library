@@ -211,6 +211,7 @@ public:
 
     /// Compiles the TeaScript code in \param code to a binary program for the TeaStackVM with the optimization level \param opt_level.
     /// \param name is arbitrary user defined name for referring to the code.
+    /// \note You must ensure the view ends with a '\0' or '\n' (included in the length())! Please, keep in mind std::string_view is not zero terminated by default!
     /// \throw May throw an exception based on exception::parsing_error/compile_error/eval_error/runtime_error.
     StackVM::ProgramPtr CompileCode( std::string_view const &code, eOptimize const opt_level = eOptimize::O0, std::string const &name = "_USER_CODE_" )
     {

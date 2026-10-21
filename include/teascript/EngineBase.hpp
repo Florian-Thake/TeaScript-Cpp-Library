@@ -84,6 +84,7 @@ public:
     }
 
     /// Execute given TeaScript code and returns the result. \param name is arbitrary user defined name for referring to the code.
+    /// \note You must ensure the view ends with a '\0' or '\n' (included in the length())! Please, keep in mind std::string_view is not zero terminated by default!
     /// \throw May throw any exception based on exception::parsing_error/eval_error/runtime_error.
     ValueObject ExecuteCode( std::string_view const &code, std::string const &name = "_USER_CODE_" )
     {
@@ -99,21 +100,22 @@ public:
     }
 
     /// Invokes the TeaScript function with name rName with parameters in rParams.
-    /// \returns the ValueObject result from the called fuction.
+    /// \returns the ValueObject result from the called function.
     /// \throw May throw exception::unknown_identifier or a different exception based on exception::eval_eror/runtime_error.
     virtual ValueObject CallFunc( std::string const &rName, std::vector<ValueObject> &rParams ) = 0;
 
-    /// Invokes the TeaScript function with name rName with the additional parametes, which will be converted to ValueObjects.
-    /// \returns the ValueObject result from the called fuction.
+    /// Invokes the TeaScript function with name rName with the additional parameters, which will be converted to ValueObjects.
+    /// \returns the ValueObject result from the called function.
     /// \throw May throw exception::unknown_identifier or a different exception based on exception::eval_eror/runtime_error.
     /// \note Every parameter t must be a type which can be passed to a public ValueObject consructor, except the resulting container type for parameters std::vector<ValueObject>.
     template< typename ...T> requires((not std::is_same_v<std::remove_cvref_t<T>, std::vector<ValueObject>>
                                        && (std::is_same_v<std::remove_cvref_t<T>, ValueObject> || std::is_constructible_v<ValueObject, T, ValueConfig const &>) ) && ...)
     ValueObject CallFuncEx( std::string const &rName, T && ... t ) /* different name for overload resolution in derived classes! */
     {
+        ValueConfig const cfg{ValueShared, ValueMutable};
         std::vector<ValueObject> params;
         params.reserve( sizeof...(T) );
-        (params.emplace_back( MakeValueObject( std::forward<T>( t ) ) ), ... );
+        (params.emplace_back( MakeValueObject( std::forward<T>( t ), cfg ) ), ... );
         return CallFunc( rName, params );
     }
 
