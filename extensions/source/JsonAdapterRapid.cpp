@@ -62,9 +62,7 @@ ValueObject JsonAdapterRapid::ToValueObject( Context &rContext, JsonValue const 
                 tup.Reserve( json.MemberCount() );
                 for( auto const &[k, v] : json.GetObject() ) {
                     auto value = ToValueObject( rContext, v );
-                    if( not value.GetTypeInfo()->IsSame<TypeInfo>() ) { // skip inner unsupported types like 'discarded'
-                        tup.AppendKeyValue( k.GetString(), value);
-                    }
+                    tup.AppendKeyValue( k.GetString(), value);
                 }
                 return ValueObject( std::move( tup ), cfg );
             }
@@ -80,9 +78,7 @@ ValueObject JsonAdapterRapid::ToValueObject( Context &rContext, JsonValue const 
                     tup.AppendValue( ValueObject( Buffer(), cfg ) );
                 } else for( auto const &v : json.GetArray() ) {
                     auto value = ToValueObject( rContext, v );
-                    if( not value.GetTypeInfo()->IsSame<TypeInfo>() ) { // skip inner unsupported types like 'discarded'
-                        tup.AppendValue( value );
-                    }
+                    tup.AppendValue( value );
                 }
                 return ValueObject( std::move( tup ), cfg );
             }

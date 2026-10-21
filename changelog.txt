@@ -15,6 +15,7 @@ VERSION 0.18.0 (not released yet, pre-release)
       In compile mode a breakpoint is only present if Settings::IsDebug() is true.
     HOST: For manually loaded and executed scripts IsInBreakpoint() is recognized and handled for :exec/:continue.
 
+    FIX/WEB: regression from 0.16.0 not checking the correct error type when building json from payload.
     FIX: regression from 0.17.0 not handling one element sized Tuples/Maps correct in forall loop.
 
     CONTEXT: implemented new architecture as drop in replacement with 2,5 - 3,5x faster look up, ...
