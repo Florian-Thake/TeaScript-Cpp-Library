@@ -1210,9 +1210,13 @@ private:
                     auto const left_params = mStack.back().template GetValue<U64>();
                     if( left_params != 0 ) [[unlikely]] {
                         //NOTE: we need SourceLoc of the caller! But the caller is different for each call.
-                        //      Here we know that callstack is at least 2 (we and the caller). The ret address - 1 is the CallFunc instruction which might carry a source loc.
-                        auto const &loc = mCallStack[mCallStack.size() - 2].prog->GetSourceLocationFor( mCallStack[mCallStack.size() - 1].ret - 1 );
-                        HandleException( std::make_exception_ptr( exception::eval_error( loc, "Too many arguments for function call!" ) ) );
+                        //      If the callstack is at least 2 (we and the caller), we can try to find it. The ret address - 1 is the CallFunc instruction which might carry a source loc.
+                        if( mCallStack.size() > 1 ) {
+                            auto const &loc = mCallStack[mCallStack.size()-2].prog->GetSourceLocationFor( mCallStack[mCallStack.size()-1].ret-1 );
+                            HandleException( std::make_exception_ptr( exception::eval_error( loc, "Too many arguments for function call!" ) ) );
+                        } else {
+                            HandleException( std::make_exception_ptr( exception::eval_error( "Too many arguments for function call!" ) ) );
+                        }
                         run = false;
                         continue;
                     } else {
