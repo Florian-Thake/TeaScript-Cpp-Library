@@ -128,7 +128,7 @@ public:
     Content( char const *const pContent, size_t const len )
         : start( pContent )
         , cur( start )
-        , end( start + len - 1 )
+        , end( start != nullptr && len > 0 ? start + len - 1 : nullptr )
     {
         if( !validate() ) {
             throw std::invalid_argument( "Content is not valid!" );
