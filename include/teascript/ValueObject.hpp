@@ -498,30 +498,20 @@ public:
     explicit ValueObject( FunctionPtr &&rFunc, ValueConfig const &cfg )
         : mValue( create_helper( cfg.IsShared(), BareTypes(std::move(rFunc)) ) ) 
         , mpValue( cfg.IsShared() ? std::get<1>( mValue ).get() : &std::get<0>( mValue ) )
-        , mpType( cfg.mpTypeSystem != nullptr 
-                  ? cfg.mpTypeSystem->Find<FunctionPtr>()
-                  : cfg.mpTypeInfo )
+        , mpType( &func::get_type_info() )
         , mProps( cfg.IsConst() )
     {
-        // not allow nullptr and wrong type for this usage. also we don't want manually alloc a type here.
-        if( nullptr == mpType || not mpType->IsSame<FunctionPtr>() ) {
-            throw exception::runtime_error( "Usage Error! No TypeSystem or wrong TypeInfo for ValueObject FunctionPtr constructor!" );
-        }
+
     }
 
     inline
     explicit ValueObject( std::vector<ValueObject> &&rVals, ValueConfig const &cfg )
         : mValue( create_helper( true, BareTypes( std::move( rVals ) ) ) )
         , mpValue( std::get<1>( mValue ).get() )
-        , mpType( cfg.mpTypeSystem != nullptr 
-                  ? cfg.mpTypeSystem->Find< std::vector<ValueObject> >()
-                  : cfg.mpTypeInfo )
+        , mpType( &valuevec::get_type_info() )
         , mProps( cfg.IsConst() )
     {
-        // not allow nullptr and wrong type for this usage. also we don't want manually alloc a type here.
-        if( nullptr == mpType || not mpType->IsSame<std::vector<ValueObject>>() ) {
-            throw exception::runtime_error( "Usage Error! No TypeSystem or wron TypeInfo for ValueObject vector<ValueObject> constructor!" );
-        }
+
     }
 
     inline
@@ -1282,6 +1272,15 @@ inline bool operator!=( teascript::ValueObject const &lhs, teascript::ValueObjec
 {
     return !(lhs == rhs);
 }
+
+namespace valuevec {
+inline
+TypeInfo const &get_type_info() noexcept
+{
+    static TypeInfo const TypeValueObjectVector = MakeTypeInfo<std::vector<ValueObject>>( "ValueObjectVector" );
+    return TypeValueObjectVector;
+}
+} // namespace valuevec
 
 } // namespace teascript
 

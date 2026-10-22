@@ -8,6 +8,11 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    TYPES: removed the need to manual register FunctionPtr as well as std::vector<ValueObject> as TypeInfo.
+    - this fixes stale TypeInfo pointers in elsewhere living ValueObjects with a Function after Context destruction.
+    - with this there aren't any manual registered core types left and the internal TypeSystem registration is clean.
+    - this will also lead to some easier usage and upcoming refactorings for some parts of the C++ API.
+
     CONTENT: (cosmetic) don't do pointer arithmetic on nullptr / zero sized elements even if the pointer is never used.
 
     STACKVM: Fixed escaped exception in TeaStack VM if CallFunc finds no FunctionPtr.

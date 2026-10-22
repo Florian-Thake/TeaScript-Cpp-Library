@@ -31,6 +31,16 @@ inline
 TypeInfo const &get_type_info() noexcept;
 } // namespace map
 
+namespace func {
+inline
+TypeInfo const &get_type_info() noexcept;
+} // namespace func
+
+namespace valuevec {
+inline
+TypeInfo const &get_type_info() noexcept;
+} // namespace valuevec
+
 // the primitive types are always there, even without lookup in TypeSystem.
 static TypeInfo const TypeNaV = MakeTypeInfo<NotAValue>("NaV");
 static TypeInfo const TypeBool = MakeTypeInfo<Bool>("Bool");
@@ -131,6 +141,10 @@ public:
         mTypes.insert( std::make_pair( TupleInfo.ToTypeIndex(), TypePtr( &TupleInfo ) ) );
         TypeInfo const &MapInfo = map::get_type_info();
         mTypes.insert( std::make_pair( MapInfo.ToTypeIndex(), TypePtr( &MapInfo ) ) );
+        TypeInfo const &FuncInfo = func::get_type_info();
+        mTypes.insert( std::make_pair( FuncInfo.ToTypeIndex(), TypePtr( &FuncInfo ) ) );
+        TypeInfo const &ValueVecInfo = valuevec::get_type_info();
+        mTypes.insert( std::make_pair( ValueVecInfo.ToTypeIndex(), TypePtr( &ValueVecInfo ) ) );
     }
 
     template< RegisterableType T>

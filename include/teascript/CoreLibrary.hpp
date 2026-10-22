@@ -1489,7 +1489,7 @@ protected:
             tea_add_var( "String", ValueObject( TypeString, cfg ) );
             tea_add_var( "Error", ValueObject( TypeError, cfg ) );
             tea_add_var( "Number", ValueObject( MakeTypeInfo<Number>("Number"), cfg)); // Fake concept for 'Number'
-            tea_add_var( "Function", ValueObject( MakeTypeInfo<FunctionPtr>("Function"), cfg));
+            tea_add_var( "Function", ValueObject( func::get_type_info(), cfg));
             tea_add_var( "Tuple", ValueObject( tuple::get_type_info(), cfg));
             tea_add_var( "Const", ValueObject( MakeTypeInfo<Const>( "Const" ), cfg ) ); // Fake concept for 'const'
             tea_add_var( "IntegerSequence", ValueObject( TypeIntegerSequence, cfg ) );
@@ -2989,15 +2989,10 @@ func rolldice( eyes := 6 )
     virtual void Bootstrap( Context &rContext, config::eConfig const config, bool const eval_only = false )
     {
         {
-            //TODO: Move the internal type registration to a better place.
-            TypeSystem  sys;
-            sys.RegisterType<FunctionPtr>("Function");
-            sys.RegisterType<std::vector<ValueObject>>("ValueObjectVector");
-
             Settings old_settings = rContext.GetSettings(); // carry over possible old settings.
             old_settings.SetCoreConfig( config );
 
-            Context tmp{ std::move( sys ), std::move(old_settings), true };
+            Context tmp{ TypeSystem(), std::move(old_settings), true};
 
             BuildInternals( tmp, config );
 

@@ -14,6 +14,8 @@
 
 #include <functional>
 
+#include "TypeInfo.hpp"
+
 namespace teascript {
 
 class ValueObject;
@@ -50,5 +52,16 @@ public:
         return "(" + std::to_string( p ) + ")";
     }
 };
+
+namespace func {
+
+inline
+TypeInfo const &get_type_info() noexcept
+{
+    static TypeInfo const TypeFunction = MakeTypeInfo<FunctionPtr>( "Function" );
+    return TypeFunction;
+}
+
+} // namespace func
 
 } // namespace teascript
