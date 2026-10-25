@@ -496,12 +496,15 @@ public:
 
     inline
     explicit ValueObject( FunctionPtr &&rFunc, ValueConfig const &cfg )
-        : mValue( create_helper( cfg.IsShared(), BareTypes(std::move(rFunc)) ) ) 
+        : mValue( create_helper( cfg.IsShared(), rFunc.get() != nullptr ? BareTypes(std::move(rFunc)) : BareTypes() ) )
         , mpValue( cfg.IsShared() ? std::get<1>( mValue ).get() : &std::get<0>( mValue ) )
         , mpType( &func::get_type_info() )
         , mProps( cfg.IsConst() )
     {
-
+        // reject nullptr, we don't want dangling functions in the script code!
+        if( InternalType() == TypeNaV ) {
+            throw std::runtime_error( "ValueObject(): FunctionPtr is nullptr!" );
+        }
     }
 
     inline
@@ -564,9 +567,9 @@ public:
     }
 
     /// Factory for create a ValueObject containing arbitrary passthrough data.
-    static ValueObject CreatePassthrough( std::any &&any )
+    static ValueObject CreatePassthrough( std::any &&any, bool const is_const = false )
     {
-        return ValueObject( Passthrough{}, std::move( any ) );
+        return ValueObject( Passthrough{}, std::move( any ), ValueConfig(ValueShared, is_const ? ValueConst : ValueMutable) );
     }
 
     ~ValueObject()
@@ -971,7 +974,7 @@ public:
     {
         return std::visit( overloaded{
             []( auto ) -> bool { throw exception::bad_value_cast("ValueObject not convertible to bool!"); },
-            []( NotAValue ) -> bool { throw exception::bad_value_cast( "ValueObject is NaV (Not A Value)!" ); },
+            []( NotAValue ) -> bool { return false; }, // BREAKING CHANGE since 0.18.0: before was throwing bad_value_cast!
             []( bool b ) { return b; },
             []( U8 const u ) { return static_cast<bool>(u); },
             []( I64 const i ) { return static_cast<bool>(i); },
@@ -981,7 +984,11 @@ public:
             []( Error const &/*rError*/ ) { return false; }, // prior Error existed, bool(false) was returned on error. This might help for transition.
             []( Tuple const &rTuple ) { return rTuple.Size() > 0u; },
             []( Map const &rMap ) { return rMap.size() > 0u; },
-            []( Buffer const &rBuffer ) { return not rBuffer.empty(); }
+            []( Buffer const &rBuffer ) { return not rBuffer.empty(); },
+            []( FunctionPtr const &rFunc ) { return rFunc.get() != nullptr; }, // should be always valid but the check does not harm either.
+            []( IntegerSequence const &rSeq ) { return rSeq.HasNext(); },
+            []( TypeInfo const & ) { return true; },
+            []( std::any const &rAny ) { return rAny.has_value(); }
         }, *mpValue );
     }
 

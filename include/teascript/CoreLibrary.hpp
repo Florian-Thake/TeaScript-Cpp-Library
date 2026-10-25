@@ -1421,6 +1421,12 @@ public:
         return ValueObject( std::move( res ), cfg );
     }
 
+    /// \returns whether the current inner value is NaV idependently from the type.
+    static bool IsNaV( ValueObject const &rVal )
+    {
+        return rVal.InternalType() == ValueObject::TypeNaV;
+    }
+
 private:
     // as long as we must support _f64toi64 ... 
     static long long f64toi64( double const d )
@@ -1495,6 +1501,7 @@ protected:
             tea_add_var( "IntegerSequence", ValueObject( TypeIntegerSequence, cfg ) );
             tea_add_var( "Buffer", ValueObject( TypeBuffer, cfg ) );
             tea_add_var( "Map", ValueObject( map::get_type_info(), cfg ) );
+            tea_add_var( "Passthrough", ValueObject( TypePassthrough, cfg ) );
         }
 
 
@@ -1521,6 +1528,13 @@ protected:
             auto func = std::make_shared< LibraryFunction< decltype(f64toi64) > >( &f64toi64 );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_f64toi64", std::move( val ) );
+        }
+
+        // is_nav : Bool ( Any ) --> returns whether the given value is currently NaV regardless of the type.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(IsNaV) > >( &IsNaV );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_is_nav", std::move( val ) );
         }
 
         // _out : void ( String ) --> prints param1 (String) to stdout

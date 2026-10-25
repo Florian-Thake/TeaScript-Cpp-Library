@@ -85,6 +85,18 @@ public:
         return mStep;
     }
 
+    /// \return whether there is still at least one more value.
+    bool HasNext() const noexcept
+    {
+        if( mCur == mEnd ) {
+            return false;
+        }
+        if( IsForwards() ) {
+            return mEnd - mCur >= static_cast<T>(mStep);
+        } // else: backwards
+        return static_cast<decltype(mStep)>(mEnd - mCur) <= mStep;
+    }
+
     /// If there is a next value available the current value will be updated.
     /// \return whether the current value was set to the next number of the sequence.
     bool Next() noexcept

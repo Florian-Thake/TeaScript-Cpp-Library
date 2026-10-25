@@ -8,6 +8,23 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    VALUE (BREAKING!): removed restrictions for casting to Bool. Now every supported type can be casted to Bool ...
+    ... without throwing a C++ bad_value_cast exception.
+      With this more scenarios can be handled from inside the script and it makes standalone scripts easier to write.
+    - NaV --> always false
+    - TypeInfo --> always true
+    - IntegerSequence --> whether is at end
+    - Function --> checks for nullptr as sanity protection (but nullptr are rejected during construction already)
+    - std::any --> has_value()
+    VALUE: reject nullptr in constructor for FunctionPtr.
+    - added bool is_const = false to CreatePassthrough() for easily creating a const Passthrough value.
+    
+    TYPES: added Passthrough TypeInfo variable, this allows `typeof data == Passthrough`.
+    
+    CORELIB: added _is_nav( val ) which returns whether the inner value of val is NaV (Not a Value) regardless of the type.
+    - added tests in corelibrary_test01
+    - basic example: def i := 1, typeof i == i64, i := void, _is_nav( i ) == true, (typeof i == i64) == true
+
     TYPES: removed the need to manual register FunctionPtr as well as std::vector<ValueObject> as TypeInfo.
     - this fixes stale TypeInfo pointers in elsewhere living ValueObjects with a Function after Context destruction.
     - with this there aren't any manual registered core types left and the internal TypeSystem registration is clean.
@@ -216,7 +233,7 @@ VERSION 0.16.0, Sa Dec 20 12:24:43 2025
     - Errors can be created via make_runtime_error(s) or simply cast a String into Error.
     - Errors can be concatenated to strings and in boolean contexts they evaluate to false.
     - For the time being all Error related classes and functions are considered EXPERIMENTAL.
-    PROJ: split class TypeInfo and TypePtr into new TypeIinfo.hpp.
+    PROJ: split class TypeInfo and TypePtr into new TypeInfo.hpp.
 
     HOST: added :inspect function command printing AST or TSVM instruction of a function.
 
