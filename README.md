@@ -23,7 +23,9 @@ Read all about the re-launch in the corresponding blog post:<br>
 https://teascript.run-by-ai.cloud/blog/relaunch-of-the-teascript-home-page/
 
 # About TeaScript
-**What is new in TeaScript 0.17.0?** TeaScript 0.17 comes with a new Map type, a try statement for convenient error propagation, the reflection extension for C++ structs and more.<br>
+**Patch Release 0.17.1:** TeaScript 0.17.1 fixes a regression of 0.17.0 in the forall loop for one element sized Tuples/Maps, issues with the O2 optimization and some more bugs.<br>
+It is available in the [download section](https://teascript.run-by-ai.cloud/teascript/downloads/), as [GitHub Release](https://github.com/Florian-Thake/TeaScript-Cpp-Library/releases/tag/v0.17.1) and on the branch [patch/0.17.1](https://github.com/Florian-Thake/TeaScript-Cpp-Library/tree/patch/0.17.1). (The main branch contains all fixes as well.)<br>
+<br>**What is new in TeaScript 0.17.0?** TeaScript 0.17 comes with a new Map type, a try statement for convenient error propagation, the reflection extension for C++ structs and more.<br>
 <br>Get all infos in the **latest blog post**:<br>
 https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-17-0/ <br>
 <br>**What was new in TeaScript 0.16.0?** TeaScript 0.16 comes with a distinct Error type, a catch statement, default shared params, BSON support and more.<br>
