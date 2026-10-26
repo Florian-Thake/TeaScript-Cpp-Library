@@ -8,6 +8,9 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.17.1 (not released yet, pre-release)
 ================
+    STACKVM: Fixed escaped exception in TeaStack VM if CallFunc finds no FunctionPtr.
+    - Fixed out of bound callstack access when calling a function with too less parameters and coming from ExecSubroutine.
+
     FIX/WEB: regression from 0.16.0 not checking the correct error type when building json from payload.
     FIX: regression from 0.17.0 not handling one element sized Tuples/Maps correct in forall loop.
 
