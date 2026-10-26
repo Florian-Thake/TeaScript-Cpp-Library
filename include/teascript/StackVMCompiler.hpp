@@ -329,18 +329,11 @@ private:
             ++it; // advance to rhs!
 
             auto const pos = mInstructions.size(); // this will be the idx of our Jump below.
+            // NOTE: we cannot optimize to JumpRel without a test if a Test instruction is already there. This will produce faulty results for some code!
             if( rNode->GetDetail() == "or" ) {
-                if( mInstructions.back().instr == eTSVM_Instr::Test ) {
-                    mInstructions.emplace_back( eTSVM_Instr::JumpRel_If, teascript::ValueObject() ); // TODO: check if this is always posible or must use TestAnd...
-                } else {
-                    mInstructions.emplace_back( eTSVM_Instr::TestAndJumpRel_If, teascript::ValueObject() );
-                }
-            } else {
-                if( mInstructions.back().instr == eTSVM_Instr::Test ) {
-                    mInstructions.emplace_back( eTSVM_Instr::JumpRel_IfNot, teascript::ValueObject() ); // TODO: check if this is always posible or must use TestAnd...
-                } else {
-                    mInstructions.emplace_back( eTSVM_Instr::TestAndJumpRel_IfNot, teascript::ValueObject() );
-                }
+                mInstructions.emplace_back( eTSVM_Instr::TestAndJumpRel_If, teascript::ValueObject() );
+            } else { // and
+                mInstructions.emplace_back( eTSVM_Instr::TestAndJumpRel_IfNot, teascript::ValueObject() );
             }
             if( mOptLevel == eOptimize::Debug ) {
                 mDebuginfo.emplace( mInstructions.size() - 1, rNode->GetSourceLocation() );
@@ -353,9 +346,7 @@ private:
             RecursiveBuildTSVMCode( *it );
 
             // for the case we did not jump convert the result of last instructions to Bool
-            if( mInstructions.back().instr != eTSVM_Instr::Test ) { // avoid double tests for chained or/and combinations.
-                mInstructions.emplace_back( eTSVM_Instr::Test, teascript::ValueObject() );
-            }
+            mInstructions.emplace_back( eTSVM_Instr::Test, teascript::ValueObject() );
 
             // calculate relative index for jump to in case lhs was enough to check.
             auto const diff = mInstructions.size() - pos;
