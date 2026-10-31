@@ -99,9 +99,16 @@ public:
     }
 
     /// Constructs a ValueObject structure from the given Json formatted string.
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
     static ValueObject ReadJsonString( Context &rContext, std::string const &rJsonStr )
     {
         return Adapter::ReadJsonString( rContext, rJsonStr );
+    }
+
+    /// Constructs a ValueObject structure from the given Json formatted string.
+    static ValueObject ReadJsonString( std::string const &rJsonStr )
+    {
+        return Adapter::ReadJsonString( rJsonStr );
     }
 
     /// Constructs a Json formatted string from the given ValueObject. 
@@ -114,9 +121,17 @@ public:
 
     /// Constructs a ValueObject from a given json root value. If the out ValueObject is of type TypeInfo an error occurred.
     /// \note Transition: The type for the error case will be changed to Error in some next future release!
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
     static void JsonToValueObject( Context &rContext, ValueObject &rOut, JsonType const &root )
     {
         rOut = Adapter::ToValueObject( rContext, root );
+    }
+
+    /// Constructs a ValueObject from a given json root value. If the out ValueObject is of type TypeInfo an error occurred.
+    /// \note Transition: The type for the error case will be changed to Error in some next future release!
+    static void JsonToValueObject( ValueObject &rOut, JsonType const &root )
+    {
+        rOut = Adapter::ToValueObject( root );
     }
 
     /// Constructs a Json Object of the underlying Json library from the given ValueObject. \throws on error.
@@ -128,9 +143,16 @@ public:
     // EXPERIMENTAL BSON support (nlohmann adapter must be used!)
 #if TEASCRIPT_BSONSUPPORT
     /// Constructs a ValueObject structure from the given BSON buffer.
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
     static ValueObject ReadBsonBuffer( Context &rContext, Buffer const &rBuffer )
     {
         return Adapter::FromBSON( rContext, rBuffer );
+    }
+
+    /// Constructs a ValueObject structure from the given BSON buffer.
+    static ValueObject ReadBsonBuffer( Buffer const &rBuffer )
+    {
+        return Adapter::FromBSON( rBuffer );
     }
 
     /// Constructs a Bson buffer from the given ValueObject. 

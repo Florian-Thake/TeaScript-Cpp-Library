@@ -728,7 +728,7 @@ private:
                             mStack.emplace_back();
                         }
 
-                        mStack.back() = ValueObject( std::move( tuple ), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} );
+                        mStack.back() = ValueObject( std::move( tuple ), ValueConfig{ValueShared,ValueMutable} );
                     }
                 }
                 break;
@@ -1150,7 +1150,7 @@ private:
             case eTSVM_Instr::FuncDef:
                 {
                     auto func = CompiledFuncFactory(mCallStack.back().prog, mCurrent+2);
-                    ValueObject  val{std::move( func ), ValueConfig( ValueShared, ValueMutable, rContext.GetTypeSystem() )};
+                    ValueObject  val{std::move( func ), ValueConfig( ValueShared, ValueMutable )};
                     auto const &name = current_instr.payload.template GetValue<std::string>();
                     if( name != "<lambda>" ) {
                         try {

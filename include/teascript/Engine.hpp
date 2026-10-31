@@ -166,7 +166,7 @@ public:
     void RegisterUserCallback( std::string const &rName, CallbackFunc const &rCallback ) override
     {
         auto func = std::make_shared<UserCallbackFunc>( rCallback );
-        ValueObject  val{std::move(func), ValueConfig( ValueShared, ValueMutable, mContext.GetTypeSystem() )};
+        ValueObject  val{std::move(func), ValueConfig( ValueShared, ValueMutable )};
         AddValueObject( rName, std::move( val ) );
     }
 

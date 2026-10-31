@@ -410,7 +410,7 @@ public:
                     tuple.AppendValue( node->Eval(rContext).MakeShared() );
                 }
                
-                return ValueObject( std::move( tuple ), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} );
+                return ValueObject( std::move( tuple ), ValueConfig{ValueShared,ValueMutable} );
             }
         } else { /* Cond: Expr. used in Conditions evals all nodes, e.g. for if( def z:= fun(), z ) {} */
             ValueObject res;
@@ -2515,7 +2515,7 @@ public:
             vals.push_back( node->Eval( rContext ) );
         }
 
-        return ValueObject( std::move( vals ), ValueConfig( ValueShared, ValueMutable, rContext.GetTypeSystem() ) );
+        return ValueObject( std::move( vals ), ValueConfig( ValueShared, ValueMutable ) );
     }
 };
 

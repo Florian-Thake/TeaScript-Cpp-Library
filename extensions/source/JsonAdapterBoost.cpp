@@ -20,7 +20,7 @@
 
 namespace teascript {
 
-ValueObject JsonAdapterBoost::ReadJsonString( Context &rContext, std::string const &rJsonStr )
+ValueObject JsonAdapterBoost::ReadJsonString( std::string const &rJsonStr )
 {
     boost::json::value json;
     try {
@@ -29,7 +29,7 @@ ValueObject JsonAdapterBoost::ReadJsonString( Context &rContext, std::string con
     } catch( std::exception const & ex ) {
         return ValueObject( Error::MakeRuntimeError( std::string( "Error reading JSON String: " ) + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
     }
-    return ToValueObject( rContext, json );
+    return ToValueObject( json );
 }
 
 ValueObject JsonAdapterBoost::WriteJsonString( ValueObject const &rObj )
@@ -45,16 +45,16 @@ ValueObject JsonAdapterBoost::WriteJsonString( ValueObject const &rObj )
     return ValueObject( std::move(os).str() );
 }
 
-ValueObject JsonAdapterBoost::ToValueObject( Context &rContext, JsonType const &json )
+ValueObject JsonAdapterBoost::ToValueObject( JsonType const &json )
 {
-    auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+    auto const cfg = ValueConfig{ValueShared,ValueMutable};
     switch( json.kind() ) {
         case boost::json::kind::object:
             {
                 Tuple tup;
                 tup.Reserve( json.get_object().size() );
                 for( auto const &[k, v] : json.get_object() ) {
-                    auto value = ToValueObject( rContext, v );
+                    auto value = ToValueObject( v );
                     tup.AppendKeyValue( k, value );
                 }
                 return ValueObject( std::move( tup ), cfg );
@@ -70,13 +70,13 @@ ValueObject JsonAdapterBoost::ToValueObject( Context &rContext, JsonType const &
                     // If the array is filled later, the empty buffer must be removed for show correct size.
                     tup.AppendValue( ValueObject( Buffer(), cfg ) );
                 } else for( auto const &v : json.get_array() ) {
-                    auto value = ToValueObject( rContext, v );
+                    auto value = ToValueObject( v );
                     tup.AppendValue( value );
                 }
                 return ValueObject( std::move( tup ), cfg );
             }
         case boost::json::kind::string:
-            return ValueObject( json.get_string().subview(), cfg);
+            return ValueObject( static_cast<std::string>(json.get_string().subview()), cfg);
         case boost::json::kind::double_:
             return ValueObject( json.get_double(), cfg);
         case boost::json::kind::uint64:

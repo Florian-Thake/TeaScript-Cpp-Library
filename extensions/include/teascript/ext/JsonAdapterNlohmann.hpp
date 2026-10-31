@@ -29,22 +29,40 @@ public:
 
     static constexpr char Name[] = "nlohmann::json";
 
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
+    static ValueObject ReadJsonString( Context &/*rContext*/, std::string const &rJsonStr )
+    {
+        return ReadJsonString( rJsonStr );
+    }
+
     /// Constructs a ValueObject from the given Json formatted string.
-    static ValueObject ReadJsonString( Context &rContext, std::string const &rJsonStr );
+    static ValueObject ReadJsonString( std::string const &rJsonStr );
 
     /// Constructs a Json formatted string from the given ValueObject. 
     /// \return the constructed string or false on error.
     /// \note the object must only contain supported types and layout for Json.
     static ValueObject WriteJsonString( ValueObject const &rObj );
 
-    static ValueObject ToValueObject( Context &rContext, JsonType const &json );
+    [[deprecated("Please use the other overload without Context parameter!")]]
+    static ValueObject ToValueObject( Context &/*rContext*/, JsonType const &json )
+    {
+        return ToValueObject( json );
+    }
+
+    static ValueObject ToValueObject( JsonType const &json );
 
     static void FromValueObject( ValueObject const &rObj, JsonType &rOut );
 
 
     // nlohmann supports different binary formats. We support BSON here.
 
-    static ValueObject FromBSON( Context &rContext, Buffer const &rBuffer );
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
+    static ValueObject FromBSON( Context &/*rContext*/, Buffer const &rBuffer )
+    {
+        return FromBSON( rBuffer );
+    }
+
+    static ValueObject FromBSON( Buffer const &rBuffer );
     static ValueObject ToBSON( ValueObject const &rObj );
 };
 

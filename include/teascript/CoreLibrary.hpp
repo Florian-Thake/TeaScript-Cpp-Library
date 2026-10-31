@@ -1329,8 +1329,13 @@ public:
         return ValueObject( std::move( res ), ValueConfig( true ) );
     }
 
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
+    static ValueObject ReadDirFirst( Context &/*rContext*/, std::string const &rPath )
+    {
+        return ReadDirFirst( rPath );
+    }
 
-    static ValueObject ReadDirFirst( Context &rContext, std::string const &rPath )
+    static ValueObject ReadDirFirst( std::string const &rPath )
     {
         std::error_code ec;
         auto const  path = std::filesystem::weakly_canonical( std::filesystem::absolute( util::utf8_path( rPath ) ), ec );
@@ -1343,7 +1348,7 @@ public:
                                      : rPath;
         
         auto dir_it = not ec ? std::filesystem::directory_iterator( path, ec ) : std::filesystem::directory_iterator();
-        auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+        auto const cfg = ValueConfig{ValueShared,ValueMutable};
         Tuple res;
         res.Reserve( 8 );
         if( ec || dir_it == std::filesystem::directory_iterator() ) {
@@ -1371,7 +1376,13 @@ public:
         return ValueObject( std::move( res ), cfg );
     }
 
-    static ValueObject ReadDirNext( Context &rContext, Tuple &rTuple )
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
+    static ValueObject ReadDirNext( Context &/*rContext*/, Tuple &rTuple )
+    {
+        return ReadDirNext( rTuple );
+    }
+
+    static ValueObject ReadDirNext( Tuple &rTuple )
     {
         bool error = false;
         std::filesystem::directory_iterator dir_it;
@@ -1389,7 +1400,7 @@ public:
             ++dir_it;
         }
 
-        auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+        auto const cfg = ValueConfig{ValueShared,ValueMutable};
         Tuple res;
         res.Reserve( 8 );
         if( error || dir_it == std::filesystem::directory_iterator() ) {
@@ -2207,7 +2218,8 @@ protected:
 #if TEASCRIPT_TOMLSUPPORT
             // readtomlstring : Tuple|Error ( String ) --> creates a named tuple from the given TOML formatted string (or Error on error).
             {
-                auto func = std::make_shared< LibraryFunction< decltype(TomlSupport::ReadTomlString) > >( &TomlSupport::ReadTomlString );
+                using ReadTomlF = ValueObject ( std::string const & );
+                auto func = std::make_shared< LibraryFunction< ReadTomlF > >( static_cast<ReadTomlF*>(&TomlSupport::ReadTomlString));
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readtomlstring", std::move( val ) ); // missing _ is intended
             }
@@ -2265,7 +2277,8 @@ protected:
 #if TEASCRIPT_JSONSUPPORT
             // readjsonstring : Any ( String ) --> creates a value of appropriate type from the given JSON formatted string (or Error on error).
             {
-                auto func = std::make_shared< LibraryFunction< decltype(JsonSupport<>::ReadJsonString) > >( &JsonSupport<>::ReadJsonString );
+                using ReadJsonF = ValueObject ( std::string const & );
+                auto func = std::make_shared< LibraryFunction< ReadJsonF > >( static_cast<ReadJsonF*>(&JsonSupport<>::ReadJsonString));
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readjsonstring", std::move( val ) ); // missing _ is intended
             }
@@ -2323,7 +2336,8 @@ protected:
 # if TEASCRIPT_BSONSUPPORT
             // readbsonbuffer : Any ( Buffer ) --> creates a value of appropriate type from the given BSON buffer (or Error on error).
             {
-                auto func = std::make_shared< LibraryFunction< decltype(JsonSupport<>::ReadBsonBuffer) > >( &JsonSupport<>::ReadBsonBuffer );
+                using ReadBsonF = ValueObject ( Buffer const & );
+                auto func = std::make_shared< LibraryFunction< ReadBsonF > >( static_cast<ReadBsonF*>(&JsonSupport<>::ReadBsonBuffer));
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readbsonbuffer", std::move( val ) ); // missing _ is intended
             }
@@ -2385,14 +2399,16 @@ protected:
 
             // readdirfirst : Tuple ( String ) --> returns the first direntry of given path (see direntry for details)
             {
-                auto func = std::make_shared< LibraryFunction< decltype(ReadDirFirst) > >( &ReadDirFirst );
+                using ReadDirF = ValueObject ( std::string const & );
+                auto func = std::make_shared< LibraryFunction< ReadDirF > >( static_cast<ReadDirF*>(&ReadDirFirst));
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readdirfirst", std::move( val ) ); // missing _ is intended for now.
             }
 
             // readdirnext : Tuple ( Tuple ) --> returns the next direntry of given direntry (see direntry for details)
             {
-                auto func = std::make_shared< LibraryFunction< decltype(ReadDirNext) > >( &ReadDirNext );
+                using ReadDirF = ValueObject ( Tuple & );
+                auto func = std::make_shared< LibraryFunction< ReadDirF > >( static_cast<ReadDirF*>(&ReadDirNext) );
                 ValueObject val{std::move( func ), cfg_mutable};
                 tea_add_var( "readdirnext", std::move( val ) ); // missing _ is intended for now.
             }

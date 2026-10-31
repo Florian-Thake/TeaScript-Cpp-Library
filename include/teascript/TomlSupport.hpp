@@ -37,15 +37,15 @@ namespace teascript {
 class TomlSupport
 {
     // Toml value --> Tuple value
-    static void DispatchKeyValue( Context &rContext, Tuple &rParent, std::optional<std::string> const &key, toml::node const &rNode )
+    static void DispatchKeyValue( Tuple &rParent, std::optional<std::string> const &key, toml::node const &rNode )
     {
-        auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+        auto const cfg = ValueConfig{ValueShared,ValueMutable};
 
         switch( rNode.type() ) {
         case toml::node_type::table:
             {
                 Tuple  table;
-                DispatchTable( rContext, table, *rNode.as_table() );
+                DispatchTable( table, *rNode.as_table() );
                 if( not key ) {
                     rParent.AppendValue( ValueObject( std::move( table ), cfg ) );
                 } else {
@@ -56,7 +56,7 @@ class TomlSupport
         case toml::node_type::array:
             {
                 Tuple  arr;
-                DispatchArray( rContext, arr, *rNode.as_array() );
+                DispatchArray( arr, *rNode.as_array() );
                 if( not key ) {
                     rParent.AppendValue( ValueObject( std::move( arr ), cfg ) );
                 } else {
@@ -132,25 +132,25 @@ class TomlSupport
     }
 
     // Toml array --> Tuple
-    static void DispatchArray( Context &rContext, Tuple &rParent, toml::array const &rArray )
+    static void DispatchArray( Tuple &rParent, toml::array const &rArray )
     {
         // special case: empty array!
         // An empty Tuple cannot be distinguished whether it belongs to an empty object or empty array!
         // for that reason we insert an empty Buffer, which is not a valid value for Toml.
         // If the array is filled later, the empty buffer must be removed for show correct size.
         if( rArray.empty() ) {
-            auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+            auto const cfg = ValueConfig{ValueShared,ValueMutable};
             rParent.AppendValue( ValueObject( Buffer(), cfg ) );
         } else for( auto const &node : rArray ) {
-            DispatchKeyValue( rContext, rParent, std::nullopt, node );
+            DispatchKeyValue( rParent, std::nullopt, node );
         }
     }
 
     // Toml table --> Tuple
-    static void DispatchTable( Context &rContext, Tuple &rParent, toml::table const &rTable )
+    static void DispatchTable( Tuple &rParent, toml::table const &rTable )
     {
         for( auto const &kv : rTable ) {
-            DispatchKeyValue( rContext, rParent, std::string(kv.first), kv.second);
+            DispatchKeyValue( rParent, std::string(kv.first), kv.second);
         }
     }
 
@@ -243,26 +243,40 @@ class TomlSupport
 
 public:
     /// Constructs a Tuple structure from the given Toml formatted string. \returns the Tuple or Error on error.
-    static ValueObject ReadTomlString( Context &rContext, std::string const &rTomlStr )
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
+    static ValueObject ReadTomlString( Context &/*rContext*/, std::string const &rTomlStr )
+    {
+        return ReadTomlString( rTomlStr );
+    }
+
+    /// Constructs a Tuple structure from the given Toml formatted string. \returns the Tuple or Error on error.
+    static ValueObject ReadTomlString( std::string const &rTomlStr )
     {
         Tuple res;
 
         try {
             auto const toml_table_root = toml::parse( rTomlStr );
-            DispatchTable( rContext, res, toml_table_root );
+            DispatchTable( res, toml_table_root );
         } catch( std::exception const & ex ) {
             return ValueObject( Error::MakeRuntimeError( std::string("Error reading TOML String: ") + ex.what() ), ValueConfig(ValueUnshared,ValueMutable) );
         }
 
-        auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+        auto const cfg = ValueConfig{ValueShared,ValueMutable};
         return ValueObject( std::move(res), cfg);
     }
 
     /// Constructs a Tuple from a given toml::table object. \throw This function throws on error.
-    static void TomlToTuple( Context &rContext, Tuple &rOut, toml::table const &rTable )
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
+    static void TomlToTuple( Context &/*rContext*/, Tuple &rOut, toml::table const &rTable )
+    {
+        return TomlToTuple( rOut, rTable );
+    }
+
+    /// Constructs a Tuple from a given toml::table object. \throw This function throws on error.
+    static void TomlToTuple( Tuple &rOut, toml::table const &rTable )
     {
         rOut.Clear();
-        DispatchTable( rContext, rOut, rTable );
+        DispatchTable( rOut, rTable );
     }
 
     /// Constructs a Toml formatted string from the given Tuple.

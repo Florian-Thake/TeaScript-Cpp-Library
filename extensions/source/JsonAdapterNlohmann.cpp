@@ -19,7 +19,7 @@
 
 namespace teascript {
 
-ValueObject JsonAdapterNlohmann::ReadJsonString( Context &rContext, std::string const &rJsonStr )
+ValueObject JsonAdapterNlohmann::ReadJsonString( std::string const &rJsonStr )
 {
     nlohmann::json json;
     try {
@@ -27,7 +27,7 @@ ValueObject JsonAdapterNlohmann::ReadJsonString( Context &rContext, std::string 
     } catch( std::exception const & ex ) {
         return ValueObject( Error::MakeRuntimeError( std::string("Error reading JSON String: ") + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
     }
-    return ToValueObject( rContext, json );
+    return ToValueObject( json );
 }
 
 ValueObject JsonAdapterNlohmann::WriteJsonString( ValueObject const &rObj )
@@ -43,16 +43,16 @@ ValueObject JsonAdapterNlohmann::WriteJsonString( ValueObject const &rObj )
     return ValueObject( std::move(os).str() );
 }
 
-ValueObject JsonAdapterNlohmann::ToValueObject( Context & rContext, JsonType const &json )
+ValueObject JsonAdapterNlohmann::ToValueObject( JsonType const &json )
 {
-    auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+    auto const cfg = ValueConfig{ValueShared,ValueMutable};
     switch( json.type() ) {
         case nlohmann::json::value_t::object:
             {
                 Tuple tup;
                 tup.Reserve( json.size() );
                 for( auto const &[k, v] : json.items() ) {
-                    auto value = ToValueObject( rContext, v );
+                    auto value = ToValueObject( v );
                     if( not value.GetTypeInfo()->IsSame<Error>() ) { // skip inner unsupported types like 'discarded'
                         tup.AppendKeyValue( k, value );
                     }
@@ -70,7 +70,7 @@ ValueObject JsonAdapterNlohmann::ToValueObject( Context & rContext, JsonType con
                     // If the array is filled later, the empty buffer must be removed for show correct size.
                     tup.AppendValue( ValueObject( Buffer(), cfg ) );
                 } else for( auto const &v : json ) {
-                    auto value = ToValueObject( rContext, v );
+                    auto value = ToValueObject( v );
                     if( not value.GetTypeInfo()->IsSame<Error>() ) { // skip inner unsupported types like 'discarded'
                         tup.AppendValue( value );
                     }
@@ -155,11 +155,11 @@ void JsonAdapterNlohmann::FromValueObject( ValueObject const &rObj, JsonType & r
     }
 }
 
-ValueObject JsonAdapterNlohmann::FromBSON( Context &rContext, Buffer const &rBuffer )
+ValueObject JsonAdapterNlohmann::FromBSON( Buffer const &rBuffer )
 {
     try {
         auto json = nlohmann::json::from_bson( rBuffer );
-        return ToValueObject( rContext, json );
+        return ToValueObject( json );
     } catch( std::exception const &ex ) {
         return ValueObject( Error::MakeRuntimeError( std::string( "Error reading BSON Buffer: " ) + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
     }

@@ -30,15 +30,15 @@ namespace teascript {
 class JsonAdapterPico
 {
 private:
-    static void DispatchKeyValue( Context &rContext, Tuple &rParent, std::optional< std::string > const &key, picojson::value const &value )
+    static void DispatchKeyValue( Tuple &rParent, std::optional< std::string > const &key, picojson::value const &value )
     {
-        auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+        auto const cfg = ValueConfig{ValueShared,ValueMutable};
 
         if( value.is<picojson::object>() ) {
             auto const &o = value.get<picojson::object>();
 
             Tuple object;
-            DispatchObject( rContext, o, object );
+            DispatchObject( o, object );
             if( not key ) {
                 rParent.AppendValue( ValueObject( std::move(object), cfg));
             } else {
@@ -48,7 +48,7 @@ private:
             auto const &a = value.get<picojson::array>();
 
             Tuple arr;
-            DispatchArray( rContext, a, arr );
+            DispatchArray( a, arr );
             if( not key ) {
                 rParent.AppendValue( ValueObject( std::move( arr ), cfg ) );
             } else {
@@ -91,24 +91,24 @@ private:
         }
     }
 
-    static void DispatchArray( Context &rContext, picojson::array const &arr, Tuple &rParent )
+    static void DispatchArray( picojson::array const &arr, Tuple &rParent )
     {
         // special case: empty array!
         // An empty Tuple cannot be distinguished whether it belongs to an empty object or empty array!
         // for that reason we insert an empty Buffer, which is not a valid value for Json.
         // If the array is filled later, the empty buffer must be removed for show correct size.
         if( arr.empty() ) {
-            auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+            auto const cfg = ValueConfig{ValueShared,ValueMutable};
             rParent.AppendValue( ValueObject( Buffer(), cfg ) );
         } else for( auto const &v : arr ) {
-            DispatchKeyValue( rContext, rParent, std::nullopt, v );
+            DispatchKeyValue( rParent, std::nullopt, v );
         }
     }
 
-    static void DispatchObject( Context &rContext, picojson::object const &obj, Tuple &rParent )
+    static void DispatchObject( picojson::object const &obj, Tuple &rParent )
     {
         for( auto const &[key, value] : obj ) {
-            DispatchKeyValue( rContext, rParent, key, value );
+            DispatchKeyValue( rParent, key, value );
         }
     }
 
@@ -118,7 +118,14 @@ public:
     static constexpr char Name[] = "PicoJson";
 
     /// Constructs a ValueObject from the given Json formatted string.
-    static ValueObject ReadJsonString( Context &rContext, std::string const &rJsonStr )
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
+    static ValueObject ReadJsonString( Context &/*rContext*/, std::string const &rJsonStr )
+    {
+        return ReadJsonString( rJsonStr );
+    }
+
+    /// Constructs a ValueObject from the given Json formatted string.
+    static ValueObject ReadJsonString( std::string const &rJsonStr )
     {
         picojson::value  json;
         auto const errorstr = picojson::parse( json, rJsonStr );
@@ -126,7 +133,7 @@ public:
             return ValueObject( Error::MakeRuntimeError("Error reading JSON String: " + errorstr), ValueConfig(ValueUnshared,ValueMutable) );
         }
 
-        return ToValueObject( rContext, json );
+        return ToValueObject( json );
     }
 
     /// Constructs a Json formatted string from the given ValueObject. 
@@ -145,18 +152,24 @@ public:
         return ValueObject( std::move(os).str() );
     }
 
-    static ValueObject ToValueObject( Context &rContext, JsonType const &json )
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
+    static ValueObject ToValueObject( Context &/*rContext*/, JsonType const &json )
     {
-        auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+        return ToValueObject( json );
+    }
+
+    static ValueObject ToValueObject( JsonType const &json )
+    {
+        auto const cfg = ValueConfig{ValueShared,ValueMutable};
 
         // according to Json spec the root value can be any valid value from null to object.
         if( json.is<picojson::object>() ) {
             Tuple  res;
-            DispatchObject( rContext, json.get<picojson::object>(), res );
+            DispatchObject( json.get<picojson::object>(), res );
             return ValueObject( std::move( res ), cfg );
         } else if( json.is<picojson::array>() ) {
             Tuple  res;
-            DispatchArray( rContext, json.get<picojson::array>(), res );
+            DispatchArray( json.get<picojson::array>(), res );
             return ValueObject( std::move( res ), cfg );
         } else if( json.is<std::string>() ) {
             return ValueObject( json.get<std::string>(), cfg );

@@ -8,6 +8,13 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    CORELIB/JSON/TOML: refactored C++ library functions which used a TypeSystem for Tuple/Function construction.
+    - Since the TypeSystem is not needed anymore, these functions don't need the Context parameter anymore.
+    - DEPRECATED: following library functions with Context parameter are now deprecated:
+      ReadJsonString, ToValueObject, JsonToValueObject, ReadBsonBuffer, ReadTomlString, TomlToTuple
+      ReadDirFirst, ReadDirNext
+    - Please, use the new overload without Context parameter.
+
     VALUE (BREAKING!): removed restrictions for casting to Bool. Now every supported type can be casted to Bool ...
     ... without throwing a C++ bad_value_cast exception.
       With this more scenarios can be handled from inside the script and it makes standalone scripts easier to write.

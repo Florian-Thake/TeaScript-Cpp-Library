@@ -36,14 +36,27 @@ public:
     static constexpr char Name[] = "RapidJSON";
 
     /// Constructs a ValueObject from the given Json formatted string.
-    static ValueObject ReadJsonString( Context &rContext, std::string const &rJsonStr );
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
+    static ValueObject ReadJsonString( Context &/*rContext*/, std::string const &rJsonStr )
+    {
+        return ReadJsonString( rJsonStr );
+    }
+
+    /// Constructs a ValueObject from the given Json formatted string.
+    static ValueObject ReadJsonString( std::string const &rJsonStr );
 
     /// Constructs a Json formatted string from the given ValueObject. 
     /// \return the constructed string or false on error.
     /// \note the object must only contain supported types and layout for Json.
     static ValueObject WriteJsonString( ValueObject const &rObj );
 
-    static ValueObject ToValueObject( Context &rContext, JsonValue const &json );
+    [[deprecated( "Please use the other overload without Context parameter!" )]]
+    static ValueObject ToValueObject( Context &/*rContext*/, JsonValue const &json )
+    {
+        return ToValueObject( json );
+    }
+
+    static ValueObject ToValueObject( JsonValue const &json );
 
     static void FromValueObject( ValueObject const &rObj, JsonType &rOut );
     static void FromValueObject( ValueObject const &rObj, JsonType &rDoc, JsonValue &rOut ); // needed because we always need the root document for obtain the Allocator! :-(

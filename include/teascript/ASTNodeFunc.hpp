@@ -70,7 +70,7 @@ public:
 
         auto func = std::make_shared<Func>( paramdef, block, GetSourceLocation() );
 
-        ValueObject  val{std::move(func), ValueConfig( ValueShared, ValueMutable, rContext.GetTypeSystem() )};
+        ValueObject  val{std::move(func), ValueConfig( ValueShared, ValueMutable )};
 
         if( mChildren[0]->GetName() == "Id" ) {
             rContext.AddValueObject( mChildren[0]->GetDetail(), val, mChildren[0]->GetSourceLocation() );

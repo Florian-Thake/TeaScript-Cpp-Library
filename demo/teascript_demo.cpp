@@ -88,7 +88,8 @@ void teascript_thread_suspend_demo();
 
 
 // web preview code (http client w. json). You must enable the WebPreview module in order to run this code.
-// Follow the instructions in instructions.txt or read the relase blog post on https://tea-age.solutions/ 
+// Follow the instructions in instructions.txt or read the relase blog post on 
+// https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-15-0/
 // or watch out for a tutorial video on YouTube.
 void webpreview_code()
 {
@@ -98,27 +99,14 @@ void webpreview_code()
     // note: This works also with nlohmann::json, RapidJson and Boost.Json. To do so, you need to add the corresponding JsonAdapter from the extensions directory.
     picojson::value  json;
     std::ignore = picojson::parse( json, "{\"name\":\"John\", \"age\":31, \"lottery\":[9,17,22,35,37,41,48]}" );
-
-    // we are building a little import helper engine for us wich will ease our life...
-    class WebJsonEngine : public teascript::Engine
-    {
-    public:
-        using teascript::Engine::Engine;  // same constructors as in base class.
-
-        // imports the Json object (JsonType equals picojson::value if PicoJson is used) as a Tuple object with given name.
-        void ImportJsonAsTuple( std::string const &name, teascript::JsonSupport<>::JsonType const &json )
-        {
-            teascript::ValueObject tuple;
-            teascript::JsonSupport<>::JsonToValueObject( mContext, tuple, json );
-            AddSharedValueObject( name, tuple );
-        }
-    };
     
     // create the engine
-    WebJsonEngine  engine;
-    
+    teascript::Engine  engine;
+
     // import the json as variable 'payload'
-    engine.ImportJsonAsTuple( "payload", json );
+    teascript::ValueObject tuple;
+    teascript::JsonSupport<>::JsonToValueObject( tuple, json );
+    engine.AddSharedValueObject( "payload", tuple );
 
     // execute a script which will issue a webserver POST and returns the (json) payload of the reply
     auto reply_payload = engine.ExecuteCode( R"_SCRIPT_(
@@ -127,14 +115,14 @@ if( is_defined reply.json ) { // we got a json object back from the server
     reply.json
 } else {
     if( is_defined reply.error ) {
-        reply.what
+        reply.what as Error
     } else {
-        "Unknown error! No Json object present!"
+        "Unknown error! No Json object present!" as Error
     }
 }
 )_SCRIPT_" );
-    if( reply_payload.GetTypeInfo()->IsSame< std::string >() ) { // error
-        std::cout << "Error: " << reply_payload.GetValue< std::string>() << std::endl;
+    if( reply_payload.GetTypeInfo()->IsSame< teascript::Error >() ) { // error
+        std::cout << "Error: " << reply_payload << std::endl;
         return;
     }
 
@@ -157,7 +145,9 @@ if( is_defined reply.json ) { // we got a json object back from the server
 
 #else
     puts( "Web Preview module is disabled!\nFollow the instructions in instructions.txt to enable it\n"
-          "or read the release blog post on https://tea-age.solutions/ \nor watch the how-to video on YouTube: https://youtu.be/SeRO21U1vMk" );
+          "or read the release blog post on\n"
+          "https://teascript.run-by-ai.cloud/blog/release-of-teascript-0-15-0/\n"
+          "or watch the how-to video on YouTube: https://youtu.be/SeRO21U1vMk" );
 #endif
 }
 
@@ -944,7 +934,7 @@ int main( int argc, char **argv )
 // helper function for Windows to convert a string from ANSI/OEM code page to UTF-8 encoded string. Does nothing on Non-Windows platforms.
 // NOTE: This function does only half of the job. It makes the full set of the current ANSI/OEM code page available as UTF-8 instead of ASCII only.
 //       For full unicode support different techniques are required. These are used in the TeaScript Host Application.
-//       The TeaScript Host Application can be downloaded for free here: https://tea-age.solutions/downloads/
+//       The TeaScript Host Application can be downloaded for free here: https://teascript.run-by-ai.cloud/downloads/
 std::string build_string_from_commandline( char *arg, bool is_from_getline )
 {
 #if defined( _WIN32 )

@@ -140,7 +140,7 @@ public:
                 return util::call_helper< FuncPtrType, TS...>( mpFunc, rParams, std::make_index_sequence<ArgN>{} );
             }
         } else if constexpr( not std::is_same_v<ReturnType, void> ) {
-            auto const cfg = ValueConfig( ValueUnshared, ValueMutable, rContext.GetTypeSystem() ); // return values are unshared by default.
+            auto const cfg = ValueConfig( ValueUnshared, ValueMutable ); // return values are unshared by default.
             if constexpr( HasContextParam ) {
                 return ValueObject( util::call_context_helper< FuncPtrType, TS...>( mpFunc, rContext, rParams, std::make_index_sequence<ArgN>{} ), cfg );
             } else {
@@ -247,7 +247,7 @@ public:
     inline explicit MakeTupleFunc( eFlavor const flavor = eFlavor::Normal ) : FunctionBase(), mFlavor( flavor ) {}
     virtual ~MakeTupleFunc() {}
 
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
+    ValueObject Call( Context &/*rContext*/, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
     {
         Tuple  tuple;
 
@@ -268,10 +268,10 @@ public:
 
         // special case for mark an empty toml/json array.
         if( mFlavor == eFlavor::TomlJsonArray && tuple.IsEmpty() ) {
-            tuple.AppendValue( ValueObject( Buffer(), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} ) );
+            tuple.AppendValue( ValueObject( Buffer(), ValueConfig{ValueShared,ValueMutable} ) );
         }
 
-        return ValueObject( std::move( tuple ), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} );
+        return ValueObject( std::move( tuple ), ValueConfig{ValueShared,ValueMutable} );
     }
 };
 
@@ -279,7 +279,7 @@ public:
 class MakeMapFunc : public FunctionBase
 {
 public:
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
+    ValueObject Call( Context &/*rContext*/, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
     {
         Map map;
         for( auto const &v : rParams ) {
@@ -289,7 +289,7 @@ public:
             }
             map.emplace( p->GetValueByIdx_Unchecked( 0 ), p->GetValueByIdx_Unchecked( 1 ) );
         }
-        return ValueObject( std::move( map ), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} );
+        return ValueObject( std::move( map ), ValueConfig{ValueShared,ValueMutable} );
     }
 };
 
@@ -300,7 +300,7 @@ public:
     FormatStringFunc() = default;
     virtual ~FormatStringFunc() {}
 
-    ValueObject Call( Context &rContext, std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
+    ValueObject Call( [[maybe_unused]] Context &rContext, [[maybe_unused]] std::vector<ValueObject> &rParams, SourceLocation const &rLoc ) override
     {
 #if TEASCRIPT_FMTFORMAT
         if( rParams.size() < 1 || not rParams[0].GetTypeInfo()->IsSame<std::string>() ) {
@@ -337,10 +337,8 @@ public:
 
         std::string res = fmt::vformat( format_str, store );
 
-        return ValueObject( std::move( res ), ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()} );
+        return ValueObject( std::move( res ), ValueConfig{ValueShared,ValueMutable} );
 #else
-        (void)rContext;
-        (void)rParams;
         throw exception::runtime_error( rLoc, "FormatStringFunc Call: You must use libfmt to make this working!" );
 #endif
     }

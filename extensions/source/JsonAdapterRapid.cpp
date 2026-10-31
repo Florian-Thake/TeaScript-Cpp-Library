@@ -23,7 +23,7 @@
 
 namespace teascript {
 
-ValueObject JsonAdapterRapid::ReadJsonString( Context &rContext, std::string const &rJsonStr )
+ValueObject JsonAdapterRapid::ReadJsonString( std::string const &rJsonStr )
 {
     rapidjson::Document json;
     try {
@@ -33,7 +33,7 @@ ValueObject JsonAdapterRapid::ReadJsonString( Context &rContext, std::string con
     } catch( std::exception const & ex ) {
         return ValueObject( Error::MakeRuntimeError( std::string( "Error reading JSON String: " ) + ex.what() ), ValueConfig( ValueUnshared, ValueMutable ) );
     }
-    return ToValueObject( rContext, json );
+    return ToValueObject( json );
 }
 
 ValueObject JsonAdapterRapid::WriteJsonString( ValueObject const &rObj )
@@ -52,16 +52,16 @@ ValueObject JsonAdapterRapid::WriteJsonString( ValueObject const &rObj )
     return ValueObject( std::move(os).str() );
 }
 
-ValueObject JsonAdapterRapid::ToValueObject( Context &rContext, JsonValue const &json )
+ValueObject JsonAdapterRapid::ToValueObject( JsonValue const &json )
 {
-    auto const cfg = ValueConfig{ValueShared,ValueMutable,rContext.GetTypeSystem()};
+    auto const cfg = ValueConfig{ValueShared,ValueMutable};
     switch( json.GetType() ) {
         case rapidjson::kObjectType:
             {
                 Tuple tup;
                 tup.Reserve( json.MemberCount() );
                 for( auto const &[k, v] : json.GetObject() ) {
-                    auto value = ToValueObject( rContext, v );
+                    auto value = ToValueObject( v );
                     tup.AppendKeyValue( k.GetString(), value);
                 }
                 return ValueObject( std::move( tup ), cfg );
@@ -77,7 +77,7 @@ ValueObject JsonAdapterRapid::ToValueObject( Context &rContext, JsonValue const 
                     // If the array is filled later, the empty buffer must be removed for show correct size.
                     tup.AppendValue( ValueObject( Buffer(), cfg ) );
                 } else for( auto const &v : json.GetArray() ) {
-                    auto value = ToValueObject( rContext, v );
+                    auto value = ToValueObject( v );
                     tup.AppendValue( value );
                 }
                 return ValueObject( std::move( tup ), cfg );
