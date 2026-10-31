@@ -8,6 +8,8 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    CORELIB/TUPLE: added _tuple_reserve and _tuple_capacity for better array like usage.
+
     CORELIB: added basic IntegerSequence API _seq_next, seq_reset, as i64/u64/u8/f64.
     - With that the IntegerSequence can be used outside of the forall loop head for arbitrary counting.
     - E.g.: def s := _seq(1,5,1), (s as i64) == 1, _seq_next(s), (s as i64) == 2, (s as Bool) == true /*next value?*/

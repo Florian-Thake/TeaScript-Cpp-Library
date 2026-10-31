@@ -105,6 +105,12 @@ public:
     }
 
     inline
+    std::size_t Capacity() const noexcept
+    {
+        return mStorage.capacity();
+    }
+
+    inline
     std::size_t Size() const noexcept
     {
         return mStorage.size();

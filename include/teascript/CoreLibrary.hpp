@@ -632,6 +632,20 @@ public:
         return static_cast<long long>(rTuple.Size());
     }
 
+    static bool TupleReserve( Tuple &rTuple, long long const count )
+    {
+        if( count < 0 || count > std::numeric_limits<int>::max() ) {
+            return false;
+        }
+        rTuple.Reserve( static_cast<size_t>(count) );
+        return true;
+    }
+
+    static long long TupleCapacity( Tuple const &rTuple )
+    {
+        return static_cast<long long>(rTuple.Capacity());
+    }
+
     static ValueObject TupleValue( Tuple const &rTuple, long long const idx )
     {
         return rTuple.GetValueByIdx( static_cast<std::size_t>(idx) );
@@ -2025,6 +2039,20 @@ protected:
             auto func = std::make_shared< LibraryFunction< decltype(TupleSize) > >( &TupleSize );
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_tuple_size", std::move( val ) );
+        }
+
+        // _tuple_reserve : Bool ( Tuple, count: i64 ) --> reserves capacity for count elements and returns true on success. Never shrinks. Intended for array like usage.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(TupleReserve) > >( &TupleReserve );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_tuple_reserve", std::move( val ) );
+        }
+
+        // _tuple_capacity : i64 ( Tuple ) --> returns the current capacity as i64. size of the Tuple can be up to its capacity. Intended for array like usage.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(TupleCapacity) > >( &TupleCapacity);
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_tuple_capacity", std::move( val ) );
         }
 
         // _tuple_same_types : Bool ( Tuple, Tuple ) --> checks whether the 2 tuples have the same types in exactly the same order (and with same names).

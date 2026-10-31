@@ -175,5 +175,47 @@ print( "testing sequence functions with single element... " )
 }
 print_success( "ok.\n" )
 
+// _tuple_reserve, _tuple_capacity
+print( "testing _tuple_reserve/capacity... " )
+{
+    def t := _tuple_create()
+    TEST_EQ( _tuple_size(t), 0, "not 0 size after construction!" )
+    TEST_EQ( _tuple_capacity(t), 0, "not 0 capacity after construction!" )
+    // reserve some capacity
+    TEST_TRUE( _tuple_reserve(t, 4), "reserve failed!" )
+    
+    TEST_EQ( _tuple_size(t), 0, "not 0 size after reserve!" )
+    TEST_EQ( _tuple_capacity(t), 4, "not 4 capacity after reserve!" )
+    
+    _tuple_append( t, 1 )
+    _tuple_append( t, 2 )
+    _tuple_append( t, 3 )
+    _tuple_append( t, 4 )
+    
+    TEST_EQ( _tuple_size(t), 4, "not 4 size after insert!" )
+    TEST_EQ( _tuple_capacity(t), 4, "not 4 capacity after insert!" )
+    TEST_EQ( t[3], 4, "subscript is not 4 after insert!" )
+    
+    // true but shall not shrink or remove anything.
+    TEST_TRUE( _tuple_reserve(t, 2), "reserve failed!" )
+    TEST_EQ( _tuple_size(t), 4, "not 4 size after second reserve!" )
+    TEST_EQ( _tuple_capacity(t), 4, "not 4 capacity second reserve!" )
+    TEST_EQ( t[3], 4, "subscript is not 4 after second reserve!" )
+    
+    // true but shall not remove anything.
+    TEST_TRUE( _tuple_reserve(t, 8), "reserve failed!" )
+    TEST_EQ( _tuple_size(t), 4, "not 4 size after third reserve!" )
+    TEST_EQ( _tuple_capacity(t), 8, "not 8 capacity third reserve!" )
+    TEST_EQ( t[3], 4, "subscript is not 4 after third reserve!" )
+    
+    def t2 := _tuple_create()
+    TEST_EQ( _tuple_capacity(t2), 0, "not 0 capacity after construction!" )
+    TEST_FALSE( _tuple_reserve(t, -1), "reserve not false for negative!" )
+    TEST_EQ( _tuple_capacity(t2), 0, "not 0 capacity after first reserve!" )
+    TEST_FALSE( _tuple_reserve(t, 2147483647 + 1), "reserve not false for too big!" )
+    TEST_EQ( _tuple_capacity(t2), 0, "not 0 capacity after second reserve!" )
+}
+print_success( "ok.\n" )
+
 
 print_success( "=== TEST PASSED ===\n" )
