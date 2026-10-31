@@ -106,29 +106,30 @@ public:
     }
 
     /// Constructs a ValueObject structure from the given Json formatted string.
+    /// \return the constructed ValueObject structure or one with an Error on error.
     static ValueObject ReadJsonString( std::string const &rJsonStr )
     {
         return Adapter::ReadJsonString( rJsonStr );
     }
 
     /// Constructs a Json formatted string from the given ValueObject. 
-    /// \return the constructed string or false on error.
+    /// \return the constructed string or Error on error.
     /// \note the object must only contain supported types and layout for Json.
     static ValueObject WriteJsonString( ValueObject const &rObj )
     {
         return Adapter::WriteJsonString( rObj );
     }
 
-    /// Constructs a ValueObject from a given json root value. If the out ValueObject is of type TypeInfo an error occurred.
-    /// \note Transition: The type for the error case will be changed to Error in some next future release!
+    /// Constructs a ValueObject from a given json root value.
+    /// On error the ValueObject is of type Error.
     [[deprecated( "Please use the other overload without Context parameter!" )]]
     static void JsonToValueObject( Context &rContext, ValueObject &rOut, JsonType const &root )
     {
         rOut = Adapter::ToValueObject( rContext, root );
     }
 
-    /// Constructs a ValueObject from a given json root value. If the out ValueObject is of type TypeInfo an error occurred.
-    /// \note Transition: The type for the error case will be changed to Error in some next future release!
+    /// Constructs a ValueObject from a given json root value.
+    /// On error the ValueObject is of type Error.
     static void JsonToValueObject( ValueObject &rOut, JsonType const &root )
     {
         rOut = Adapter::ToValueObject( root );
@@ -156,7 +157,7 @@ public:
     }
 
     /// Constructs a Bson buffer from the given ValueObject. 
-    /// \return the constructed buffer or false on error.
+    /// \return the constructed buffer or Error on error.
     /// \note the object must only contain supported types and layout for Json.
     static ValueObject WriteBsonBuffer( ValueObject const &rObj )
     {

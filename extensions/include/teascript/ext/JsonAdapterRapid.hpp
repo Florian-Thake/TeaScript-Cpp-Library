@@ -43,10 +43,11 @@ public:
     }
 
     /// Constructs a ValueObject from the given Json formatted string.
+    /// \return the constructed ValueObject structure or one with an Error on error.
     static ValueObject ReadJsonString( std::string const &rJsonStr );
 
     /// Constructs a Json formatted string from the given ValueObject. 
-    /// \return the constructed string or false on error.
+    /// \return the constructed string or Error on error.
     /// \note the object must only contain supported types and layout for Json.
     static ValueObject WriteJsonString( ValueObject const &rObj );
 
