@@ -1438,6 +1438,18 @@ public:
         return rVal.InternalType() == ValueObject::TypeNaV;
     }
 
+    /// \return whether the IntegerSequence was advanced to the next value or it has reached end already.
+    static bool SeqNext( IntegerSequence &rSeq )
+    {
+        return rSeq.Next();
+    }
+
+    /// resets the IntegerSequence to start value.
+    static void SeqReset( IntegerSequence &rSeq )
+    {
+        rSeq.Reset();
+    }
+
 private:
     // as long as we must support _f64toi64 ... 
     static long long f64toi64( double const d )
@@ -1620,6 +1632,21 @@ protected:
             ValueObject val{std::move( func ), cfg};
             tea_add_var( "_seq", std::move( val ) );
         }
+
+        // _seq_next : Bool ( IntegerSequence ) --> sets to next value if there still is one and returns whether it was advanced.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(SeqNext) > >( &SeqNext );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_seq_next", std::move( val ) );
+        }
+
+        // _seq_reset : void ( IntegerSequence ) --> resets the sequence to the start value.
+        {
+            auto func = std::make_shared< LibraryFunction< decltype(SeqReset) > >( &SeqReset );
+            ValueObject val{std::move( func ), cfg};
+            tea_add_var( "_seq_reset", std::move( val ) );
+        }
+
 
         // Map
 

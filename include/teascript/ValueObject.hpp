@@ -1004,7 +1004,8 @@ public:
             []( U64 const u ) { return u <= static_cast<U64>(std::numeric_limits<I64>::max()) ? static_cast<Integer>(u) : (throw exception::bad_value_cast( "ValueObject with u64 not convertible to Integer!" ), Integer{}); },
             []( F64 const d ) { return std::isfinite( d ) ? static_cast<Integer>(d) : (throw exception::bad_value_cast( "ValueObject with f64 not convertible to Integer!" ), Integer{}); },
             []( std::string const &rStr ) { try { return static_cast<Integer>(std::stoll( rStr )); } catch( ... ) { throw exception::bad_value_cast( "ValueObject with String not convertible to Integer!" ); } },
-            []( Error const &/*rError*/ ) -> Integer { throw exception::bad_value_cast( "ValueObject with Error not convertible to Integer!" ); }
+            []( Error const &/*rError*/ ) -> Integer { throw exception::bad_value_cast( "ValueObject with Error not convertible to Integer!" ); },
+            []( IntegerSequence const &rSeq ) { return rSeq.Current(); }
         }, *mpValue );
     }
 

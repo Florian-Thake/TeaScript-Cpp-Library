@@ -1,0 +1,179 @@
+#!/opt/TeaAgeSolutions/TeaScript/bin/TeaScript
+/*
+ * SPDX-FileCopyrightText: Copyright (C) 2026 Florian Thake <contact@tea-age.solutions>. All rights reserved.
+ */
+ 
+// This is a follow up Unittest for the TeaScript Core Library written in TeaScript for versions >= 0.18
+
+
+// NOTE: assuming all C++ UnitTests and test01.tea + test02.tea passed 100%!
+
+##minimum_version 0.18
+
+// pre-check
+if( not is_defined _core_config or (_core_config bit_and 0xf) < 8 /* LevelFull */ ) {
+    return "Tests must always run with CoreLibrary LevelFull."
+}
+
+// --- pre check done...
+
+// helper construct for (optional feature) color printing:
+// If cprint is not defined, we define it but just call print without color.
+// HINT: You need to add the {fmt} lib to your project in order to have color and format printing.
+//       The pre-build TeaScript Host Application has this feature always enabled.
+is_defined cprint or (func cprint( color, text )
+{
+    print( text )
+})
+
+
+func print_failure( text )
+{
+    // red color
+    cprint( make_rgb( 255, 0, 0 ), text )
+}
+
+func print_success( text )
+{
+    // green color
+    cprint( make_rgb( 0, 255, 0 ), text )
+}
+
+func print_warning( text )
+{
+    // pink color
+    cprint( make_rgb( 255, 0, 255 ), text )
+}
+
+
+// --- UnitTest function definitions 
+
+func TEST_EQ( val, expected, msg )
+{
+    if( typeof val != typeof expected ) {
+        print_failure( "\nFAILED:\n" )
+        fail_with_message( "expected type %(typeof expected) but was %(typeof val). " % msg, _exit_failure )
+    }
+    def res := val == expected
+    if( not res ) {
+        print_failure( "\nFAILED:\n" )
+        fail_with_message( "expected %(expected) but was %(val). " % msg, _exit_failure )
+    }
+}
+
+func TEST_TRUE( c, msg )
+{
+    // enforce a boolean!
+    TEST_EQ( not not c, true, msg )
+}
+
+func TEST_FALSE( c, msg )
+{
+    // enforce a boolean!
+    TEST_EQ( not not c, false, msg )
+}
+
+// --- Start the test
+
+_out( "Start testing TeaScript Core Library ...\n" )
+
+// basics for sequence (NOTE: the majority of the counting mechanic is tested already in forall_test.tea)
+print( "testing basic sequence functions... " )
+{
+    def s := _seq(0,3,1)
+    TEST_TRUE( s as Bool, "sequence does not offer a next value (1)." )
+    TEST_EQ( s as i64, 0, "wrong start value i64!" )
+    // other Number types are possible
+    TEST_EQ( s as u64, 0u64, "wrong start value u64!" )
+    TEST_EQ( s as u8, 0u8, "wrong start value u8!" )
+    TEST_EQ( s as f64, 0f64, "wrong start value f64!" )
+
+    TEST_TRUE( _seq_next(s), "_seq_next(s) failed (1)!" )
+    TEST_EQ( s as i64, 1, "wrong next value!" )
+    TEST_TRUE( s as Bool, "sequence does not offer a next value (2)." )
+    
+    TEST_TRUE( _seq_next(s), "_seq_next(s) failed! (2)" )
+    TEST_EQ( s as i64, 2, "wrong next value!" )
+    TEST_TRUE( s as Bool, "sequence does not offer a next value (3)." )
+    
+    TEST_TRUE( _seq_next(s), "_seq_next(s) failed! (3)" )
+    TEST_EQ( s as i64, 3, "wrong next value!" )
+    TEST_FALSE( s as Bool, "sequence reports not to be at end!" )
+    TEST_FALSE( _seq_next(s), "_seq_next(s) still true!" )
+    TEST_EQ( s as i64, 3, "wrong next value past the end!" )
+    
+    _seq_reset(s)
+    TEST_TRUE( s as Bool, "sequence does not offer a next value (4)." )
+    TEST_EQ( s as i64, 0, "wrong start value i64!" )
+    TEST_TRUE( _seq_next(s), "_seq_next(s) failed (4)!" )
+    TEST_EQ( s as i64, 1, "wrong next value!" )
+}
+print_success( "ok.\n" )
+
+// basics but backwards.
+print( "testing basic sequence functions backwards... " )
+{
+    def s := _seq(3,0,-1)
+    TEST_TRUE( s as Bool, "sequence does not offer a next value (1)." )
+    TEST_EQ( s as i64, 3, "wrong start value i64!" )
+    // other Number types are possible
+    TEST_EQ( s as u64, 3u64, "wrong start value u64!" )
+    TEST_EQ( s as u8, 3u8, "wrong start value u8!" )
+    TEST_EQ( s as f64, 3f64, "wrong start value f64!" )
+
+    TEST_TRUE( _seq_next(s), "_seq_next(s) failed (1)!" )
+    TEST_EQ( s as i64, 2, "wrong next value!" )
+    TEST_TRUE( s as Bool, "sequence does not offer a next value (2)." )
+    
+    TEST_TRUE( _seq_next(s), "_seq_next(s) failed! (2)" )
+    TEST_EQ( s as i64, 1, "wrong next value!" )
+    TEST_TRUE( s as Bool, "sequence does not offer a next value (3)." )
+    
+    TEST_TRUE( _seq_next(s), "_seq_next(s) failed! (3)" )
+    TEST_EQ( s as i64, 0, "wrong next value!" )
+    TEST_FALSE( s as Bool, "sequence reports not to be at end!" )
+    TEST_FALSE( _seq_next(s), "_seq_next(s) still true!" )
+    TEST_EQ( s as i64, 0, "wrong next value past the end!" )
+    
+    _seq_reset(s)
+    TEST_TRUE( s as Bool, "sequence does not offer a next value (4)." )
+    TEST_EQ( s as i64, 3, "wrong start value i64!" )
+    TEST_TRUE( _seq_next(s), "_seq_next(s) failed (4)!" )
+    TEST_EQ( s as i64, 2, "wrong next value!" )
+}
+print_success( "ok.\n" )
+
+// sequence with one single element
+print( "testing sequence functions with single element... " )
+{
+    def s1 := _seq(1,1,1)
+    TEST_FALSE( s1 as Bool, "single element sequence offering a next value!" )
+    TEST_EQ( s1 as i64, 1, "wrong start value!" )
+    TEST_FALSE( _seq_next(s1), "_seq_next is true for single element sequence!" )
+    _seq_reset(s1)
+    TEST_FALSE( s1 as Bool, "single element sequence offering a next value after reset!" )
+    TEST_EQ( s1 as i64, 1, "wrong start value after reset!" )
+    TEST_FALSE( _seq_next(s1), "_seq_next is true for single element sequence after reset!" )
+    
+    def s2 := _seq(-1,-1,-1)
+    TEST_FALSE( s2 as Bool, "single element sequence offering a next value!" )
+    TEST_EQ( s2 as i64, -1, "wrong start value!" )
+    TEST_FALSE( _seq_next(s2), "_seq_next is true for single element sequence!" )
+    _seq_reset(s2)
+    TEST_FALSE( s2 as Bool, "single element sequence offering a next value after reset!" )
+    TEST_EQ( s2 as i64, -1, "wrong start value after reset!" )
+    TEST_FALSE( _seq_next(s2), "_seq_next is true for single element sequence after reset!" )
+    
+    def s3 := _seq(0,0,0)
+    TEST_FALSE( s3 as Bool, "single element sequence offering a next value!" )
+    TEST_EQ( s3 as i64, 0, "wrong start value!" )
+    TEST_FALSE( _seq_next(s3), "_seq_next is true for single element sequence!" )
+    _seq_reset(s3)
+    TEST_FALSE( s3 as Bool, "single element sequence offering a next value after reset!" )
+    TEST_EQ( s3 as i64, 0, "wrong start value after reset!" )
+    TEST_FALSE( _seq_next(s3), "_seq_next is true for single element sequence after reset!" )
+}
+print_success( "ok.\n" )
+
+
+print_success( "=== TEST PASSED ===\n" )

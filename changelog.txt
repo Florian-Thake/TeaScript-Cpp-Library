@@ -8,6 +8,12 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    CORELIB: added basic IntegerSequence API _seq_next, seq_reset, as i64/u64/u8/f64.
+    - With that the IntegerSequence can be used outside of the forall loop head for arbitrary counting.
+    - E.g.: def s := _seq(1,5,1), (s as i64) == 1, _seq_next(s), (s as i64) == 2, (s as Bool) == true /*next value?*/
+    - Note: same as for the forall loop the end value must be reachable exactly via step, otherwise it stops one value
+      before the end value!
+
     CORELIB/JSON/TOML: refactored C++ library functions which used a TypeSystem for Tuple/Function construction.
     - Since the TypeSystem is not needed anymore, these functions don't need the Context parameter anymore.
     - DEPRECATED: following library functions with Context parameter are now deprecated:
@@ -25,9 +31,9 @@ VERSION 0.18.0 (not released yet, pre-release)
     - std::any --> has_value()
     VALUE: reject nullptr in constructor for FunctionPtr.
     - added bool is_const = false to CreatePassthrough() for easily creating a const Passthrough value.
-    
+
     TYPES: added Passthrough TypeInfo variable, this allows `typeof data == Passthrough`.
-    
+
     CORELIB: added _is_nav( val ) which returns whether the inner value of val is NaV (Not a Value) regardless of the type.
     - added tests in corelibrary_test01
     - basic example: def i := 1, typeof i == i64, i := void, _is_nav( i ) == true, (typeof i == i64) == true
