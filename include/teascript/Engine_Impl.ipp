@@ -143,7 +143,7 @@ TEASCRIPT_COMPILE_MODE_INLINE
 ValueObject Engine::ExecuteScript( std::filesystem::path const &path, std::vector<ValueObject> const &args )
 {
     // check if we have a stored .tsb
-    if( not mContext.GetSettings().GetTsbPath().empty() ) {
+    if( mMode != eMode::Eval && not mContext.GetSettings().GetTsbPath().empty() ) {
         teascript::StackVM::ProgramPtr  program = teascript::TsbStore::LoadProgramFor( path, mContext.GetSettings() );
         if( program != nullptr ) {
             return ExecuteProgram( program, args );
