@@ -192,6 +192,10 @@ private:
                 mInstructions.emplace_back( eTSVM_Instr::Break, teascript::ValueObject( rNode->GetDetail() ) );
                 mDebuginfo.emplace( mInstructions.size() - 1, rNode->GetSourceLocation() );
             }
+            // every statement must produce a result actually (in most cases it will be optimized away later anyway)
+            // (if don't do this a { breakpoint "test" } will fail with StackTooSmall after continue even for non debug since an empty block would carry a NoOp which produces a NaV)
+            mInstructions.emplace_back( eTSVM_Instr::Push, teascript::ValueObject() );
+            return; // done!
         } else if( rNode->GetName() == "Constant" ) {
             // replace a prior Pop with Replace
             if( mOptLevel != eOptimize::Debug && not mInstructions.empty() && mInstructions.back().instr == eTSVM_Instr::Pop ) {
@@ -845,8 +849,7 @@ private:
                 RecursiveBuildTSVMCode( *it );
                 // all but the last top level scope must pop their results for not make the stack dirty
                 // but don't do this for TSVM assembly nodes. they must handle it manually!
-                // Don't do this for Breakpoints either, they don't place anything on the stack (and in non debug mode they disappear entirely).
-                if( (*it)->GetName() == "TSVM" || (*it)->GetName() == "Breakpoint" ) {
+                if( (*it)->GetName() == "TSVM" ) {
                     ; // nop
                 } else if( mState.node_level == mState.stack_node_level.top() ) {
                     if( it != std::prev( rNode->end() ) ) {
