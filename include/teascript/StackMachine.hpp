@@ -60,6 +60,15 @@ namespace StackVM {
 //                                                               current instr        number      jumped
 using CurrentInstrCallback = std::function< void( StackVM::Instruction const &, size_t const, bool const ) >;
 
+using Clock = std::chrono::steady_clock;
+
+struct RunStats
+{
+    Clock::time_point start{};
+    Clock::time_point end{};
+    std::size_t       instr_count{};
+};
+
 /// The TeaStackVM
 /// Use thread_support = false for single thread usage. Then the mutex is a no-op and a stop_source/token is not used.
 template< bool thread_support >
@@ -129,6 +138,7 @@ private:
 #endif
 
     eState                      mState = eState::Stopped;
+    RunStats                    mRunStats;  // run statistics updated at the end(!) of each Exec() call
 
     CurrentInstrCallback        mCurrentInstrCallback;
 
@@ -167,6 +177,13 @@ public:
     inline bool IsRunning()   const { auto const guard = std::lock_guard( mStateMutex ); return mState == eState::Running; }
     inline bool IsSuspended() const { auto const guard = std::lock_guard( mStateMutex ); return mState == eState::Suspended; }
     inline bool IsErroneousHalted() const { auto const guard = std::lock_guard( mStateMutex ); return mState == eState::Halted; }
+
+    /// \returns a copy of the run statistics of the last Exec() call. If the machine is still running, it is the data from the run before.
+    RunStats GetRunStats() const
+    {
+        auto const guard = std::lock_guard( mStateMutex );
+        return mRunStats;
+    }
 
     /// \returns whether there is a result present and can be obtained.
     bool HasResult() const
@@ -468,7 +485,8 @@ public:
 private:
     void Exec( Context &rContext, Constraints const &constraint )
     {
-        auto const start = std::chrono::steady_clock::now();
+        Clock::time_point const start = Clock::now();
+        Clock::time_point         end{};
         constexpr size_t max_time_granularity = TEASCRIPT_CONSTRAINTS_MAXTIME_GRANULARITY;
         unsigned long long  instr_count = 0; // current instr. count
         [[maybe_unused]] std::size_t  last = 0;   // last instruction before a jump
@@ -510,9 +528,10 @@ private:
                 break;
             case Constraints::eKind::Timed:
                 if( instr_count % max_time_granularity == 0 ) {
-                    auto const  t  = std::chrono::steady_clock::now();
+                    auto const  t  = Clock::now();
                     auto const  ms = std::chrono::duration_cast<std::chrono::milliseconds>(t - start);
                     if( ms >= constraint.GetMaxTime() ) {
+                        end = t;
                         run = false;
                         continue;
                     }
@@ -1336,14 +1355,21 @@ private:
             }
 
 #if TEASCRIPT_ENABLE_STACKVM_INSTR_TIMES
-            mInstrTimesRingBuffer[mInstrTimesIndex++] = std::make_pair( current_instr.instr, std::chrono::steady_clock::now() );
+            mInstrTimesRingBuffer[mInstrTimesIndex++] = std::make_pair( current_instr.instr, Clock::now() );
 #endif
             ++instr_count;
             ++mCurrent;
         }
 
+        if( end == Clock::time_point{} ) {
+            end = Clock::now();
+        }
 
         auto const guard = std::lock_guard( mStateMutex );
+
+        mRunStats.start = start;
+        mRunStats.end   = end;
+        mRunStats.instr_count = instr_count;
 
         if( mError.has_value() ) {
             mState = eState::Halted;
