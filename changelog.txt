@@ -8,6 +8,8 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    CONTENT: improved compile for 32 bit platforms where size_t != unsigned int.
+
     STACKVM: added run statistics with time and instruction count information per Exec() call.
     CORELIB/TUPLE: added _tuple_reserve and _tuple_capacity for better array like usage.
 

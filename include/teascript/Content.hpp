@@ -312,11 +312,11 @@ public:
         return *(cur + off);
     }
 
-    // convenience
-#if UINT_MAX != SIZE_MAX
+    // convenience (ensure [unsigned] int overloads are only there if std::size_t/ptrdiff_t is something else.)
+    template<typename T = std::ptrdiff_t> requires( !std::is_same_v<T, int> )
     inline char const &operator[]( int off ) const noexcept { return operator[]( static_cast<std::ptrdiff_t>(off) ); }
+    template<typename T = std::size_t> requires( !std::is_same_v<T, unsigned int> )
     inline char const &operator[]( unsigned int off ) const noexcept { return operator[]( static_cast<std::size_t>(off) ); }
-#endif
 
     /// Returns whether the character at current position is equal to char \param c.
     inline bool operator==( char const c ) const noexcept
