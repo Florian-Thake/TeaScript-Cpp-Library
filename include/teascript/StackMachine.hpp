@@ -62,11 +62,23 @@ using CurrentInstrCallback = std::function< void( StackVM::Instruction const &, 
 
 using Clock = std::chrono::steady_clock;
 
+enum class SuspendReason
+{
+    Invalid,         /// machine is not suspended
+    ConstraintHit,   /// time or max instructions
+    Suspend,         /// Suspend instruction was executed
+    Yield,           /// Yield instruction was executed
+    Breakpoint,      /// a Breakpoint was hit
+    ExternalRequest, /// Suspend() was called
+};
+
+/// Run statistics
 struct RunStats
 {
     Clock::time_point start{};
     Clock::time_point end{};
     std::size_t       instr_count{};
+    SuspendReason     suspend_reason{SuspendReason::Invalid};
 };
 
 /// The TeaStackVM
@@ -177,6 +189,16 @@ public:
     inline bool IsRunning()   const { auto const guard = std::lock_guard( mStateMutex ); return mState == eState::Running; }
     inline bool IsSuspended() const { auto const guard = std::lock_guard( mStateMutex ); return mState == eState::Suspended; }
     inline bool IsErroneousHalted() const { auto const guard = std::lock_guard( mStateMutex ); return mState == eState::Halted; }
+
+    /// \returns the reason of the suspend or SuspendReason::Invalid.
+    SuspendReason GetSuspendReason() const
+    {
+        auto const guard = std::lock_guard( mStateMutex );
+        if( mState != eState::Suspended ) {
+            return SuspendReason::Invalid;
+        }
+        return mRunStats.suspend_reason;
+    }
 
     /// \returns a copy of the run statistics of the last Exec() call. If the machine is still running, it is the data from the run before.
     RunStats GetRunStats() const
@@ -388,7 +410,7 @@ public:
     std::pair<bool, std::string> IsInBreakpoint() const
     {
         auto const guard = std::lock_guard( mStateMutex );
-        if( mState != eState::Suspended ) {
+        if( mState != eState::Suspended || mRunStats.suspend_reason != SuspendReason::Breakpoint ) {
             return std::make_pair( false, "" );
         }
         // reaching here, we know there is a program and a callstack with at least one entry, otherwise it could not be suspended.
@@ -490,6 +512,7 @@ private:
         constexpr size_t max_time_granularity = TEASCRIPT_CONSTRAINTS_MAXTIME_GRANULARITY;
         unsigned long long  instr_count = 0; // current instr. count
         [[maybe_unused]] std::size_t  last = 0;   // last instruction before a jump
+        SuspendReason suspend_reason = SuspendReason::Invalid;
         bool run = true;
         bool jumped = false;
 
@@ -510,6 +533,7 @@ private:
 #if TEASCRIPT_SUSPEND_REQUEST_POSSIBLE
             if constexpr( thread_support ) {
                 if( mStopToken.stop_requested() ) {
+                    suspend_reason = SuspendReason::ExternalRequest;
                     run = false;
                     break;
                 }
@@ -522,6 +546,7 @@ private:
             switch( constraint.Kind() ) {
             case Constraints::eKind::InstrCount:
                 if( instr_count >= constraint.GetMaxInstr() ) {
+                    suspend_reason = SuspendReason::ConstraintHit;
                     run = false;
                     continue;
                 }
@@ -532,6 +557,7 @@ private:
                     auto const  ms = std::chrono::duration_cast<std::chrono::milliseconds>(t - start);
                     if( ms >= constraint.GetMaxTime() ) {
                         end = t;
+                        suspend_reason = SuspendReason::ConstraintHit;
                         run = false;
                         continue;
                     }
@@ -1207,6 +1233,10 @@ private:
                     if( mCallStack.size() > 1 ) { // don't remove 'main' here
                         mCallStack.pop_back();
                     }
+                    if( mCallStack.size() == 1 && mCurrent == mCallStack[0].ret ) {
+                        // we are at program end, so the main loop will end and we must inc instr count here.
+                        ++instr_count;
+                    }
                     program_instr = mCallStack.back().prog->GetInstructions().data();
                     program_size  = mCallStack.back().prog->GetInstructions().size();
                     jumped = true;
@@ -1307,12 +1337,14 @@ private:
                 program_instr = mCallStack[0].prog->GetInstructions().data();
                 program_size = mCallStack[0].prog->GetInstructions().size();
                 mCurrent = mCallStack[0].ret;
+                ++instr_count;
                 jumped = true;
                 continue;
             case eTSVM_Instr::Suspend:
                 if( constraint.Kind() == Constraints::eKind::AutoContinue ) {
                     ; // nop
                 } else {
+                    suspend_reason = SuspendReason::Suspend;
                     run = false;
                 }
                 break;
@@ -1321,6 +1353,7 @@ private:
                     mResult = std::move( mStack.back() );
                     // dont't pop here for not break other inserted cleanup code! (every statement must have a result, actually!)
                 }
+                suspend_reason = SuspendReason::Yield;
                 run = false;
                 break;
             case eTSVM_Instr::Catch:
@@ -1343,6 +1376,7 @@ private:
                 }
                 break;
             case eTSVM_Instr::Break:
+                suspend_reason = SuspendReason::Breakpoint;
                 run = false;
                 break;
             case eTSVM_Instr::NotImplemented:
@@ -1370,6 +1404,7 @@ private:
         mRunStats.start = start;
         mRunStats.end   = end;
         mRunStats.instr_count = instr_count;
+        mRunStats.suspend_reason = suspend_reason;
 
         if( mError.has_value() ) {
             mState = eState::Halted;

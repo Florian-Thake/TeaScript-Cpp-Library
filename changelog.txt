@@ -11,6 +11,9 @@ VERSION 0.18.0 (not released yet, pre-release)
     CONTENT: improved compile for 32 bit platforms where size_t != unsigned int.
 
     STACKVM: added run statistics with time and instruction count information per Exec() call.
+    - introduced enum + api function for the suspend reason (ConstraintHit, Yield, Suspend, Breakpoint, etc.).
+    - fixed instruction count reporting for some special occurrences.
+
     CORELIB/TUPLE: added _tuple_reserve and _tuple_capacity for better array like usage.
 
     CORELIB: added basic IntegerSequence API _seq_next, seq_reset, as i64/u64/u8/f64.
