@@ -873,6 +873,9 @@ protected:
             return static_cast<size_t>(util::ArithmeticFactory::Convert<U64>( size_or_pos ).GetValue<U64>());
         } else {
             auto const v = util::ArithmeticFactory::Convert<U64>( size_or_pos ).GetValue<U64>();
+            if( v == static_cast<U64>(-1) ) { // special -1 check!
+                return static_cast<size_t>(-1);
+            }
             if( std::numeric_limits<size_t>::max() < v ) {
                 throw exception::out_of_range( "value too big for size_t!" );
             }
