@@ -151,10 +151,12 @@ public:
 
     /// Adds given ValueObjects as a tuple "args[idx]". Additionally adding an "argN" variable indicating the parameter amount. The coroutine must be suspended.
     /// The ValueObjects for the parameters must be in shared state (created with ValueShared or a MakeShared() call issued).
+    /// \note the parameters will be always added to the 'global' scope, existing values will be replaced!
     /// \note this function is _not_ thread safe. Only one thread is allowed to call this function the _same_ time and the coroutine must not be running!
     TEASCRIPT_COMPILE_MODE_INLINE void SetInputParameters( std::vector<ValueObject> const &params );
 
     /// Adds given parameters as ValueObjects as a tuple "args[idx]". Additionally adding an "argN" variable indicating the parameter amount. The coroutine must be suspended.
+    /// \note the parameters will be always added to the 'global' scope, existing values will be replaced!
     /// \note this function is _not_ thread safe. Only one thread is allowed to call this function the _same_ time and the coroutine must not be running!
     template< typename ...T> requires((not std::is_same_v<std::remove_cvref_t<T>, std::vector<ValueObject>>
                                        && (std::is_same_v<std::remove_cvref_t<T>, ValueObject> || std::is_constructible_v<ValueObject, T, ValueConfig const &>)) && ...)

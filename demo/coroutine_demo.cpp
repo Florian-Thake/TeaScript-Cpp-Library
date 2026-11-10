@@ -39,7 +39,7 @@ repeat {
 
 // prints all given input parameters one by one, then finishs.
 constexpr char print_input_code[] = R"_SCRIPT_(
-if( not is_defined args ) {
+if( not is_defined args or not args ) { // not args == empty tuple
     println( "<No arguments>" )
     return void
 }
@@ -84,7 +84,7 @@ void teascript_coroutine_demo()
 
         // change coroutine to a new one: print all parameters one by one.
         coro_engine.ChangeCoroutine( teascript::CoroutineScriptEngine::Build( print_input_code, teascript::eOptimize::O1, "print_input" ) );
-        // set some parameters for the coroutine... (this could also be done if coroutine is suspended in the middle if its code is able to handle it.)
+        // set some parameters for the coroutine...
         coro_engine.SetInputParameters( 42LL, true, "Hello" );
         // run the coroutine until finished.
         while( coro_engine.CanBeContinued() ) {

@@ -78,6 +78,11 @@ void CoroutineScriptEngine::ChangeCoroutine( StackVM::ProgramPtr const &coroutin
     while( mContext.LocalScopeCount() > 0 ) {
         mContext.ExitScope();
     }
+
+#if 1 == TEASCRIPT_USE_NEW_CONTEXT
+    mContext.ClearScriptArgs();
+#endif
+
     // every coroutine will run in its own new local scope, so that the global scope will not become dirty.
     mContext.EnterScope();
     mMachine->Exec( coroutine, mContext, StackVM::Constraints::MaxInstructions( 0 ) ); // just setup everything and stop prior the first instruction!

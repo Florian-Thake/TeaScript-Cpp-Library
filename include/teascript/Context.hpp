@@ -25,7 +25,7 @@
 
 
 // define this to disable the Context drop in replacement and use the old implementation.
-// NOTE: This is only for transition and will be removed next release!
+// NOTE: This is only for transition and will be removed next release! Only the new context will stay.
 //#define TEASCRIPT_DISABLE_NEW_CONTEXT    1
 
 
@@ -150,6 +150,51 @@ private:
         }
     }
 
+    void RemoveAllBindingsFor( StorageHandle pHandle )
+    {
+        if( pHandle ) {
+            while( not pHandle->mValues.empty() ) {
+                auto &scope = mScopes[pHandle->mValues.back().mScopeIndex];
+                auto it = std::find( scope.mBindings.begin(), scope.mBindings.end(), pHandle );
+                assert( it != scope.mBindings.end() );
+                *it = nullptr;
+                //scope.mBindings.erase( std::remove( scope.mBindings.begin(), scope.mBindings.end(), pHandle ), scope.mBindings.end() );
+                pHandle->mValues.pop_back();
+            }
+        }
+    }
+
+    // injects var on given scope regardless of the current existing scopes. an existing value will be replaced. fails silently, handle + scope must exist, IsShared() of value must be true.
+    void InjectValueObjectToScope( StorageHandle pHandle, IndexType const idx, ValueObject const &rValue )
+    {
+        assert( pHandle && rValue.IsShared() );
+        if( pHandle && rValue.IsShared() && idx <= mScopeIndex ) {
+
+            auto add_or_reuse_binding = [&scope = mScopes[idx]]( StorageHandle pHandle ) {
+                auto it = std::find( scope.mBindings.begin(), scope.mBindings.end(), nullptr ); // reuse prior deleted bindings
+                if( it != scope.mBindings.end() ) {
+                    *it = pHandle;
+                } else {
+                    scope.mBindings.emplace_back( pHandle );
+                }
+            };
+            
+            for( auto it = pHandle->mValues.begin(); it != pHandle->mValues.end(); ++it ) {
+                if( it->mScopeIndex == idx ) {
+                    it->mValue = rValue;
+                    return; // done!
+                } else if( it->mScopeIndex > idx ) {
+                    pHandle->mValues.insert( it, Binding{rValue,idx} );
+                    add_or_reuse_binding( pHandle );
+                    return; // done!
+                }
+            }
+            // reaching here we must add it to the end (matching also for empty mValues).
+            pHandle->mValues.emplace_back( rValue, idx );
+            add_or_reuse_binding( pHandle );
+        }
+    }
+
 public:
     Context()
     {
@@ -232,8 +277,8 @@ public:
         }
     }
 
-    /// this function will either add a tuple args[argN] with rArgs as elements to the current scope
-    /// or legacy arg variables "arg1", "arg2", ... An argN variable is added in both cases.
+    /// this function will add a tuple args[argN] with rArgs as elements + an argN variable to the 'global' scope. existing values will be replaced!
+    /// \note if legacy is true arg variables "arg1", "arg2", ... + an argN will be added to the current scope instead (no replace, will throw!). Avoid the legacy variant!
     void SetScriptArgs( std::vector<std::string> const &rArgs, bool const legacy = false )
     {
         std::vector<ValueObject> val_args;
@@ -243,8 +288,8 @@ public:
         SetScriptArgs( val_args, legacy );
     }
 
-    /// this function will either add a tuple args[argN] with rArgs as elements to the current scope
-    /// or legacy arg variables "arg1", "arg2", ... An argN variable is added in both cases.
+    /// this function will add a tuple args[argN] with rArgs as elements + an argN variable to the 'global' scope. existing values will be replaced!
+    /// \note if legacy is true arg variables "arg1", "arg2", ... + an argN will be added to the current scope instead (no replace, will throw!). Avoid the legacy variant!
     void SetScriptArgs( std::vector<ValueObject> const &rArgs, bool const legacy = false )
     {
         if( legacy ) {
@@ -252,14 +297,34 @@ public:
             for( auto &arg : rArgs ) {
                 AddValueObject( "arg" + std::to_string( ++i ), arg );
             }
+            AddValueObject( "argN", ValueObject( static_cast<long long>(rArgs.size()), true ) );
         } else {
             Tuple args;
             for( auto &arg : rArgs ) {
                 args.AppendValue( arg );
             }
-            AddValueObject( "args", ValueObject( std::move( args ), ValueConfig( ValueShared, ValueMutable, mTypeSystem ) ) );
+            // script args are always in 'global' scope
+            InjectValueObjectToScope( GetHandle("args"), 0u, ValueObject( std::move( args ), ValueConfig(ValueShared, ValueMutable) ) );
+            InjectValueObjectToScope( GetHandle("argN"), 0u, ValueObject( static_cast<long long>(rArgs.size()), ValueConfig(ValueShared, ValueMutable) ) );
         }
-        AddValueObject( "argN", ValueObject( static_cast<long long>(rArgs.size()), true ) );
+    }
+
+    // NOTE: This does **not** work for legacy args!
+    void EnsureScriptArgsArePresent()
+    {
+        auto handle_args = GetHandle( "args" );
+        auto handle_argn = GetHandle( "argN" );
+        // only if both are unset, add empty defaults.
+        if( handle_args->mValues.empty() && handle_argn->mValues.empty() ) {
+            SetScriptArgs( std::vector<ValueObject>{} );
+        }
+    }
+
+    // NOTE: This does **not** work for legacy args!
+    void ClearScriptArgs()
+    {
+        RemoveAllBindingsFor( FindHandle( "args" ) );
+        RemoveAllBindingsFor( FindHandle( "argN" ) );
     }
 
     TypeSystem &GetTypeSystem()

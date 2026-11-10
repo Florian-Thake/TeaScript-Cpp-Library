@@ -28,18 +28,24 @@ public:
     ContextFactory()
         : Engine( config::full(), Engine::eMode::Compile )
     {
+        // the factory must put everything into the 'global' scope.
+        mScopeBehavior = eScopeBehavior::ScriptRunsInCurrent;
     }
 
     /// This constructor will use the given config for bootstrapping the Core Library.
     explicit ContextFactory( config::eConfig const conf )
         : Engine( conf, Engine::eMode::Compile )
     {
+        // the factory must put everything into the 'global' scope.
+        mScopeBehavior = eScopeBehavior::ScriptRunsInCurrent;
     }
 
     /// This constructor will use the given config and given optimization level for bootstrapping the Core Library.
     ContextFactory( config::eConfig const conf, eOptimize const opt_level )
         : Engine( true, conf, Engine::eMode::Compile, opt_level )
     {
+        // the factory must put everything into the 'global' scope.
+        mScopeBehavior = eScopeBehavior::ScriptRunsInCurrent;
     }
 
     /// \returns the context, which was moved from member. The member context is now empty but usable.

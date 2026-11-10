@@ -67,6 +67,7 @@ ValueObject Engine::EvaluateContent( Content const &rContent, std::string const 
     try {
         auto const ast = mBuildTools->mParser.Parse( rContent, rName );
         if( mMode == eMode::Eval ) {
+            FollowCurrentScopeBehavior();
             return ast->Eval( mContext );
         } else {
             auto const program = mBuildTools->mCompiler.Compile( ast, mContext.GetSettings().GetOptimizationLevel() );
@@ -75,6 +76,7 @@ ValueObject Engine::EvaluateContent( Content const &rContent, std::string const 
             if( not mContext.GetSettings().GetTsbPath().empty() && std::filesystem::is_regular_file( rName, ec ) ) {
                 std::ignore = TsbStore::StoreProgram( program, mContext.GetSettings() );
             }
+            FollowCurrentScopeBehavior();
             mBuildTools->mMachine->Reset();
             mBuildTools->mMachine->Exec( program, mContext );
             mBuildTools->mMachine->ThrowPossibleErrorException();
@@ -85,6 +87,16 @@ ValueObject Engine::EvaluateContent( Content const &rContent, std::string const 
         }
     } catch( teascript::control::ControlBase const & ) {
         throw exception::runtime_error( "A TeaScript control flow exception escaped. Check for wrong named loop labels!" );
+    }
+}
+
+TEASCRIPT_COMPILE_MODE_INLINE
+void Engine::FollowCurrentScopeBehavior()
+{
+    if( mScopeBehavior == eScopeBehavior::ScriptRunsInLocal ) {
+        if( mContext.LocalScopeCount() == 0 ) {
+            mContext.EnterScope();
+        }
     }
 }
 
@@ -108,14 +120,42 @@ Settings const &Engine::GetSettings() const
 }
 
 TEASCRIPT_COMPILE_MODE_INLINE
-void Engine::ResetState()
+size_t Engine::GetLocalScopeCount() const noexcept
 {
-    mBuildTools->mMachine->Reset();
-    mBuildTools->mParser.ClearState();
+    return mContext.LocalScopeCount();
+}
+
+
+TEASCRIPT_COMPILE_MODE_INLINE
+void Engine::BootstrapCoreLibrary()
+{
     CoreLibrary().Bootstrap( mContext, mCoreConfig, mMode == eMode::Eval );
 #if TEASCRIPT_ENGINE_USE_WEB_PREVIEW
     WebPreviewModule().Load( mContext, mCoreConfig, mMode == eMode::Eval );
 #endif
+}
+
+TEASCRIPT_COMPILE_MODE_INLINE
+void Engine::ResetStateFor( unsigned const what )
+{
+    mBuildTools->mMachine->Reset();
+    mBuildTools->mParser.ClearState();
+    if( (what & Reset_All) == Reset_All ) { // complete context rebuild.
+        BootstrapCoreLibrary();
+    } else {
+        if( what & Reset_LocalScopes ) {
+            while( mContext.LocalScopeCount() > 0 ) {
+                mContext.ExitScope();
+            }
+        }
+        if( what & Reset_ScriptArgs ) {
+#if TEASCRIPT_ENGINE_USE_LEGACY_ARGS == 0 && TEASCRIPT_USE_NEW_CONTEXT > 0
+            mContext.ClearScriptArgs();
+#else
+            throw std::runtime_error( "Engine::ResetStateFor: reset script args only supported for non legacy args and with new context!" );
+#endif
+        }
+    }
 }
 
 TEASCRIPT_COMPILE_MODE_INLINE
@@ -153,9 +193,20 @@ ValueObject Engine::ExecuteScript( std::filesystem::path const &path, std::vecto
     auto const filename = util::utf8_path_to_str( path );
     auto const val = CoreLibrary::ReadTextFileEx( path );
     if( val.GetTypeInfo()->IsSame<String>() ) {
+         // old way for legacy args _or_ old context
+#if 1 == TEASCRIPT_ENGINE_USE_LEGACY_ARGS || 0 == TEASCRIPT_USE_NEW_CONTEXT
         if( not args.empty() ) {
             mContext.SetScriptArgs( args, 1 == TEASCRIPT_ENGINE_USE_LEGACY_ARGS );
         }
+#else // new way, add empty default args if there are none. only possible with new context and non legacy args.
+        if( not args.empty() ) {
+            mContext.ClearScriptArgs(); // NOTE: Don't clear unconditionally! Otherwise the prior set values cannot be reused.
+            mContext.SetScriptArgs( args );
+        }
+        if( mBuildDefaultArgs ) {
+            mContext.EnsureScriptArgsArePresent();
+        }
+#endif
 
         Content  content{val.GetValue<String>()};
         return EvaluateContent( content, filename ); // TODO: absolute path or filename?
@@ -167,9 +218,21 @@ ValueObject Engine::ExecuteScript( std::filesystem::path const &path, std::vecto
 TEASCRIPT_COMPILE_MODE_INLINE
 ValueObject Engine::ExecuteProgram( StackVM::ProgramPtr const &program, std::vector<ValueObject> const &args )
 {
+    // old way for legacy args _or_ old context
+#if 1 == TEASCRIPT_ENGINE_USE_LEGACY_ARGS || 0 == TEASCRIPT_USE_NEW_CONTEXT
     if( not args.empty() ) {
         mContext.SetScriptArgs( args, 1 == TEASCRIPT_ENGINE_USE_LEGACY_ARGS );
     }
+#else // new way, add empty default args if there are none. only possible with new context and non legacy args.
+    if( not args.empty() ) {
+        mContext.ClearScriptArgs(); // NOTE: Don't clear unconditionally! Otherwise the prior set values cannot be reused.
+        mContext.SetScriptArgs( args );
+    }
+    if( mBuildDefaultArgs ) {
+        mContext.EnsureScriptArgsArePresent();
+    }
+#endif
+    FollowCurrentScopeBehavior();
     mBuildTools->mMachine->Reset();
     mBuildTools->mMachine->Exec( program, mContext );
     mBuildTools->mMachine->ThrowPossibleErrorException();

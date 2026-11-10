@@ -8,6 +8,27 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    ENGINE: Added ResetStateFor( eStateResetWhat ) for more fine grained context reset possibilities.
+    - with this the bootstrapped core library + the setup environment and/or script args can stay 
+      while the script context of the last run will be cleaned.
+    - BREAKING: If you override ResetState for load your own CoreLibrary, consider to remove this override
+      and override the new BootstrapCoreLibrary() function instead.
+    - BREAKING: The script now runs in a local scope by default (same as for CoroutineScriptEngine)
+      use TEASCRIPT_ENGINE_USE_LOCAL_SCOPE_FOR_MAINSCRIPT = 0 for the old behavior.
+      (The define is only for transition and will be removed in a later release.)
+      This can be also controlled via the new member mScopeBehavior.
+    - added RunPreamble[Script|Program|Code|Content] for execute code in the global scope prior the main script.
+      Use this for setup and manipulating the environment for the main script.
+    - BREAKING: the engine now provides empty default args/argN if none are provided and no old values are in the context.
+      (for ExecuteScript/ExecuteProgram).
+      'is_defined args' is not sufficient anymore. Test also for 'argN > 0' or 'not not args' / '_tuple_size( args ) > 0'.
+    - BREAKING: SetScriptArgs will now always write to the global scope and replace old values (non legacy only).
+    - added GetLocalScopeCount() for returning the current local scope (0 == 'global' scope is current top level).
+    - added virtual BootstrapCoreLibrary(). Override this when you need to load your own modules / core library.
+    CORO: (BREAKING) SetInputParameters will now use the global scope always and replace any old values.
+    HOST: (BREAKING) The script now runs in a local scope by default.
+    - use --run-in-global for old behavior.
+
     CONTENT: improved compile for 32 bit platforms where size_t != unsigned int.
 
     STACKVM: added run statistics with time and instruction count information per Exec() call.
@@ -449,7 +470,7 @@ VERSION 0.14.0, Wed May 08 17:41:05 2024
     - This breaks the mParser member is now only available via mBuildTools->
     - added ContextFactory class for prepare a Context via arbitrary code.
     - added more comments.
-    CORO: added SetInpuParameters, Reset and Suspend. bg task and co-op demo.
+    CORO: added SetInputParameters, Reset and Suspend. bg task and co-op demo.
     PARSER: fixed yield and calling function.
     TEASCRIPT: New form of passing arguments to script via ...
     - ... a Tuple "args" with all arguments as elements. argN still indicates amount.

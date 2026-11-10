@@ -55,8 +55,9 @@ public:
 
     /// Executes the script referenced by file path \param path with the (optional) script parameters \param args.
     /// The script parameters will be available for the script as a tuple "args[idx]". Additionally an "argN" variable indicating the parameter amount.
-    /// The user might be responsible to remove prior used arg variables. Be aware of conflicts. A ResetState() will handle that.
-    /// \note The legacy form of the arg variables "arg1", "arg2", ... is available via the compile setting TEASCRIPT_ENGINE_USE_LEGACY_ARGS=1
+    /// If the args is empty any existing args from a prior execute will stay present, otherwise the new provided args will be used.
+    /// Use ResetStateFor( Reset_ScriptArgs ) before this call if you need empty args.
+    /// \note The engine will always provide at least an empty args Tuple with argN==0 if an Execute* function with args param is used.
     /// \note It is implementation defined whether the content of the file or a further cached object (of a different form) will be used.
     /// \note Further it is implementation defined whether EvaluateContent() will be called or another way is used to execute the script.
     /// \note This function stays virtual for backward compatibility reasons.

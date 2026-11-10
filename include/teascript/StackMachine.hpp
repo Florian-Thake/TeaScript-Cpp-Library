@@ -113,10 +113,11 @@ public:
         ProgramPtr  prog;    // the program where the code reside which is being executed. (must be always valid.)
         FunctionPtr func;    // function object which is being executed. NOTE: might be nullptr!
         size_t      stacksize; // current stack size during start of the call (for proper cleanup on return)
+        size_t      scopecount; // current scope count during start of the call (for proper cleanup)
 
         // not sure why clang need this help for construct this simple struct...
 #if defined( __clang__ )
-    inline CallStackEntry( std::string const &n, size_t r, ProgramPtr const &p, FunctionPtr const &f, size_t sz = 0 ) : name(n), ret(r), prog(p), func(f), stacksize(sz) {}
+    inline CallStackEntry( std::string const &n, size_t r, ProgramPtr const &p, FunctionPtr const &f, size_t sz, size_t sc ) : name(n), ret(r), prog(p), func(f), stacksize(sz), scopecount(sc) {}
 #endif
     };
 
@@ -438,7 +439,7 @@ public:
             }
 
             mProgram = rProgram;
-            mCallStack.emplace_back( "<main>", mProgram->GetInstructions().size(), mProgram, nullptr, static_cast<size_t>(0) ); // return from main is end
+            mCallStack.emplace_back( "<main>", mProgram->GetInstructions().size(), mProgram, nullptr, static_cast<size_t>(0), rContext.LocalScopeCount() ); // return from main is end
             mState = eState::Running;
         }
 
@@ -496,7 +497,7 @@ public:
             mStack.emplace_back( ValueObject( static_cast<U64>( rParams.size() ) ) );
             mProgram = rProgram;
             mCurrent = start;
-            mCallStack.emplace_back( "<subroutine>", mProgram->GetInstructions().size(), mProgram, nullptr, mStack.size() - (rParams.size() + 1 + 1)); // return from main is end
+            mCallStack.emplace_back( "<subroutine>", mProgram->GetInstructions().size(), mProgram, nullptr, mStack.size() - (rParams.size() + 1 + 1), rContext.LocalScopeCount()); // return from main is end
 
             mState = eState::Running;
         }
@@ -1152,7 +1153,7 @@ private:
                     }
                     auto cfunc = std::dynamic_pointer_cast<CompiledFuncBase>(func);
                     if( cfunc ) {
-                        mCallStack.emplace_back( current_instr.payload.template GetValue<std::string>(), mCurrent + 1, cfunc->GetProgram(), func, mStack.size() - (param_count + 1 + 1));
+                        mCallStack.emplace_back( current_instr.payload.template GetValue<std::string>(), mCurrent + 1, cfunc->GetProgram(), func, mStack.size() - (param_count + 1 + 1), rContext.LocalScopeCount());
                         program_instr = mCallStack.back().prog->GetInstructions().data();
                         program_size  = mCallStack.back().prog->GetInstructions().size();
                         last = mCurrent;
@@ -1221,7 +1222,7 @@ private:
                 } else {
                     last = mCurrent;
                     mCurrent = mCallStack.back().ret;
-                    // eventually clean dirty stack for early returns (e.g., def x := 1 + return 10)
+                    // possibly clean dirty stack for early returns (e.g., def x := 1 + return 10)
                     if( mStack.size() > 1 && mCallStack.back().stacksize < mStack.size() - 1 ) {
                         // save ret value
                         mStack[mCallStack.back().stacksize] = std::move( mStack[mStack.size() - 1] );
@@ -1449,7 +1450,8 @@ private:
             }
         }
         // clean scope.
-        while( rContext.LocalScopeCount() > 0 ) {
+        size_t const until = mCallStack.size() > 0 ? mCallStack[0].scopecount : 0;
+        while( rContext.LocalScopeCount() > until ) {
             rContext.ExitScope();
         }
         // clean call stack
