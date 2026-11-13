@@ -2421,6 +2421,7 @@ protected:
             }
 
             // change_cwd : Bool ( String ) --> changes the current working dir
+            if( not (opt_out & config::NoChangeCWD) )
             {
                 auto func = std::make_shared< LibraryFunction< decltype(ChangeCurrentPath) > >( &ChangeCurrentPath );
                 ValueObject val{std::move( func ), cfg_mutable};

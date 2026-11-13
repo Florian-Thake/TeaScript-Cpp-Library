@@ -8,6 +8,10 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    CORELIB: added feature opt-out for Network[Client|Server], ChangeCWD and Import Modules.
+    - respect ChangeCWD opt-out and added some convenience functions.
+    WEB: respect newly added Network[Client|Server] opt-out flags.
+
     ENGINE: Added ResetStateFor( eStateResetWhat ) for more fine grained context reset possibilities.
     - with this the bootstrapped core library + the setup environment and/or script args can stay 
       while the script context of the last run will be cleaned.

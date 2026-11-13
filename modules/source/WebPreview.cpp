@@ -210,36 +210,65 @@ ValueObject WebPreviewModule::HttpRequest( Context &rContext, ValueObject const 
 }
 
 
-void WebPreviewModule::Load( Context &rInto, config::eConfig const /*config*/, bool const eval_only )
+void WebPreviewModule::Load( Context &rInto, config::eConfig const config, bool const eval_only )
 {
+    // no network at all?
+    if( (config & (config::NoNetworkClient | config::NoNetworkServer))
+        == (config::NoNetworkClient | config::NoNetworkServer) ) {
+        return;
+    }
+
     auto const  cfg = ValueConfig( ValueShared, ValueConst, rInto.GetTypeSystem() );
     //auto const  cfg_mutable = ValueConfig( ValueShared, ValueMutable, rInto.GetTypeSystem() );
 
+    if( not (config & config::NoNetworkClient) )
     {
         auto func = std::make_shared< LibraryFunction< decltype(HttpRequest) > >( &HttpRequest );
         ValueObject val{std::move( func ), cfg};
         rInto.AddValueObject( "web_request", val );
     }
 
+    if( not (config & config::NoNetworkServer) )
     {
         auto func = std::make_shared< LibraryFunction< decltype(HttpServerSetup) > >( &HttpServerSetup );
         ValueObject val{std::move( func ), cfg};
         rInto.AddValueObject( "web_server_setup", val );
     }
 
+    if( not (config & config::NoNetworkServer) )
     {
         auto func = std::make_shared< LibraryFunction< decltype(HttpServerAcceptOne) > >( &HttpServerAcceptOne );
         ValueObject val{std::move( func ), cfg};
         rInto.AddValueObject( "web_server_accept", val );
     }
 
+    if( not (config & config::NoNetworkServer) )
     {
         auto func = std::make_shared< LibraryFunction< decltype(HttpServerReply) > >( &HttpServerReply );
         ValueObject val{std::move( func ), cfg};
         rInto.AddValueObject( "web_server_reply", val );
     }
 
-    static constexpr char web_preview_code[] = R"_SCRIPT_(
+    static constexpr char web_preview_common_code[] = R"_SCRIPT_(
+func web_add_header( msg @=, name, value )
+{
+    if( not is_defined msg.header ) {
+        def msg.header :=  _tuple_create()
+    }
+    _tuple_named_append( msg.header, name, value )
+}
+
+func web_set_payload( msg @=, const payload @= )
+{
+    if( is_defined msg.payload ) {
+        undef msg.payload
+    }
+    def msg.payload := payload
+}
+
+)_SCRIPT_";
+
+    static constexpr char web_preview_client_code[] = R"_SCRIPT_(
 // builds a web request Tuple which can be send via web_request()
 // e.g., def result := web_request( web_build_request( "GET", "date.jsontest.com", "/", 80 ) )
 func web_build_request( method, host, path, port )
@@ -255,22 +284,6 @@ func web_build_request( method, host, path, port )
     def req.header."User-Agent" := "TeaScript/%(_version_major).%(_version_minor).%(_version_patch)"
 
     req
-}
-
-func web_add_header( msg @=, name, value )
-{
-    if( not is_defined msg.header ) {
-        def msg.header :=  _tuple_create()
-    }
-    _tuple_named_append( msg.header, name, value )
-}
-
-func web_set_payload( msg @=, const payload @= )
-{
-    if( is_defined msg.payload ) {
-        undef msg.payload
-    }
-    def msg.payload := payload
 }
 
 // builds and send a http GET and returns the received result as a Tuple structure
@@ -292,7 +305,9 @@ func web_post( host, const payload @=, path := "/", port := 80 )
     web_request( req )
 }
 
+)_SCRIPT_";
 
+    static constexpr char web_preview_server_code[] = R"_SCRIPT_(
 func web_server_build_reply( const req @=, code, payload @= "" )
 {
     if( not is_defined req.socket ) {
@@ -315,7 +330,13 @@ func web_server_build_reply( const req @=, code, payload @= "" )
     //p.OverwriteDialect( rContext.GetSettings().GetDialect() ); // internal core lib always shall use default dialect
     p.SetDebug( rInto.GetSettings().IsDebug() );
 
-    p.ParsePartial( web_preview_code, "WebPreview" );
+    p.ParsePartial( web_preview_common_code, "WebPreview" );
+    if( not (config & config::NoNetworkClient) ) {
+        p.ParsePartial( web_preview_client_code, "WebPreview" );
+    }
+    if( not (config & config::NoNetworkServer) ) {
+        p.ParsePartial( web_preview_server_code, "WebPreview" );
+    }
     auto ast = p.ParsePartialEnd();
 
     if( eval_only ) {
