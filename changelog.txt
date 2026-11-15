@@ -8,6 +8,8 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    FUNC: added LibraryFunctionTemplate.hpp and moved the main template into it (preparing for user callback).
+
     CORELIB: added feature opt-out for Network[Client|Server], ChangeCWD and Import Modules.
     - respect ChangeCWD opt-out and added some convenience functions.
     WEB: respect newly added Network[Client|Server] opt-out flags.
