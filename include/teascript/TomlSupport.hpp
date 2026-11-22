@@ -13,15 +13,23 @@
 //#define TEASCRIPT_DISABLE_TOMLSUPPORT    1
 
 
-// https://github.com/marzer/tomlplusplus
-// toml.hpp file exists since 3.4 (before it was toml.h)
-#if __has_include( "toml++/toml.hpp" ) && !defined( TEASCRIPT_DISABLE_TOMLSUPPORT )
+#if defined( TEASCRIPT_TOMLSUPPORT ) // set from external, e.g., camke
+// no-op, else auto detect.
+#elif __has_include( "toml++/toml.hpp" ) && !defined( TEASCRIPT_DISABLE_TOMLSUPPORT )
 # define TEASCRIPT_TOMLSUPPORT  1
-# include "toml++/toml.hpp"
 #else
 # define TEASCRIPT_TOMLSUPPORT  0
 #endif
 
+// wanted or auto detected. Must check if include is found!
+// https://github.com/marzer/tomlplusplus
+#if TEASCRIPT_TOMLSUPPORT
+# if __has_include( "toml++/toml.hpp" )
+#  include "toml++/toml.hpp"
+# else
+#  error toml++/toml.hpp not found but TEASCRIPT_TOMLSUPPORT is set to enabled!
+# endif
+#endif
 
 #if TEASCRIPT_TOMLSUPPORT
 

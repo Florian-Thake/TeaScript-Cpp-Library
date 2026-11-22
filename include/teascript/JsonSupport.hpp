@@ -26,7 +26,7 @@
 # define TEASCRIPT_JSON_BOOST             4     /* Boost Json https://github.com/boostorg/json */
 //# define TEASCRIPT_JSON_USER_DEFINED      0xff  /* user defined */
 
-// You can define this macro to a value from above to select a different JSON flavor. defualt is Pico Json.
+// You can define this macro to a value from above to select a different JSON flavor. defualt is Pico Json. note: 0 will disable the feature.
 # if !defined( TEASCRIPT_JSON_FLAVOR )
 #  define TEASCRIPT_JSONSUPPORT            TEASCRIPT_JSON_PICO
 # else 

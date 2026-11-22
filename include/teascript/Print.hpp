@@ -10,12 +10,13 @@
 
 // This header provides a switch via the TEASCRIPT_PRINT macro for the internal used way to output to stdout.
 
+#include "platformdefs.h"
 
 // Define this if the format library (libfmt) is present in your include pathes but you don't want to use it.
 //#define TEASCRIPT_DISABLE_FMTLIB         1
 
 
-// Define this if you have C++23 but you don't want to use std::vprint_unicode
+// Define this if you have C++23 but you don't want to use std::print
 //#define TEASCRIPT_DISABLE_STDFORMAT_23   1
 
 
@@ -23,25 +24,18 @@
 //#define TEASCRIPT_DISABLE_FMT_HEADER_ONLY  1
 
 
-// Priority order:
+// Priority order for auto detect:
 // 1.) Use fmt::print if available (this will offer the most possible features, e.g. colored output, string formatting within script code, etc...)
 // 2.) Use C++23 std::print if available.
 // 3.) Use C++20 std::cout + std::format
-#if __has_include( "fmt/format.h" ) && !defined( TEASCRIPT_DISABLE_FMTLIB )
+#if TEASCRIPT_FMTFORMAT != 0  // set from external, e.g., camke
+// no-op, else auto detect.
+#elif !defined(TEASCRIPT_FMTFORMAT) && __has_include( "fmt/format.h" ) && !defined( TEASCRIPT_DISABLE_FMTLIB )
 # define TEASCRIPT_FMTFORMAT      1
-# ifndef TEASCRIPT_DISABLE_FMT_HEADER_ONLY
-#  ifndef FMT_HEADER_ONLY
-#   define FMT_HEADER_ONLY
-#  endif
-# endif
-# include "fmt/format.h"
-# if FMT_VERSION < 100101
-#  error format lib must be at least 10.1.1
-# endif
 #elif __has_include( <format> )
 # include <format>
 // for Visual Studio we not only need C++23 but also at least VS 2022 17.13 with C++23 preview for have a working std::print with UTF-8 support.
-# if defined( __cpp_lib_format ) && __cpp_lib_format > 202110L && __cplusplus > 202002L && !defined( TEASCRIPT_DISABLE_STDFORMAT_23 ) && (!defined(_MSC_VER) || _MSC_VER >= 1943)
+# if defined( __cpp_lib_format ) && __cpp_lib_format > 202110L && TEASCRIPT_CPLUSPLUS > 202002L && !defined( TEASCRIPT_DISABLE_STDFORMAT_23 ) && (!defined(_MSC_VER) || _MSC_VER >= 1943)
 #  define TEASCRIPT_STDFORMAT_23   1
 #  include <print>
 # else
@@ -57,14 +51,42 @@
 # define TEASCRIPT_FMTFORMAT      0
 #endif
 
+// fmt wanted or auto detected. Must check if include is found!
 #if TEASCRIPT_FMTFORMAT
-# define TEASCRIPT_PRINT( ... ) fmt::print( __VA_ARGS__ )
-# define TEASCRIPT_ERROR( ... ) fmt::print( stderr, __VA_ARGS__ )
-#elif TEASCRIPT_STDFORMAT_23 
-# define TEASCRIPT_PRINT( ... ) std::print( __VA_ARGS__ )
-# define TEASCRIPT_ERROR( ... ) std::print( stderr, __VA_ARGS__ )
-#elif TEASCRIPT_STDFORMAT_20
+# if __has_include( "fmt/format.h" )
+#  ifndef TEASCRIPT_DISABLE_FMT_HEADER_ONLY
+#   ifndef FMT_HEADER_ONLY
+#    define FMT_HEADER_ONLY
+#   endif
+#  endif
+#  include "fmt/format.h"
+#  if FMT_VERSION < 100101
+#   error format lib must be at least 10.1.1
+#  endif
+# else
+#  error fmt/format.h not found but TEASCRIPT_FMTFORMAT is set to enabled!
+# endif
+#endif
+
+
+#if !defined(TEASCRIPT_PRINT)
+# if TEASCRIPT_FMTFORMAT
+#  define TEASCRIPT_PRINT( ... ) fmt::print( __VA_ARGS__ )
+# elif TEASCRIPT_STDFORMAT_23 
+#  define TEASCRIPT_PRINT( ... ) std::print( __VA_ARGS__ )
+# elif TEASCRIPT_STDFORMAT_20
 // NOTE: On Windows you must most likely hook up the streambuf of std::cout/std::cerr for support full UTF-8
-# define TEASCRIPT_PRINT( ... ) std::cout << std::format( __VA_ARGS__ )
-# define TEASCRIPT_ERROR( ... ) std::cerr << std::format( __VA_ARGS__ )
+#  define TEASCRIPT_PRINT( ... ) std::cout << std::format( __VA_ARGS__ )
+# endif
+#endif
+
+#if !defined(TEASCRIPT_ERROR)
+# if TEASCRIPT_FMTFORMAT
+#  define TEASCRIPT_ERROR( ... ) fmt::print( stderr, __VA_ARGS__ )
+# elif TEASCRIPT_STDFORMAT_23 
+#  define TEASCRIPT_ERROR( ... ) std::print( stderr, __VA_ARGS__ )
+# elif TEASCRIPT_STDFORMAT_20
+// NOTE: On Windows you must most likely hook up the streambuf of std::cout/std::cerr for support full UTF-8
+#  define TEASCRIPT_ERROR( ... ) std::cerr << std::format( __VA_ARGS__ )
+# endif
 #endif

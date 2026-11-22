@@ -7,16 +7,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 
+#include "teascript/platformdefs.h" // only for the TEASCRIPT_CPLUSPLUS safety guard below.
+
 // check for at least C++20
-//for VS use /Zc:__cplusplus
-#if __cplusplus < 202002L
-# if defined _MSVC_LANG // fallback without /Zc:__cplusplus
-#  if !_HAS_CXX20
-#   error must use at least C++20
-#  endif
-# else
-#  error must use at least C++20
-# endif
+#if TEASCRIPT_CPLUSPLUS < 202002L
+# error must use at least C++20
 #endif
 
 // We opt-out for header only (must be in each TU (Translation Unit) where teascript includes are used, or project wide).

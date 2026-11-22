@@ -12,6 +12,8 @@
 // NOTE: You can either add this .cpp to your project, then the reflectcpp is compiled here,
 //       or you choose your own cpp to do this, or you must link against a reflectcpp library.
 
+#if TEASCRIPT_EXTENSION_REFLECTCPP // extra guard here: allow explicit turned off but still have this TU present and compile
+
 // check if all include dependencies are there...
 #if !__has_include("reflectcpp.cpp")
 # error You must add the src directory of reflectcpp to your include paths.
@@ -57,3 +59,5 @@ namespace reflection {
 
 } // namespace reflection
 } // namespace teascript
+
+#endif // TEASCRIPT_EXTENSION_REFLECTCPP 

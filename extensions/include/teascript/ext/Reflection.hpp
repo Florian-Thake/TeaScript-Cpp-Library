@@ -21,8 +21,9 @@
 // 3.b) Or link against a compiled reflectcpp library.
 // 4) Include this header and use the API below.
 
-// Detect reflectcpp include dir is present...
-#if __has_include("rfl.hpp")
+#if defined(TEASCRIPT_EXTENSION_REFLECTCPP)       // set from external, e.g., camke
+// no-op, else auto detect.
+#elif __has_include( "rfl.hpp" )                  // Detect reflectcpp include dir is present...
 # if __has_include("reflectcpp.cpp")
 #  define TEASCRIPT_EXTENSION_REFLECTCPP      2   // src present -> means it could be included in a TU for avoid linking against a separate static lib.
 # else

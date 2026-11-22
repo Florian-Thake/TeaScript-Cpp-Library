@@ -8,6 +8,10 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    TEASCRIPT: Prepared Json, Toml, Reflection and Print switches are better controllable from extern (e.g. cmake).
+    - introduced platformdefs.h for platform / compiler defines, starting with TEASCRIPT_CPLUSPLUS.
+    - TEASCRIPT_[PRINT|ERROR] can now be set from outside for use an arbitrary sink for string output.
+
     FUNC: added LibraryFunctionTemplate.hpp and moved the main template into it (preparing for user callback).
 
     CORELIB: added feature opt-out for Network[Client|Server], ChangeCWD and Import Modules.
