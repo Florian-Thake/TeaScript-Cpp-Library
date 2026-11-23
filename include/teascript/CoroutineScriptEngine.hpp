@@ -12,6 +12,7 @@
 #include <memory> // std::shared_ptr
 #include <atomic> // std::atomic_bool
 
+#include "teascript/platformdefs.h"
 #include "teascript/Context.hpp"
 #include "teascript/ConfigEnums.hpp" // could be forward declared but user needs it for the ::Build() function below anyway.
 #include "teascript/Content.hpp"     // could be forward declared but user needs it for the ::Build() function below anyway.

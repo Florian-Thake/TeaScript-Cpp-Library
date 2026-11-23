@@ -12,8 +12,9 @@
 // Define this if toml++ is present in your include pathes but you want to disable the support in TeaScript.
 //#define TEASCRIPT_DISABLE_TOMLSUPPORT    1
 
+#include "platformdefs.h"
 
-#if defined( TEASCRIPT_TOMLSUPPORT ) // set from external, e.g., camke
+#if defined( TEASCRIPT_TOMLSUPPORT ) // set from external, e.g., cmake
 // no-op, else auto detect.
 #elif __has_include( "toml++/toml.hpp" ) && !defined( TEASCRIPT_DISABLE_TOMLSUPPORT )
 # define TEASCRIPT_TOMLSUPPORT  1

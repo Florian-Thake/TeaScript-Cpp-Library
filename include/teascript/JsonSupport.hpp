@@ -17,6 +17,7 @@
 // includes will be found, e.g. add JsonAdapterNlohmann.cpp to your project and the include path to find #include "nlohmann/json.hpp"
 //#define TEASCRIPT_JSON_FLAVOR            TEASCRIPT_JSON_PICO
 
+#include "platformdefs.h"
 
 #if !TEASCRIPT_DISABLE_JSONSUPPORT
 

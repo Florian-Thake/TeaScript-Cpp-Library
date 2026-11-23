@@ -7,9 +7,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 /* classical guards if someone uses very old C  ... and of course also only C90 comments ;-) */
-#ifndef TEASCRIPT_VERSION_HEADER_INC_GAURD
-#define TEASCRIPT_VERSION_HEADER_INC_GAURD
-
+#ifndef TEASCRIPT_VERSION_HEADER_INC_GUARD
+#define TEASCRIPT_VERSION_HEADER_INC_GUARD
+#pragma once
 
 
 #define TEASCRIPT_NAME       "TeaScript"
@@ -125,4 +125,4 @@ constexpr char const *copyright_info() noexcept
 
 #endif /* __cplusplus */
 
-#endif /* TEASCRIPT_VERSION_HEADER_INC_GAURD */
+#endif /* TEASCRIPT_VERSION_HEADER_INC_GUARD */

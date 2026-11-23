@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include "platformdefs.h"
 #include "ConfigEnums.hpp"
 #include "StackVMProgram.hpp"
 #include "ASTNode.hpp"

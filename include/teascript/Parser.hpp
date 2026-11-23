@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include "platformdefs.h"
 #include "Content.hpp"
 #include "ParsingState.hpp"
 #include "ASTNode.hpp"

@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include "platformdefs.h"
 #include "StackVMProgram.hpp"
 #include "StackVMConstraints.hpp"
 #include "Context.hpp"

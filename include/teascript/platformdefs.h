@@ -7,12 +7,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/
  */
 /* classical guards because this file might become useful to be includeable in C at some point. Should be compatible to C89/90 */
-#ifndef TEASCRIPT_PLATFORMDEFS_HEADER_INC_GAURD
-#define TEASCRIPT_PLATFORMDEFS_HEADER_INC_GAURD
+#ifndef TEASCRIPT_PLATFORMDEFS_HEADER_INC_GUARD
+#define TEASCRIPT_PLATFORMDEFS_HEADER_INC_GUARD
 #pragma once
 
 /* This file is meant to define several platform / compiler depending things which are relevant for specific TeaScript feature implementations. 
 */
+
+/* custom user header for set global defines, e.g., TEASCRIPT_PRINT(...) */
+#if defined(TEASCRIPT_USER_CONFIG_HEADER)
+# include TEASCRIPT_USER_CONFIG_HEADER
+#endif
+
 
 /* TeaScript's helper macro for the C++ standard version */
 #if defined(__cplusplus)
@@ -26,5 +32,5 @@
 # define TEASCRIPT_CPLUSPLUS   0
 #endif
 
-#endif // TEASCRIPT_PLATFORMDEFS_HEADER_INC_GAURD
+#endif /* TEASCRIPT_PLATFORMDEFS_HEADER_INC_GUARD */
 

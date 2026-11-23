@@ -28,7 +28,7 @@
 // 1.) Use fmt::print if available (this will offer the most possible features, e.g. colored output, string formatting within script code, etc...)
 // 2.) Use C++23 std::print if available.
 // 3.) Use C++20 std::cout + std::format
-#if TEASCRIPT_FMTFORMAT != 0  // set from external, e.g., camke
+#if TEASCRIPT_FMTFORMAT != 0  // set from external, e.g., cmake
 // no-op, else auto detect.
 #elif !defined(TEASCRIPT_FMTFORMAT) && __has_include( "fmt/format.h" ) && !defined( TEASCRIPT_DISABLE_FMTLIB )
 # define TEASCRIPT_FMTFORMAT      1

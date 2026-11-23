@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include "platformdefs.h"
 #include "ConfigEnums.hpp"
 #include "StackVMInstructions.hpp"
 #include "SourceLocation.hpp"

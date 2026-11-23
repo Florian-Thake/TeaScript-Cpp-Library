@@ -16,6 +16,7 @@
 #include <iostream> // for << operator
 #include <cmath> // isfinite
 
+#include "Print.hpp"  // we need to know if fmt is in use for double -> string conversion
 #include "Type.hpp"
 #include "FunctionBase.hpp"
 #include "Collection.hpp"
@@ -23,9 +24,6 @@
 #include "Error.hpp"
 #include "Exception.hpp"
 #include "SourceLocation.hpp"
-#include "Print.hpp"  // we need to know if fmt is in use for double -> string conversion
-
-
 
 
 namespace teascript {

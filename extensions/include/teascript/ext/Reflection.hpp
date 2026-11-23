@@ -21,7 +21,9 @@
 // 3.b) Or link against a compiled reflectcpp library.
 // 4) Include this header and use the API below.
 
-#if defined(TEASCRIPT_EXTENSION_REFLECTCPP)       // set from external, e.g., camke
+#include "teascript/platformdefs.h"
+
+#if defined(TEASCRIPT_EXTENSION_REFLECTCPP)       // set from external, e.g., cmake
 // no-op, else auto detect.
 #elif __has_include( "rfl.hpp" )                  // Detect reflectcpp include dir is present...
 # if __has_include("reflectcpp.cpp")
