@@ -42,8 +42,8 @@ enum eConfig : unsigned int
     NoFileRead        = 0x00'00'08'00,
     NoFileWrite       = 0x00'00'10'00,
     NoFileDelete      = 0x00'00'20'00,
-    NoEval            = 0x00'00'40'00,
-    NoEvalFile        = NoFileRead | NoEval, // careful, this turns off all file read operations as well!
+    NoEval            = 0x00'00'40'00,       // this will remove _eval() as well as eval_file()
+    NoEvalFile  [[deprecated("This enum value is misleading, please use NoFileRead | NoEval instead!")]] = NoFileRead | NoEval, // careful, this turns off all file read operations as well!
     NoChangeCWD       = 0x00'00'80'00,       // change_cwd will be unavailable since this effect global program state!
     NoNetworkServer   = 0x00'01'00'00,
     NoNetworkClient   = 0x00'02'00'00,

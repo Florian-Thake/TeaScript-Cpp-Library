@@ -8,6 +8,11 @@ NOTE: The dates are not the release dates, but a last commit date.
 ================
 VERSION 0.18.0 (not released yet, pre-release)
 ================
+    CORELIB: BREAKING: made config::NoEvalFile deprecated because its assumed behavior is misleading.
+    - Please, use NoFileRead | NoEval instead if you really want disable _all_ file read _and_ all eval.
+    - Use NoEval if you want remove _eval() and eval_file().
+
+    TEASCRIPT: added TEASCRIPT_USER_CONFIG_HEADER to platformdefs.h for include a custom user header.
     TEASCRIPT: Prepared Json, Toml, Reflection and Print switches are better controllable from extern (e.g. cmake).
     - introduced platformdefs.h for platform / compiler defines, starting with TEASCRIPT_CPLUSPLUS.
     - TEASCRIPT_[PRINT|ERROR] can now be set from outside for use an arbitrary sink for string output.

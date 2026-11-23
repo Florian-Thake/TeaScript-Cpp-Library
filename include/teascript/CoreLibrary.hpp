@@ -2014,7 +2014,7 @@ protected:
         }
 
         // eval_file : Any (String) --> parses and evaluates the content of the file and returns its result. All defined functions and variables in the top level scope will stay available.
-        if( core_level >= config::LevelCore && not (opt_out & config::NoEvalFile) ) {
+        if( core_level >= config::LevelCore && not (opt_out & (config::NoFileRead | config::NoEval)) ) {
             auto func = std::make_shared< EvalFunc >( true );
             ValueObject val{std::move( func ), cfg_mutable};
             tea_add_var( "eval_file", std::move( val ) ); // missing _ is intended for now.
